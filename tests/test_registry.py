@@ -70,9 +70,9 @@ def test_build_trees(raw_devices: list[dict], raw_entities: list[dict]) -> None:
     assert CIRCUIT_1_DEVICE_ID in circuit_ids
     assert CIRCUIT_2_DEVICE_ID in circuit_ids
 
-    # Kitchen circuit has 2 entities (energy + power)
+    # Kitchen circuit has 3 entities (energy + energy_returned + power)
     kitchen = next(c for c in tree.circuits if c.id == CIRCUIT_1_DEVICE_ID)
-    assert len(kitchen.entities) == 2
+    assert len(kitchen.entities) == 3
 
     # Non-SPAN entities not attached
     for device in [tree.panel, tree.site_metering] + tree.circuits:

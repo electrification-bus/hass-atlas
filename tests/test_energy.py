@@ -29,10 +29,10 @@ def test_build_energy_config_full(span_tree: SpanDeviceTree) -> None:
     assert battery["stat_energy_from"] == "sensor.span_battery_imported_energy"
     assert battery["stat_energy_to"] == "sensor.span_battery_exported_energy"
 
-    # Circuit consumption
+    # Circuit consumption (uses exported-energy = consumption in SPAN convention)
     stats = {d["stat_consumption"] for d in consumption}
-    assert "sensor.span_kitchen_imported_energy" in stats
-    assert "sensor.span_garage_imported_energy" in stats
+    assert "sensor.span_kitchen_energy" in stats
+    assert "sensor.span_garage_energy" in stats
 
 
 def test_build_energy_config_grid_only(span_tree: SpanDeviceTree) -> None:

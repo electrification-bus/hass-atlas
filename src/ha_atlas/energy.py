@@ -110,9 +110,11 @@ def build_energy_config(trees: list[SpanDeviceTree]) -> dict:
                     batt_source["stat_energy_to"] = charge.entity_id
                 energy_sources.append(batt_source)
 
-        # Circuit consumption
+        # Circuit consumption — SPAN convention (panel perspective):
+        # "exported-energy" = energy delivered TO circuit = consumption
+        # "imported-energy" = backfeed FROM circuit (generation)
         for circuit in tree.circuits:
-            circuit_energy = _find_entity_by_property(circuit, "imported-energy")
+            circuit_energy = _find_entity_by_property(circuit, "exported-energy")
             if circuit_energy:
                 device_consumption.append({
                     "stat_consumption": circuit_energy.entity_id,
