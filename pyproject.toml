@@ -1,0 +1,42 @@
+[project]
+name = "ha-atlas"
+version = "0.1.0"
+description = "Home Assistant energy & area configuration CLI"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+    "websockets>=14.0",
+    "click>=8.1",
+    "rich>=13.0",
+    "python-dotenv>=1.0",
+    "zeroconf>=0.130",
+]
+
+[project.scripts]
+ha-atlas = "ha_atlas.cli:cli"
+
+[tool.poetry]
+packages = [{include = "ha_atlas", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0"
+pytest-asyncio = ">=0.24"
+ruff = ">=0.8"
+mypy = ">=1.13"
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 99
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
