@@ -981,9 +981,9 @@ def test_build_energy_topology_daisy_chain_hierarchy(
     powerwall_entities: list[HAEntity],
 ) -> None:
     """Daisy-chain: lead → mid → tail, each panel points to its direct parent."""
-    lead_serial = "nt-2143-c1akc"
-    mid_serial = "nt-2204-c1c46"
-    tail_serial = "nt-2026-c192x"
+    lead_serial = "nt-2024-a1b2c"
+    mid_serial = "nt-2024-d3e4f"
+    tail_serial = "nt-2024-g5h6j"
 
     # Lead panel (no via_device_id)
     lead_panel = HADevice(

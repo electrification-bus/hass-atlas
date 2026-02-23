@@ -21,7 +21,7 @@ def link_panels(ctx: Context, links: tuple[str, ...]) -> None:
 
     Each LINK is child_serial:parent_serial.
 
-    Example: hass-atlas link-panels nt-2204-c1c46:nt-2143-c1akc nt-2026-c192x:nt-2204-c1c46
+    Example: hass-atlas link-panels nt-2024-d3e4f:nt-2024-a1b2c nt-2024-g5h6j:nt-2024-d3e4f
     """
     run_async(_link_panels(ctx, links))
 

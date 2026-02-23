@@ -23,7 +23,7 @@ from hass_atlas.normalize import _compute_renames, _expected_entity_id, _update_
         ("EV-Charger-Circuit-1", "ev_charger_circuit_1"),
         ("Battery Storage", "battery_storage"),
         ("Circuit 050299", "circuit_050299"),
-        ("SPAN Panel nt-2026-c192x", "span_panel_nt_2026_c192x"),
+        ("SPAN Panel nt-2024-g5h6j", "span_panel_nt_2024_g5h6j"),
         ("  Extra  Spaces  ", "extra_spaces"),
         ("café", "cafe"),
     ],

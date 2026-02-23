@@ -153,8 +153,8 @@ Example for a three-panel daisy-chain:
 
 ```bash
 hass-atlas link-panels \
-  nt-2204-c1c46:nt-2143-c1akc \
-  nt-2026-c192x:nt-2204-c1c46
+  nt-2024-d3e4f:nt-2024-a1b2c \
+  nt-2024-g5h6j:nt-2024-d3e4f
 ```
 
 ## How Topology-Aware Configuration Works
