@@ -490,7 +490,23 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
     added_source_eids = cleaned_source_eids - current_source_eids
     removed_source_eids = current_source_eids - cleaned_source_eids
 
-    if not added_consumption and not removed_consumption and not added_source_eids and not removed_source_eids:
+    # Detect metadata updates on existing consumption entries (included_in_stat, stat_rate)
+    current_consumption_map = {d.get("stat_consumption"): d for d in current_consumption}
+    cleaned_consumption_map = {d.get("stat_consumption"): d for d in cleaned_consumption}
+    updated_consumption: dict[str, dict[str, tuple[str | None, str | None]]] = {}
+    for stat in current_consumption_ids & cleaned_consumption_ids:
+        old_entry = current_consumption_map[stat]
+        new_entry = cleaned_consumption_map[stat]
+        diffs: dict[str, tuple[str | None, str | None]] = {}
+        for field in ("included_in_stat", "stat_rate"):
+            old_val = old_entry.get(field)
+            new_val = new_entry.get(field)
+            if old_val != new_val:
+                diffs[field] = (old_val, new_val)
+        if diffs:
+            updated_consumption[stat] = diffs
+
+    if not added_consumption and not removed_consumption and not added_source_eids and not removed_source_eids and not updated_consumption:
         print_ok("No changes needed — energy dashboard is up to date")
         return
 
@@ -503,6 +519,14 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
         print_info(f"Adding {len(added_consumption)} device consumption entry/ies:")
         for eid in sorted(added_consumption):
             console.print(f"  + {eid}")
+
+    if updated_consumption:
+        print_info(f"Updating {len(updated_consumption)} device consumption entry/ies:")
+        for stat in sorted(updated_consumption):
+            for field, (old_val, new_val) in updated_consumption[stat].items():
+                old_disp = old_val or "(none)"
+                new_disp = new_val or "(none)"
+                console.print(f"  ~ {stat}: {field} {old_disp} → {new_disp}")
 
     if removed_source_eids:
         print_info("Removing energy source entity/ies:")

@@ -83,14 +83,20 @@ def _build_trees(
             device.entities = entities_by_device.get(device.id, [])
             span_devices[device.id] = device
 
-    # Find panel devices (no via_device_id or via_device_id not in span_devices)
+    # Separate panel devices from sub-devices (circuits, battery, etc.).
+    # A SPAN Panel device is always a panel even if via_device_id points
+    # to another panel (sub-panel in a daisy-chain).  Only non-panel
+    # child devices are grouped under their parent panel.
+    MODEL_PANEL = "SPAN Panel"
     panels: list[HADevice] = []
     children_by_parent: dict[str, list[HADevice]] = {}
     for device in span_devices.values():
-        if device.via_device_id and device.via_device_id in span_devices:
-            children_by_parent.setdefault(device.via_device_id, []).append(device)
-        else:
+        if device.model == MODEL_PANEL or not (
+            device.via_device_id and device.via_device_id in span_devices
+        ):
             panels.append(device)
+        else:
+            children_by_parent.setdefault(device.via_device_id, []).append(device)
 
     # Build trees
     trees: list[SpanDeviceTree] = []
