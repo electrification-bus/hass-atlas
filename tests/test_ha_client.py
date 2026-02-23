@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ha_atlas.ha_client import HAClient, HAClientError
+from hass_atlas.ha_client import HAClient, HAClientError
 
 
 class FakeWebSocket:
@@ -48,7 +48,7 @@ def auth_fail_ws() -> FakeWebSocket:
 
 @pytest.mark.asyncio
 async def test_connect_and_auth(auth_ok_ws: FakeWebSocket) -> None:
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=auth_ok_ws)
         async with HAClient("http://ha.local:8123", "test-token") as client:
             assert client is not None
@@ -60,7 +60,7 @@ async def test_connect_and_auth(auth_ok_ws: FakeWebSocket) -> None:
 
 @pytest.mark.asyncio
 async def test_auth_failure(auth_fail_ws: FakeWebSocket) -> None:
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=auth_fail_ws)
         with pytest.raises(HAClientError, match="Auth failed"):
             async with HAClient("http://ha.local:8123", "bad-token"):
@@ -74,7 +74,7 @@ async def test_send_command() -> None:
         json.dumps({"type": "auth_ok"}),
         json.dumps({"id": 1, "type": "result", "success": True, "result": [{"id": "dev1"}]}),
     ])
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=ws)
         async with HAClient("http://ha.local:8123", "token") as client:
             result = await client.send_command("config/device_registry/list")
@@ -94,7 +94,7 @@ async def test_send_command_error() -> None:
             "error": {"code": "not_found", "message": "Entity not found"},
         }),
     ])
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=ws)
         async with HAClient("http://ha.local:8123", "token") as client:
             with pytest.raises(HAClientError, match="Entity not found"):
@@ -108,7 +108,7 @@ async def test_send_command_with_kwargs() -> None:
         json.dumps({"type": "auth_ok"}),
         json.dumps({"id": 1, "type": "result", "success": True, "result": {"area_id": "new"}}),
     ])
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=ws)
         async with HAClient("http://ha.local:8123", "token") as client:
             result = await client.send_command(
@@ -136,7 +136,7 @@ async def test_auto_increment_ids() -> None:
         json.dumps({"id": 1, "type": "result", "success": True, "result": []}),
         json.dumps({"id": 2, "type": "result", "success": True, "result": []}),
     ])
-    with patch("ha_atlas.ha_client.websockets") as mock_ws:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=ws)
         async with HAClient("http://ha.local:8123", "token") as client:
             await client.send_command("config/device_registry/list")

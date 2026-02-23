@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from ha_atlas.models import HADevice, HAEntity, SpanDeviceTree
-from ha_atlas.normalize import _compute_renames, _expected_entity_id, _update_energy_prefs, slugify
+from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.normalize import _compute_renames, _expected_entity_id, _update_energy_prefs, slugify
 
 
 # ---------------------------------------------------------------------------

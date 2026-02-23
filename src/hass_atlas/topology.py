@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ha_atlas.models import HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
 
 # ---------------------------------------------------------------------------
 # Vendor → HA integration platform mapping

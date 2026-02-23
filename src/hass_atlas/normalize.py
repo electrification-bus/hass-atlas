@@ -9,11 +9,11 @@ from typing import Any
 
 import click
 
-from ha_atlas.context import Context, pass_ctx, run_async
-from ha_atlas.ha_client import HAClient
-from ha_atlas.models import HADevice, HAEntity
-from ha_atlas.output import console, print_dry_run, print_error, print_info, print_ok, print_warn
-from ha_atlas.registry import fetch_energy_prefs, fetch_span_trees
+from hass_atlas.context import Context, pass_ctx, run_async
+from hass_atlas.ha_client import HAClient
+from hass_atlas.models import HADevice, HAEntity
+from hass_atlas.output import console, print_dry_run, print_error, print_info, print_ok, print_warn
+from hass_atlas.registry import fetch_energy_prefs, fetch_span_trees
 
 
 def slugify(text: str) -> str:

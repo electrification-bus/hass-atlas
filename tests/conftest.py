@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from ha_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
 
 
 SERIAL = "nt-0000-abc12"

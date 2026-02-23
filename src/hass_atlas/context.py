@@ -7,7 +7,7 @@ from typing import Any
 
 import click
 
-from ha_atlas.ha_client import HAClient
+from hass_atlas.ha_client import HAClient
 
 
 class Context:

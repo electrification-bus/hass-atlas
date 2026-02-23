@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ha_atlas.ha_client import HAClient
-from ha_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.ha_client import HAClient
+from hass_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
 
 DOMAIN = "span_ebus"
 

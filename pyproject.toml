@@ -1,5 +1,5 @@
 [project]
-name = "ha-atlas"
+name = "hass-atlas"
 version = "0.1.0"
 description = "Home Assistant energy & area configuration CLI"
 requires-python = ">=3.12"
@@ -13,10 +13,10 @@ dependencies = [
 ]
 
 [project.scripts]
-ha-atlas = "ha_atlas.cli:cli"
+hass-atlas = "hass_atlas.cli:cli"
 
 [tool.poetry]
-packages = [{include = "ha_atlas", from = "src"}]
+packages = [{include = "hass_atlas", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"

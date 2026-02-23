@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import click
 
-from ha_atlas.context import Context, pass_ctx, run_async
-from ha_atlas.energy import extract_energy_entity_ids
-from ha_atlas.output import console, print_info, print_ok, print_warn, render_json, render_table, render_tree
-from ha_atlas.registry import fetch_energy_prefs, fetch_span_trees
+from hass_atlas.context import Context, pass_ctx, run_async
+from hass_atlas.energy import extract_energy_entity_ids
+from hass_atlas.output import console, print_info, print_ok, print_warn, render_json, render_table, render_tree
+from hass_atlas.registry import fetch_energy_prefs, fetch_span_trees
 
 
 @click.command()

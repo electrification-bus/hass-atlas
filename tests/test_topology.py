@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ha_atlas.energy import build_topology_aware_config
-from ha_atlas.models import HADevice, HAEntity, SpanDeviceTree
-from ha_atlas.topology import (
+from hass_atlas.energy import build_topology_aware_config
+from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.topology import (
     VENDOR_PLATFORM_MAP,
     EnergyIntegration,
     SpanTopology,
@@ -738,7 +738,7 @@ def test_build_topology_aware_config_full(
 
 def test_backward_compat_basic_energy_command(span_tree: SpanDeviceTree) -> None:
     """The original build_energy_config still works unchanged."""
-    from ha_atlas.energy import build_energy_config
+    from hass_atlas.energy import build_energy_config
 
     config = build_energy_config([span_tree])
     source_types = {s["type"] for s in config["energy_sources"]}

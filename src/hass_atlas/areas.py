@@ -6,10 +6,10 @@ import json
 
 import click
 
-from ha_atlas.context import Context, pass_ctx, run_async
-from ha_atlas.models import HAArea
-from ha_atlas.output import print_dry_run, print_info, print_ok, print_warn
-from ha_atlas.registry import fetch_areas, fetch_span_trees
+from hass_atlas.context import Context, pass_ctx, run_async
+from hass_atlas.models import HAArea
+from hass_atlas.output import print_dry_run, print_info, print_ok, print_warn
+from hass_atlas.registry import fetch_areas, fetch_span_trees
 
 
 @click.command()

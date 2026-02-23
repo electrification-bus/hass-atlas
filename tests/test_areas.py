@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from ha_atlas.areas import _plan_assignments
-from ha_atlas.models import HAArea, SpanDeviceTree
+from hass_atlas.areas import _plan_assignments
+from hass_atlas.models import HAArea, SpanDeviceTree
 
 
 def test_plan_assignments_default_mapping(

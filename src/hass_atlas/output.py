@@ -10,8 +10,8 @@ from rich.table import Table
 from rich.tree import Tree
 
 if TYPE_CHECKING:
-    from ha_atlas.models import HADevice, HAEntity, SpanDeviceTree
-    from ha_atlas.topology import EnergyTopology
+    from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
+    from hass_atlas.topology import EnergyTopology
 
 console = Console()
 

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ha_atlas.audit import _report_energy_gaps, _report_no_area
-from ha_atlas.energy import extract_energy_entity_ids as _extract_energy_entity_ids
-from ha_atlas.models import SpanDeviceTree
+from hass_atlas.audit import _report_energy_gaps, _report_no_area
+from hass_atlas.energy import extract_energy_entity_ids as _extract_energy_entity_ids
+from hass_atlas.models import SpanDeviceTree
 
 
 def test_extract_energy_entity_ids_grid() -> None:

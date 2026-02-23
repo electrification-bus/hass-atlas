@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ha_atlas.energy import (
+from hass_atlas.energy import (
     apply_topology_prefs,
     build_energy_config,
     extract_energy_entity_ids,
@@ -10,8 +10,8 @@ from ha_atlas.energy import (
     merge_prefs,
     remove_stale_references,
 )
-from ha_atlas.models import SpanDeviceTree
-from ha_atlas.topology import EnergyRole, EnergyTopology
+from hass_atlas.models import SpanDeviceTree
+from hass_atlas.topology import EnergyRole, EnergyTopology
 
 
 def test_build_energy_config_full(span_tree: SpanDeviceTree) -> None:
@@ -545,7 +545,7 @@ def test_build_topology_config_included_in_stat() -> None:
                        "ok", parent_entity_id="sensor.panel_energy"),
         ],
     )
-    from ha_atlas.energy import build_topology_aware_config
+    from hass_atlas.energy import build_topology_aware_config
     config = build_topology_aware_config(topo)
     consumption = config["device_consumption"]
 
@@ -622,7 +622,7 @@ def test_build_topology_config_stat_rate() -> None:
                        "ok"),  # no power sensor
         ],
     )
-    from ha_atlas.energy import build_topology_aware_config
+    from hass_atlas.energy import build_topology_aware_config
     config = build_topology_aware_config(topo)
     consumption = config["device_consumption"]
 
@@ -644,7 +644,7 @@ def test_build_topology_config_solar_stat_rate() -> None:
                        "PV IN_PANEL", rate_entity_id="sensor.pv_power"),
         ],
     )
-    from ha_atlas.energy import build_topology_aware_config
+    from hass_atlas.energy import build_topology_aware_config
     config = build_topology_aware_config(topo)
     solar = next(s for s in config["energy_sources"] if s["type"] == "solar")
     assert solar["stat_rate"] == "sensor.pv_power"
@@ -660,7 +660,7 @@ def test_build_topology_config_battery_stat_rate() -> None:
                        "ok", rate_entity_id="sensor.batt_power"),
         ],
     )
-    from ha_atlas.energy import build_topology_aware_config
+    from hass_atlas.energy import build_topology_aware_config
     config = build_topology_aware_config(topo)
     battery = next(s for s in config["energy_sources"] if s["type"] == "battery")
     assert battery["stat_rate"] == "sensor.batt_power"

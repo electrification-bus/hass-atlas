@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ha_atlas.registry import (
+from hass_atlas.registry import (
     _build_trees,
     _is_span_device,
     _parse_area,
