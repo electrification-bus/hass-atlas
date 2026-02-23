@@ -974,3 +974,190 @@ def test_build_energy_topology_multi_panel_hierarchy(
     sub_circuits = [a for a in consumption if a.parent_entity_id == sub_eid]
     assert len(sub_circuits) == 1
     assert sub_circuits[0].entity_id == "sensor.sub_kitchen_energy"
+
+
+def test_build_energy_topology_daisy_chain_hierarchy(
+    powerwall_device: HADevice,
+    powerwall_entities: list[HAEntity],
+) -> None:
+    """Daisy-chain: lead → mid → tail, each panel points to its direct parent."""
+    lead_serial = "nt-2143-c1akc"
+    mid_serial = "nt-2204-c1c46"
+    tail_serial = "nt-2026-c192x"
+
+    # Lead panel (no via_device_id)
+    lead_panel = HADevice(
+        id="dev-lead",
+        name="Lead Panel",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", lead_serial)],
+    )
+    lead_site_meter = HADevice(
+        id="dev-lead-sm",
+        name="Lead Site Metering",
+        model="Site Metering",
+        identifiers=[("span_ebus", f"{lead_serial}_site-meter")],
+        via_device_id="dev-lead",
+        entities=[
+            HAEntity(
+                entity_id="sensor.lead_imported_energy",
+                unique_id=f"{lead_serial}_site-meter_imported-energy",
+                platform="span_ebus", device_id="dev-lead-sm",
+            ),
+        ],
+    )
+    lead_circuit = HADevice(
+        id="dev-lead-c1",
+        name="Lead Kitchen",
+        model="Circuit",
+        identifiers=[("span_ebus", f"{lead_serial}_lc1")],
+        via_device_id="dev-lead",
+        entities=[
+            HAEntity(
+                entity_id="sensor.lead_kitchen_energy",
+                unique_id=f"{lead_serial}_lc1_exported-energy",
+                platform="span_ebus", device_id="dev-lead-c1",
+            ),
+        ],
+    )
+    lead_tree = SpanDeviceTree(
+        panel=lead_panel, circuits=[lead_circuit], site_metering=lead_site_meter,
+    )
+
+    # Mid panel (via_device_id → lead)
+    mid_panel = HADevice(
+        id="dev-mid",
+        name="Mid Panel",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", mid_serial)],
+        via_device_id="dev-lead",
+    )
+    mid_site_meter = HADevice(
+        id="dev-mid-sm",
+        name="Mid Site Metering",
+        model="Site Metering",
+        identifiers=[("span_ebus", f"{mid_serial}_site-meter")],
+        via_device_id="dev-mid",
+        entities=[
+            HAEntity(
+                entity_id="sensor.mid_imported_energy",
+                unique_id=f"{mid_serial}_site-meter_imported-energy",
+                platform="span_ebus", device_id="dev-mid-sm",
+            ),
+        ],
+    )
+    mid_circuit = HADevice(
+        id="dev-mid-c1",
+        name="Mid Kitchen",
+        model="Circuit",
+        identifiers=[("span_ebus", f"{mid_serial}_mc1")],
+        via_device_id="dev-mid",
+        entities=[
+            HAEntity(
+                entity_id="sensor.mid_kitchen_energy",
+                unique_id=f"{mid_serial}_mc1_exported-energy",
+                platform="span_ebus", device_id="dev-mid-c1",
+            ),
+        ],
+    )
+    mid_tree = SpanDeviceTree(
+        panel=mid_panel, circuits=[mid_circuit], site_metering=mid_site_meter,
+    )
+
+    # Tail panel (via_device_id → mid)
+    tail_panel = HADevice(
+        id="dev-tail",
+        name="Tail Panel",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", tail_serial)],
+        via_device_id="dev-mid",
+    )
+    tail_site_meter = HADevice(
+        id="dev-tail-sm",
+        name="Tail Site Metering",
+        model="Site Metering",
+        identifiers=[("span_ebus", f"{tail_serial}_site-meter")],
+        via_device_id="dev-tail",
+        entities=[
+            HAEntity(
+                entity_id="sensor.tail_imported_energy",
+                unique_id=f"{tail_serial}_site-meter_imported-energy",
+                platform="span_ebus", device_id="dev-tail-sm",
+            ),
+        ],
+    )
+    tail_circuit = HADevice(
+        id="dev-tail-c1",
+        name="Tail Office",
+        model="Circuit",
+        identifiers=[("span_ebus", f"{tail_serial}_tc1")],
+        via_device_id="dev-tail",
+        entities=[
+            HAEntity(
+                entity_id="sensor.tail_office_energy",
+                unique_id=f"{tail_serial}_tc1_exported-energy",
+                platform="span_ebus", device_id="dev-tail-c1",
+            ),
+        ],
+    )
+    tail_tree = SpanDeviceTree(
+        panel=tail_panel, circuits=[tail_circuit], site_metering=tail_site_meter,
+    )
+
+    # All panels must see BESS UPSTREAM for Powerwall to claim grid source,
+    # freeing SPAN upstream entities for Sankey hierarchy
+    lead_topo = SpanTopology(serial=lead_serial, battery_position="UPSTREAM",
+                             battery_vendor="Tesla", is_lead_panel=True)
+    mid_topo = SpanTopology(serial=mid_serial, battery_position="UPSTREAM",
+                            battery_vendor="Tesla", is_lead_panel=False)
+    tail_topo = SpanTopology(serial=tail_serial, battery_position="UPSTREAM",
+                             battery_vendor="Tesla", is_lead_panel=False)
+
+    # Pass trees in REVERSE order to also test topological sort
+    trees = [tail_tree, mid_tree, lead_tree]
+    topos = [lead_topo, mid_topo, tail_topo]
+    integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
+    circuit_roles = classify_circuits(trees, topos)
+
+    result = build_energy_topology(trees, topos, integrations, circuit_roles)
+
+    consumption = [a for a in result.role_assignments
+                   if a.role == "device_consumption" and a.preferred]
+
+    # Lead panel — no parent (it's the root)
+    lead_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
+                    and a.parent_entity_id is None]
+    assert len(lead_entries) == 1
+    lead_eid = lead_entries[0].entity_id
+    assert lead_eid == "sensor.lead_imported_energy"
+
+    # Mid panel — parent is lead panel
+    mid_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
+                   and a.parent_entity_id == lead_eid]
+    assert len(mid_entries) == 1
+    mid_eid = mid_entries[0].entity_id
+    assert mid_eid == "sensor.mid_imported_energy"
+
+    # Tail panel — parent is mid panel (NOT lead panel)
+    tail_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
+                    and a.parent_entity_id == mid_eid]
+    assert len(tail_entries) == 1
+    tail_eid = tail_entries[0].entity_id
+    assert tail_eid == "sensor.tail_imported_energy"
+
+    # Lead circuits → parent is lead panel
+    lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid
+                     and "Sankey hierarchy" not in a.reason]
+    assert len(lead_circuits) == 1
+    assert lead_circuits[0].entity_id == "sensor.lead_kitchen_energy"
+
+    # Mid circuits → parent is mid panel
+    mid_circuits = [a for a in consumption if a.parent_entity_id == mid_eid
+                    and "Sankey hierarchy" not in a.reason]
+    assert len(mid_circuits) == 1
+    assert mid_circuits[0].entity_id == "sensor.mid_kitchen_energy"
+
+    # Tail circuits → parent is tail panel
+    tail_circuits = [a for a in consumption if a.parent_entity_id == tail_eid]
+    assert len(tail_circuits) == 1
+    assert tail_circuits[0].entity_id == "sensor.tail_office_energy"

@@ -73,10 +73,12 @@ from ha_atlas.audit import audit  # noqa: E402
 from ha_atlas.areas import areas  # noqa: E402
 from ha_atlas.energy import energy, energy_audit, energy_topology  # noqa: E402
 from ha_atlas.normalize import normalize  # noqa: E402
+from ha_atlas.panels import link_panels  # noqa: E402
 
 cli.add_command(audit)
 cli.add_command(areas)
 cli.add_command(energy)
 cli.add_command(energy_audit)
 cli.add_command(energy_topology)
+cli.add_command(link_panels)
 cli.add_command(normalize)

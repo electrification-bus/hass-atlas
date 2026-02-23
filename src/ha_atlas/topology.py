@@ -423,6 +423,50 @@ def _find_upstream_energy(
     return _find_circuit_entity(tree.panel, suffix)
 
 
+def _topo_sort_trees(
+    trees: list[SpanDeviceTree],
+    device_id_to_serial: dict[str, str],
+) -> list[SpanDeviceTree]:
+    """Sort trees so parents appear before children (for panel_parent_eids build).
+
+    Trees with no via_device_id (or whose via_device_id points outside the
+    SPAN panel set) come first, followed by their children, etc.
+    """
+    serial_to_tree: dict[str, SpanDeviceTree] = {}
+    for tree in trees:
+        if tree.serial:
+            serial_to_tree[tree.serial] = tree
+
+    # Build adjacency: serial → list of child serials
+    children: dict[str, list[str]] = {s: [] for s in serial_to_tree}
+    roots: list[str] = []
+    for tree in trees:
+        serial = tree.serial
+        if not serial:
+            continue
+        parent_serial = device_id_to_serial.get(tree.panel.via_device_id or "")
+        if parent_serial and parent_serial in serial_to_tree:
+            children[parent_serial].append(serial)
+        else:
+            roots.append(serial)
+
+    # BFS from roots
+    result: list[SpanDeviceTree] = []
+    queue = list(roots)
+    while queue:
+        s = queue.pop(0)
+        result.append(serial_to_tree[s])
+        queue.extend(children.get(s, []))
+
+    # Append any trees not reached (shouldn't happen, but be safe)
+    seen = {t.serial for t in result}
+    for tree in trees:
+        if tree.serial and tree.serial not in seen:
+            result.append(tree)
+
+    return result
+
+
 def _find_entity_on_integration(
     integration: EnergyIntegration,
     keyword: str,
@@ -695,31 +739,30 @@ def build_energy_topology(
     # Build serial → topology lookup
     topo_by_serial: dict[str, SpanTopology] = {t.serial: t for t in topologies}
 
-    # Find lead panel's upstream imported-energy (for sub-panel parent linkage)
-    lead_panel_upstream_eid: str | None = None
-    for topo in topologies:
-        if topo.is_lead_panel:
-            for tree in trees:
-                if tree.serial == topo.serial:
-                    lead_upstream = _find_upstream_energy(tree, "imported-energy")
-                    if lead_upstream and lead_upstream.entity_id not in preferred_grid_eids:
-                        lead_panel_upstream_eid = lead_upstream.entity_id
-                    break
-            break
+    # Build device_id → serial mapping for following via_device_id chain
+    device_id_to_serial: dict[str, str] = {}
+    for tree in trees:
+        if tree.serial:
+            device_id_to_serial[tree.panel.id] = tree.serial
+
+    # Topological sort: process parent panels before children so
+    # panel_parent_eids has the parent's entry when the child is processed.
+    sorted_trees = _topo_sort_trees(trees, device_id_to_serial)
 
     # Add panel-level consumption entries and build parent mapping
     panel_parent_eids: dict[str, str] = {}  # serial → parent entity_id for circuits
-    for tree in trees:
+    for tree in sorted_trees:
         serial = tree.serial
         if not serial:
             continue
         upstream = _find_upstream_energy(tree, "imported-energy")
         if upstream and upstream.entity_id not in preferred_grid_eids:
-            topo = topo_by_serial.get(serial)
-            # Sub-panels point to lead panel; lead panel has no parent
+            # Follow via_device_id to find direct parent panel's upstream entity
             parent_eid = None
-            if topo and not topo.is_lead_panel and lead_panel_upstream_eid:
-                parent_eid = lead_panel_upstream_eid
+            if tree.panel.via_device_id:
+                parent_serial = device_id_to_serial.get(tree.panel.via_device_id)
+                if parent_serial:
+                    parent_eid = panel_parent_eids.get(parent_serial)
             # Find upstream active-power for stat_rate
             upstream_power = _find_upstream_energy(tree, "active-power")
             assignments.append(EnergyRole(
