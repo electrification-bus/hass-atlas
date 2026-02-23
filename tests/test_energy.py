@@ -526,3 +526,199 @@ def test_apply_topology_preserves_extra_keys() -> None:
     topo = _make_topo()
     result = apply_topology_prefs(current, topo)
     assert result["device_consumption_water"] == [{"stat_consumption": "sensor.water"}]
+
+
+# ---------------------------------------------------------------------------
+# included_in_stat (Sankey hierarchy)
+# ---------------------------------------------------------------------------
+
+
+def test_build_topology_config_included_in_stat() -> None:
+    """build_topology_aware_config emits included_in_stat from parent_entity_id."""
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.panel_energy", "span_ebus", True,
+                       "Panel total", parent_entity_id=None),
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", parent_entity_id="sensor.panel_energy"),
+            EnergyRole("device_consumption", "sensor.garage_energy", "span_ebus", True,
+                       "ok", parent_entity_id="sensor.panel_energy"),
+        ],
+    )
+    from ha_atlas.energy import build_topology_aware_config
+    config = build_topology_aware_config(topo)
+    consumption = config["device_consumption"]
+
+    panel = next(e for e in consumption if e["stat_consumption"] == "sensor.panel_energy")
+    assert "included_in_stat" not in panel
+
+    kitchen = next(e for e in consumption if e["stat_consumption"] == "sensor.kitchen_energy")
+    assert kitchen["included_in_stat"] == "sensor.panel_energy"
+
+    garage = next(e for e in consumption if e["stat_consumption"] == "sensor.garage_energy")
+    assert garage["included_in_stat"] == "sensor.panel_energy"
+
+
+def test_apply_topology_adds_included_in_stat() -> None:
+    """Existing consumption entries get included_in_stat from topology."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [
+            {"stat_consumption": "sensor.kitchen_energy"},
+        ],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.panel_energy", "span_ebus", True,
+                       "Panel total", parent_entity_id=None),
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", parent_entity_id="sensor.panel_energy"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    kitchen = next(e for e in result["device_consumption"]
+                   if e["stat_consumption"] == "sensor.kitchen_energy")
+    assert kitchen["included_in_stat"] == "sensor.panel_energy"
+
+    panel = next(e for e in result["device_consumption"]
+                 if e["stat_consumption"] == "sensor.panel_energy")
+    assert "included_in_stat" not in panel
+
+
+def test_apply_topology_preserves_user_no_parent() -> None:
+    """Non-SPAN user entries don't get included_in_stat."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [
+            {"stat_consumption": "sensor.tasmota_desk"},
+        ],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", parent_entity_id="sensor.panel_energy"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    tasmota = next(e for e in result["device_consumption"]
+                   if e["stat_consumption"] == "sensor.tasmota_desk")
+    assert "included_in_stat" not in tasmota
+
+
+# ---------------------------------------------------------------------------
+# stat_rate (power sensors for Now tab)
+# ---------------------------------------------------------------------------
+
+
+def test_build_topology_config_stat_rate() -> None:
+    """build_topology_aware_config emits stat_rate from rate_entity_id."""
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.kitchen_power"),
+            EnergyRole("device_consumption", "sensor.garage_energy", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.garage_power"),
+            EnergyRole("device_consumption", "sensor.tasmota_energy", "span_ebus", True,
+                       "ok"),  # no power sensor
+        ],
+    )
+    from ha_atlas.energy import build_topology_aware_config
+    config = build_topology_aware_config(topo)
+    consumption = config["device_consumption"]
+
+    kitchen = next(e for e in consumption if e["stat_consumption"] == "sensor.kitchen_energy")
+    assert kitchen["stat_rate"] == "sensor.kitchen_power"
+
+    garage = next(e for e in consumption if e["stat_consumption"] == "sensor.garage_energy")
+    assert garage["stat_rate"] == "sensor.garage_power"
+
+    tasmota = next(e for e in consumption if e["stat_consumption"] == "sensor.tasmota_energy")
+    assert "stat_rate" not in tasmota
+
+
+def test_build_topology_config_solar_stat_rate() -> None:
+    """build_topology_aware_config emits stat_rate on solar source."""
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("solar", "sensor.pv_energy", "span_ebus", True,
+                       "PV IN_PANEL", rate_entity_id="sensor.pv_power"),
+        ],
+    )
+    from ha_atlas.energy import build_topology_aware_config
+    config = build_topology_aware_config(topo)
+    solar = next(s for s in config["energy_sources"] if s["type"] == "solar")
+    assert solar["stat_rate"] == "sensor.pv_power"
+
+
+def test_build_topology_config_battery_stat_rate() -> None:
+    """build_topology_aware_config emits stat_rate on battery source."""
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("battery_discharge", "sensor.batt_discharge", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.batt_power"),
+            EnergyRole("battery_charge", "sensor.batt_charge", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.batt_power"),
+        ],
+    )
+    from ha_atlas.energy import build_topology_aware_config
+    config = build_topology_aware_config(topo)
+    battery = next(s for s in config["energy_sources"] if s["type"] == "battery")
+    assert battery["stat_rate"] == "sensor.batt_power"
+
+
+def test_apply_topology_adds_stat_rate() -> None:
+    """Existing consumption entries get stat_rate from topology."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [
+            {"stat_consumption": "sensor.kitchen_energy"},
+        ],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.kitchen_power"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    kitchen = next(e for e in result["device_consumption"]
+                   if e["stat_consumption"] == "sensor.kitchen_energy")
+    assert kitchen["stat_rate"] == "sensor.kitchen_power"
+
+
+def test_apply_topology_preserves_user_stat_rate() -> None:
+    """User-configured entries keep their own stat_rate untouched."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [
+            {"stat_consumption": "sensor.tasmota_energy", "stat_rate": "sensor.tasmota_power"},
+        ],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.kitchen_power"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    tasmota = next(e for e in result["device_consumption"]
+                   if e["stat_consumption"] == "sensor.tasmota_energy")
+    assert tasmota["stat_rate"] == "sensor.tasmota_power"
+
+
+def test_apply_topology_new_entries_get_stat_rate() -> None:
+    """Newly added consumption entries include stat_rate."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", rate_entity_id="sensor.kitchen_power"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    kitchen = result["device_consumption"][0]
+    assert kitchen["stat_consumption"] == "sensor.kitchen_energy"
+    assert kitchen["stat_rate"] == "sensor.kitchen_power"

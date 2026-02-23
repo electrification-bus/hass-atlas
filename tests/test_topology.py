@@ -18,6 +18,7 @@ from ha_atlas.topology import (
 from tests.conftest import (
     BESS_FEED_CIRCUIT_NODE_ID,
     CIRCUIT_1_NODE_ID,
+    PANEL_DEVICE_ID,
     PV_FEED_CIRCUIT_DEVICE_ID,
     PV_FEED_CIRCUIT_NODE_ID,
     PW_DEVICE_ID,
@@ -768,3 +769,208 @@ def test_circuit_node_id_non_span() -> None:
     """Non-span device returns None."""
     device = HADevice(id="d1", name="X", identifiers=[("hue", "abc_def")])
     assert _circuit_node_id(device) is None
+
+
+# ---------------------------------------------------------------------------
+# build_energy_topology — rate_entity_id for power sensors
+# ---------------------------------------------------------------------------
+
+
+def test_build_energy_topology_circuit_rate_entity_id(
+    span_tree: SpanDeviceTree,
+) -> None:
+    """Circuits with active-power entities get rate_entity_id set."""
+    topo = SpanTopology(serial=SERIAL, is_lead_panel=True)
+    circuit_roles = classify_circuits([span_tree], [topo])
+    result = build_energy_topology([span_tree], [topo], [], circuit_roles)
+
+    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+    # Kitchen circuit has active-power entity in conftest
+    kitchen = next(a for a in consumption if "kitchen" in a.entity_id)
+    assert kitchen.rate_entity_id == "sensor.span_kitchen_active_power"
+
+    # Garage circuit does NOT have active-power entity in conftest
+    garage = next(a for a in consumption if "garage" in a.entity_id)
+    assert garage.rate_entity_id is None
+
+
+def test_build_energy_topology_solar_rate_entity_id(
+    panel_device: HADevice,
+    site_meter_device: HADevice,
+    pv_feed_circuit: HADevice,
+    circuit_devices: list[HADevice],
+) -> None:
+    """Solar IN_PANEL: PV feed circuit gets rate_entity_id if active-power exists."""
+    # Add an active-power entity to the PV feed circuit
+    from tests.conftest import make_entity, PV_FEED_CIRCUIT_DEVICE_ID, PV_FEED_CIRCUIT_NODE_ID
+    pv_feed_circuit.entities.append(make_entity(
+        "sensor.span_pv_system_power",
+        f"{SERIAL}_{PV_FEED_CIRCUIT_NODE_ID}_active-power",
+        PV_FEED_CIRCUIT_DEVICE_ID,
+        device_class="power",
+    ))
+    tree = SpanDeviceTree(
+        panel=panel_device,
+        circuits=[pv_feed_circuit] + circuit_devices,
+        site_metering=site_meter_device,
+    )
+    topo = SpanTopology(
+        serial=SERIAL,
+        solar_position="IN_PANEL",
+        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
+    )
+    circuit_roles = classify_circuits([tree], [topo])
+    result = build_energy_topology([tree], [topo], [], circuit_roles)
+
+    solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
+    assert solar.rate_entity_id == "sensor.span_pv_system_power"
+
+
+# ---------------------------------------------------------------------------
+# build_energy_topology — parent_entity_id for Sankey hierarchy
+# ---------------------------------------------------------------------------
+
+
+def test_build_energy_topology_panel_parents_bess_upstream(
+    span_tree: SpanDeviceTree,
+    powerwall_device: HADevice,
+    powerwall_entities: list[HAEntity],
+) -> None:
+    """BESS UPSTREAM: panel upstream → device_consumption parent, circuits get parent_entity_id."""
+    topo = SpanTopology(
+        serial=SERIAL,
+        battery_position="UPSTREAM",
+        battery_vendor="Tesla",
+        is_lead_panel=True,
+    )
+    integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
+    circuit_roles = classify_circuits([span_tree], [topo])
+
+    result = build_energy_topology([span_tree], [topo], integrations, circuit_roles)
+
+    # Panel upstream should be added as device_consumption (it's non-preferred for grid)
+    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+    panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
+    assert len(panel_entries) == 1
+    panel_eid = panel_entries[0].entity_id
+    assert panel_entries[0].parent_entity_id is None  # lead panel has no parent
+
+    # Circuit entries should have parent_entity_id pointing to panel
+    circuit_entries = [a for a in consumption if a.entity_id != panel_eid]
+    assert len(circuit_entries) == 2  # kitchen + garage
+    for ce in circuit_entries:
+        assert ce.parent_entity_id == panel_eid
+
+
+def test_build_energy_topology_no_parents_when_span_is_grid(
+    span_tree: SpanDeviceTree,
+) -> None:
+    """No BESS UPSTREAM: panel upstream IS the grid source, no panel consumption entry."""
+    topo = SpanTopology(serial=SERIAL, is_lead_panel=True)
+    circuit_roles = classify_circuits([span_tree], [topo])
+
+    result = build_energy_topology([span_tree], [topo], [], circuit_roles)
+
+    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+    # No panel-level entries (upstream is the grid source)
+    panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
+    assert len(panel_entries) == 0
+    # Circuits have no parent
+    for a in consumption:
+        assert a.parent_entity_id is None
+
+
+def test_build_energy_topology_multi_panel_hierarchy(
+    panel_device: HADevice,
+    site_meter_device: HADevice,
+    circuit_devices: list[HADevice],
+    powerwall_device: HADevice,
+    powerwall_entities: list[HAEntity],
+) -> None:
+    """Multi-panel: lead → sub-panel → circuits, 3-level hierarchy."""
+    lead_serial = SERIAL
+    sub_serial = "nt-0000-sub01"
+
+    # Lead panel tree
+    lead_tree = SpanDeviceTree(
+        panel=panel_device,
+        circuits=circuit_devices,
+        site_metering=site_meter_device,
+    )
+
+    # Sub-panel tree
+    sub_panel = HADevice(
+        id="dev-sub-panel",
+        name="Sub Panel",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", sub_serial)],
+        via_device_id=PANEL_DEVICE_ID,
+    )
+    sub_site_meter = HADevice(
+        id="dev-sub-site-meter",
+        name="Sub Site Metering",
+        model="Site Metering",
+        identifiers=[("span_ebus", f"{sub_serial}_site-meter")],
+        via_device_id="dev-sub-panel",
+        entities=[
+            HAEntity(
+                entity_id="sensor.sub_site_imported_energy",
+                unique_id=f"{sub_serial}_site-meter_imported-energy",
+                platform="span_ebus", device_id="dev-sub-site-meter",
+            ),
+        ],
+    )
+    sub_circuit = HADevice(
+        id="dev-sub-circuit-001",
+        name="Sub Kitchen",
+        model="Circuit",
+        identifiers=[("span_ebus", f"{sub_serial}_sc1-node")],
+        via_device_id="dev-sub-panel",
+        entities=[
+            HAEntity(
+                entity_id="sensor.sub_kitchen_energy",
+                unique_id=f"{sub_serial}_sc1-node_exported-energy",
+                platform="span_ebus", device_id="dev-sub-circuit-001",
+            ),
+        ],
+    )
+    sub_tree = SpanDeviceTree(
+        panel=sub_panel,
+        circuits=[sub_circuit],
+        site_metering=sub_site_meter,
+    )
+
+    lead_topo = SpanTopology(serial=lead_serial, battery_position="UPSTREAM",
+                             battery_vendor="Tesla", is_lead_panel=True)
+    sub_topo = SpanTopology(serial=sub_serial, battery_position="UPSTREAM",
+                            battery_vendor="Tesla", is_lead_panel=False)
+
+    trees = [lead_tree, sub_tree]
+    integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
+    circuit_roles = classify_circuits(trees, [lead_topo, sub_topo])
+
+    result = build_energy_topology(trees, [lead_topo, sub_topo], integrations, circuit_roles)
+
+    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+
+    # Lead panel entry — no parent
+    lead_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
+                         and a.parent_entity_id is None]
+    assert len(lead_panel_entries) == 1
+    lead_eid = lead_panel_entries[0].entity_id
+
+    # Sub-panel entry — parent is lead panel
+    sub_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
+                        and a.parent_entity_id == lead_eid]
+    assert len(sub_panel_entries) == 1
+    sub_eid = sub_panel_entries[0].entity_id
+
+    # Lead circuits → parent is lead panel
+    lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid
+                     and "Sankey hierarchy" not in a.reason]
+    assert len(lead_circuits) == 2  # kitchen + garage
+
+    # Sub circuits → parent is sub-panel
+    sub_circuits = [a for a in consumption if a.parent_entity_id == sub_eid]
+    assert len(sub_circuits) == 1
+    assert sub_circuits[0].entity_id == "sensor.sub_kitchen_energy"

@@ -321,10 +321,13 @@ def build_topology_aware_config(topo: EnergyTopology) -> dict:
     # Solar
     solar_assignments = [a for a in preferred if a.role == "solar"]
     for a in solar_assignments:
-        energy_sources.append({
+        solar_source: dict = {
             "type": "solar",
             "stat_energy_from": a.entity_id,
-        })
+        }
+        if a.rate_entity_id:
+            solar_source["stat_rate"] = a.rate_entity_id
+        energy_sources.append(solar_source)
 
     # Battery — aggregate charge/discharge into one battery source
     batt_discharge = [a for a in preferred if a.role == "battery_discharge"]
@@ -335,12 +338,24 @@ def build_topology_aware_config(topo: EnergyTopology) -> dict:
             batt_source["stat_energy_from"] = batt_discharge[0].entity_id
         if batt_charge:
             batt_source["stat_energy_to"] = batt_charge[0].entity_id
+        # Use discharge power sensor for battery stat_rate (positive=discharge, negative=charge)
+        batt_rate = next(
+            (a.rate_entity_id for a in (batt_discharge + batt_charge) if a.rate_entity_id),
+            None,
+        )
+        if batt_rate:
+            batt_source["stat_rate"] = batt_rate
         energy_sources.append(batt_source)
 
     # Device consumption
     consumption_assignments = [a for a in preferred if a.role == "device_consumption"]
     for a in consumption_assignments:
-        device_consumption.append({"stat_consumption": a.entity_id})
+        entry: dict[str, str] = {"stat_consumption": a.entity_id}
+        if a.parent_entity_id:
+            entry["included_in_stat"] = a.parent_entity_id
+        if a.rate_entity_id:
+            entry["stat_rate"] = a.rate_entity_id
+        device_consumption.append(entry)
 
     return {
         "energy_sources": energy_sources,
@@ -367,20 +382,42 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
     wanted_consumption = {a.entity_id for a in preferred if a.role == "device_consumption"}
     wanted_source_eids = {a.entity_id for a in preferred if a.role != "device_consumption"}
 
+    # Build consumption metadata mappings from topology
+    consumption_parents: dict[str, str] = {
+        a.entity_id: a.parent_entity_id
+        for a in preferred
+        if a.role == "device_consumption" and a.parent_entity_id
+    }
+    consumption_rates: dict[str, str] = {
+        a.entity_id: a.rate_entity_id
+        for a in preferred
+        if a.role == "device_consumption" and a.rate_entity_id
+    }
+
     # --- Device consumption: keep wanted + non-SPAN user entries ---
     existing_consumption = result.get("device_consumption", [])
     keep_consumption = []
     for entry in existing_consumption:
         stat = entry.get("stat_consumption", "")
         if stat in wanted_consumption:
-            keep_consumption.append(entry)
+            updated = copy.deepcopy(entry)
+            if stat in consumption_parents:
+                updated["included_in_stat"] = consumption_parents[stat]
+            if stat in consumption_rates:
+                updated["stat_rate"] = consumption_rates[stat]
+            keep_consumption.append(updated)
             wanted_consumption.discard(stat)  # mark as already present
         elif stat not in skipped_eids:
             # Not in wanted or skipped — user-configured entry, preserve it
             keep_consumption.append(entry)
     # Add new entries not yet present
     for stat in sorted(wanted_consumption):
-        keep_consumption.append({"stat_consumption": stat})
+        new_entry: dict[str, str] = {"stat_consumption": stat}
+        if stat in consumption_parents:
+            new_entry["included_in_stat"] = consumption_parents[stat]
+        if stat in consumption_rates:
+            new_entry["stat_rate"] = consumption_rates[stat]
+        keep_consumption.append(new_entry)
     result["device_consumption"] = keep_consumption
 
     # --- Energy sources: filter + preserve existing objects ---

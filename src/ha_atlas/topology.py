@@ -77,6 +77,8 @@ class EnergyRole:
     platform: str
     preferred: bool  # True = include in ED, False = skip (overlap)
     reason: str
+    parent_entity_id: str | None = None  # For included_in_stat hierarchy
+    rate_entity_id: str | None = None  # Power sensor for stat_rate (Now tab)
 
 
 @dataclass
@@ -572,6 +574,8 @@ def build_energy_topology(
             if circuit:
                 discharge = _find_circuit_entity(circuit, "imported-energy")
                 charge = _find_circuit_entity(circuit, "exported-energy")
+                batt_power = _find_circuit_entity(circuit, "active-power")
+                batt_rate = batt_power.entity_id if batt_power else None
                 if discharge:
                     assignments.append(EnergyRole(
                         role="battery_discharge",
@@ -579,6 +583,7 @@ def build_energy_topology(
                         platform="span_ebus",
                         preferred=True,
                         reason="BESS IN_PANEL — SPAN circuit imported-energy = discharge",
+                        rate_entity_id=batt_rate,
                     ))
                 if charge:
                     assignments.append(EnergyRole(
@@ -587,6 +592,7 @@ def build_energy_topology(
                         platform="span_ebus",
                         preferred=True,
                         reason="BESS IN_PANEL — SPAN circuit exported-energy = charge",
+                        rate_entity_id=batt_rate,
                     ))
             # Dedicated integration is non-preferred for battery
             if bess_integration:
@@ -631,12 +637,14 @@ def build_energy_topology(
             if circuit:
                 solar_entity = _find_circuit_entity(circuit, "imported-energy")
                 if solar_entity:
+                    solar_power = _find_circuit_entity(circuit, "active-power")
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,
                         platform="span_ebus",
                         preferred=True,
                         reason="PV IN_PANEL — SPAN circuit imported-energy = solar production",
+                        rate_entity_id=solar_power.entity_id if solar_power else None,
                     ))
             # Dedicated PV integration is non-preferred
             if pv_integration:
@@ -667,30 +675,84 @@ def build_energy_topology(
             if tree.solar:
                 solar_entity = _find_circuit_entity(tree.solar, "imported-energy")
                 if solar_entity:
+                    solar_power = _find_circuit_entity(tree.solar, "active-power")
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,
                         platform="span_ebus",
                         preferred=True,
                         reason="SPAN solar device — no dedicated PV integration found",
+                        rate_entity_id=solar_power.entity_id if solar_power else None,
                     ))
                     break
 
-    # --- Device consumption ---
+    # --- Device consumption (with Sankey hierarchy) ---
+    # Identify which upstream entities are already preferred grid sources
+    preferred_grid_eids = {
+        a.entity_id for a in assignments if a.role == "grid_import" and a.preferred
+    }
+
+    # Build serial → topology lookup
+    topo_by_serial: dict[str, SpanTopology] = {t.serial: t for t in topologies}
+
+    # Find lead panel's upstream imported-energy (for sub-panel parent linkage)
+    lead_panel_upstream_eid: str | None = None
+    for topo in topologies:
+        if topo.is_lead_panel:
+            for tree in trees:
+                if tree.serial == topo.serial:
+                    lead_upstream = _find_upstream_energy(tree, "imported-energy")
+                    if lead_upstream and lead_upstream.entity_id not in preferred_grid_eids:
+                        lead_panel_upstream_eid = lead_upstream.entity_id
+                    break
+            break
+
+    # Add panel-level consumption entries and build parent mapping
+    panel_parent_eids: dict[str, str] = {}  # serial → parent entity_id for circuits
+    for tree in trees:
+        serial = tree.serial
+        if not serial:
+            continue
+        upstream = _find_upstream_energy(tree, "imported-energy")
+        if upstream and upstream.entity_id not in preferred_grid_eids:
+            topo = topo_by_serial.get(serial)
+            # Sub-panels point to lead panel; lead panel has no parent
+            parent_eid = None
+            if topo and not topo.is_lead_panel and lead_panel_upstream_eid:
+                parent_eid = lead_panel_upstream_eid
+            # Find upstream active-power for stat_rate
+            upstream_power = _find_upstream_energy(tree, "active-power")
+            assignments.append(EnergyRole(
+                role="device_consumption",
+                entity_id=upstream.entity_id,
+                platform="span_ebus",
+                preferred=True,
+                reason="Panel total energy — Sankey hierarchy parent",
+                parent_entity_id=parent_eid,
+                rate_entity_id=upstream_power.entity_id if upstream_power else None,
+            ))
+            panel_parent_eids[serial] = upstream.entity_id
+
+    # Circuit consumption with parent linkage
     circuit_role_map: dict[str, CircuitRole] = {
         cr.circuit.id: cr for cr in circuit_roles
     }
     for tree in trees:
+        serial = tree.serial
+        parent_eid = panel_parent_eids.get(serial) if serial else None
         for circuit in tree.circuits:
             cr = circuit_role_map.get(circuit.id)
             consumption = _find_circuit_entity(circuit, "exported-energy")
             if consumption and (not cr or not cr.skip_consumption):
+                power = _find_circuit_entity(circuit, "active-power")
                 assignments.append(EnergyRole(
                     role="device_consumption",
                     entity_id=consumption.entity_id,
                     platform="span_ebus",
                     preferred=True,
                     reason=cr.reason if cr else "Circuit consumption",
+                    parent_entity_id=parent_eid,
+                    rate_entity_id=power.entity_id if power else None,
                 ))
 
     return EnergyTopology(
