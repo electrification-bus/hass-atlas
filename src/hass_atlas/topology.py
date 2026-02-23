@@ -611,6 +611,9 @@ def build_energy_topology(
                 ))
 
     # --- Battery source ---
+    serial_to_tree: dict[str, SpanDeviceTree] = {
+        t.serial: t for t in trees if t.serial
+    }
     for topo in topologies:
         if topo.battery_position == "IN_PANEL" and topo.battery_feed_circuit_id:
             # Use SPAN circuit for battery
@@ -618,7 +621,14 @@ def build_energy_topology(
             if circuit:
                 discharge = _find_circuit_entity(circuit, "imported-energy")
                 charge = _find_circuit_entity(circuit, "exported-energy")
-                batt_power = _find_circuit_entity(circuit, "active-power")
+                # Prefer BESS sub-device's active-power for stat_rate (not the
+                # feed circuit's, which is negated for consumption convention).
+                batt_power = None
+                bess_tree = serial_to_tree.get(topo.serial)
+                if bess_tree and bess_tree.battery:
+                    batt_power = _find_circuit_entity(bess_tree.battery, "active-power")
+                if not batt_power:
+                    batt_power = _find_circuit_entity(circuit, "active-power")
                 batt_rate = batt_power.entity_id if batt_power else None
                 if discharge:
                     assignments.append(EnergyRole(
@@ -681,7 +691,14 @@ def build_energy_topology(
             if circuit:
                 solar_entity = _find_circuit_entity(circuit, "imported-energy")
                 if solar_entity:
-                    solar_power = _find_circuit_entity(circuit, "active-power")
+                    # Use PV sub-device's active-power for stat_rate (not the
+                    # feed circuit's, which is negated for consumption convention).
+                    solar_power = None
+                    pv_tree = serial_to_tree.get(topo.serial)
+                    if pv_tree and pv_tree.solar:
+                        solar_power = _find_circuit_entity(pv_tree.solar, "active-power")
+                    if not solar_power:
+                        solar_power = _find_circuit_entity(circuit, "active-power")
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,
