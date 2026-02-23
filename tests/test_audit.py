@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from ha_atlas.audit import _extract_energy_entity_ids, _report_energy_gaps, _report_no_area
+from ha_atlas.audit import _report_energy_gaps, _report_no_area
+from ha_atlas.energy import extract_energy_entity_ids as _extract_energy_entity_ids
 from ha_atlas.models import SpanDeviceTree
 
 

@@ -117,6 +117,38 @@ def _build_trees(
     return trees
 
 
+def enrich_entities_from_states(
+    entities: list[HAEntity],
+    states: dict[str, dict],
+) -> None:
+    """Populate device_class, state_class, and unit from entity states.
+
+    The HA entity registry does NOT include device_class or state_class —
+    these are runtime properties only available in entity states.
+    Call this after fetching both registries and states.
+    """
+    for entity in entities:
+        state_entry = states.get(entity.entity_id)
+        if not state_entry:
+            continue
+        attrs = state_entry.get("attributes", {})
+        if not entity.device_class and "device_class" in attrs:
+            entity.device_class = attrs["device_class"]
+        if not entity.state_class and "state_class" in attrs:
+            entity.state_class = attrs["state_class"]
+        if not entity.unit_of_measurement and "unit_of_measurement" in attrs:
+            entity.unit_of_measurement = attrs["unit_of_measurement"]
+
+
+def build_span_trees(
+    devices: list[HADevice],
+    entities: list[HAEntity],
+) -> list[SpanDeviceTree]:
+    """Build SPAN device trees from already-fetched registries."""
+    span_entities = [e for e in entities if e.platform == DOMAIN]
+    return _build_trees(devices, span_entities)
+
+
 async def fetch_registries(client: HAClient) -> tuple[list[HADevice], list[HAEntity], list[HAArea]]:
     """Fetch device, entity, and area registries from HA."""
     raw_devices = await client.send_command("config/device_registry/list")
@@ -147,3 +179,25 @@ async def fetch_areas(client: HAClient) -> list[HAArea]:
 async def fetch_energy_prefs(client: HAClient) -> dict:
     """Fetch energy dashboard preferences."""
     return await client.send_command("energy/get_prefs") or {}
+
+
+async def fetch_entity_states(
+    client: HAClient,
+    entity_ids: set[str] | None = None,
+) -> dict[str, dict]:
+    """Fetch live entity states via get_states.
+
+    Returns ``{entity_id: {"state": ..., "attributes": {...}}}``.
+    If *entity_ids* is given, only those entities are included in the result.
+    """
+    raw_states: list[dict] = await client.send_command("get_states") or []
+    result: dict[str, dict] = {}
+    for entry in raw_states:
+        eid = entry.get("entity_id", "")
+        if entity_ids is not None and eid not in entity_ids:
+            continue
+        result[eid] = {
+            "state": entry.get("state"),
+            "attributes": entry.get("attributes", {}),
+        }
+    return result

@@ -5,6 +5,7 @@ from __future__ import annotations
 import click
 
 from ha_atlas.context import Context, pass_ctx, run_async
+from ha_atlas.energy import extract_energy_entity_ids
 from ha_atlas.output import console, print_info, print_ok, print_warn, render_json, render_table, render_tree
 from ha_atlas.registry import fetch_energy_prefs, fetch_span_trees
 
@@ -33,7 +34,7 @@ async def _audit(ctx: Context, output_format: str) -> None:
         return
 
     # Collect entity_ids currently in energy dashboard
-    energy_entity_ids = _extract_energy_entity_ids(energy_prefs)
+    energy_entity_ids = extract_energy_entity_ids(energy_prefs)
 
     print_info(f"Found {len(trees)} SPAN panel(s)")
     console.print()
@@ -51,27 +52,6 @@ async def _audit(ctx: Context, output_format: str) -> None:
     _report_no_area(trees)
     _report_energy_gaps(trees, energy_entity_ids)
     _report_disabled(trees)
-
-
-def _extract_energy_entity_ids(prefs: dict) -> set[str]:
-    """Extract all entity_ids referenced in energy dashboard config."""
-    ids: set[str] = set()
-    for source in prefs.get("energy_sources", []):
-        for flow in source.get("flow_from", []):
-            if stat := flow.get("stat_energy_from"):
-                ids.add(stat)
-        for flow in source.get("flow_to", []):
-            if stat := flow.get("stat_energy_to"):
-                ids.add(stat)
-        # Solar/battery direct stat fields
-        if stat := source.get("stat_energy_from"):
-            ids.add(stat)
-        if stat := source.get("stat_energy_to"):
-            ids.add(stat)
-    for device in prefs.get("device_consumption", []):
-        if stat := device.get("stat_consumption"):
-            ids.add(stat)
-    return ids
 
 
 def _report_no_area(trees: list) -> None:

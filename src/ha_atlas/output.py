@@ -11,6 +11,7 @@ from rich.tree import Tree
 
 if TYPE_CHECKING:
     from ha_atlas.models import HADevice, HAEntity, SpanDeviceTree
+    from ha_atlas.topology import EnergyTopology
 
 console = Console()
 
@@ -148,3 +149,128 @@ def print_dry_run(msg: str) -> None:
 
 def print_error(msg: str) -> None:
     console.print(f"[bold red]ERROR[/bold red] {msg}")
+
+
+# ---------------------------------------------------------------------------
+# Topology rendering
+# ---------------------------------------------------------------------------
+
+
+def render_topology(topo: EnergyTopology) -> None:
+    """Render energy topology as a Rich tree showing physical hierarchy and decisions."""
+    console.rule("[bold]Energy System Topology[/bold]")
+
+    # Panel topology
+    for panel in topo.panels:
+        lead = " [green](LEAD)[/green]" if panel.is_lead_panel else ""
+        root = Tree(f"[bold magenta]SPAN Panel[/bold magenta] {panel.serial}{lead}")
+
+        # Battery info
+        if panel.battery_position:
+            batt_label = f"[bold yellow]Battery[/bold yellow] position={panel.battery_position}"
+            if panel.battery_vendor:
+                batt_label += f" vendor={panel.battery_vendor}"
+            if panel.battery_model:
+                batt_label += f" model={panel.battery_model}"
+            batt_branch = root.add(batt_label)
+            if panel.battery_feed_circuit_name:
+                batt_branch.add(f"feed-circuit: {panel.battery_feed_circuit_name}")
+
+        # Solar info
+        if panel.solar_position:
+            solar_label = f"[bold cyan]Solar PV[/bold cyan] position={panel.solar_position}"
+            if panel.solar_vendor:
+                solar_label += f" vendor={panel.solar_vendor}"
+            if panel.solar_product:
+                solar_label += f" product={panel.solar_product}"
+            solar_branch = root.add(solar_label)
+            if panel.solar_feed_circuit_name:
+                solar_branch.add(f"feed-circuit: {panel.solar_feed_circuit_name}")
+
+        console.print(root)
+
+    # Other energy integrations
+    if topo.integrations:
+        console.print()
+        console.rule("[bold]Other Energy Integrations[/bold]")
+        for integration in topo.integrations:
+            int_tree = Tree(
+                f"[bold green]{integration.platform}[/bold green] "
+                f"({len(integration.energy_entities)} energy entities)"
+            )
+            for entity in integration.energy_entities:
+                int_tree.add(entity.entity_id)
+            console.print(int_tree)
+
+    # Circuit roles
+    if topo.circuit_roles:
+        console.print()
+        console.rule("[bold]Circuit Roles[/bold]")
+        role_table = Table(show_header=True)
+        role_table.add_column("Circuit", style="bold")
+        role_table.add_column("Role")
+        role_table.add_column("Return Energy")
+        role_table.add_column("Consumption")
+        role_table.add_column("Reason", style="dim")
+
+        for cr in sorted(topo.circuit_roles, key=lambda c: c.circuit.display_name):
+            role_style = {
+                "load": "",
+                "pv_feed": "[cyan]",
+                "bess_feed": "[yellow]",
+                "ev_feed": "[green]",
+            }.get(cr.role, "")
+            role_end = "[/]" if role_style else ""
+            return_status = "[red]suppressed[/red]" if cr.skip_return_energy else "[green]included[/green]"
+            consumption_status = "[red]excluded[/red]" if cr.skip_consumption else "[green]included[/green]"
+            role_table.add_row(
+                cr.circuit.display_name,
+                f"{role_style}{cr.role}{role_end}",
+                return_status,
+                consumption_status,
+                cr.reason,
+            )
+        console.print(role_table)
+
+    # Role assignments (preferred)
+    console.print()
+    console.rule("[bold]Energy Dashboard Assignments[/bold]")
+    preferred = [a for a in topo.role_assignments if a.preferred]
+    skipped = [a for a in topo.role_assignments if not a.preferred]
+
+    if preferred:
+        assign_table = Table(show_header=True, title="Preferred (will be configured)")
+        assign_table.add_column("Role", style="bold")
+        assign_table.add_column("Entity ID")
+        assign_table.add_column("Platform")
+        assign_table.add_column("Reason", style="dim")
+        for a in preferred:
+            if a.role == "device_consumption":
+                continue  # Too many — summarize instead
+            assign_table.add_row(a.role, a.entity_id, a.platform, a.reason)
+        # Summarize device_consumption
+        consumption_count = sum(1 for a in preferred if a.role == "device_consumption")
+        if consumption_count:
+            assign_table.add_row(
+                "device_consumption",
+                f"({consumption_count} circuits)",
+                "span_ebus",
+                "Circuit exported-energy = consumption",
+            )
+        console.print(assign_table)
+
+    if skipped:
+        skip_table = Table(show_header=True, title="Skipped (overlap detected)")
+        skip_table.add_column("Role", style="bold")
+        skip_table.add_column("Entity ID")
+        skip_table.add_column("Platform")
+        skip_table.add_column("Reason", style="dim")
+        for a in skipped:
+            skip_table.add_row(a.role, a.entity_id, a.platform, a.reason)
+        console.print(skip_table)
+
+    # Warnings
+    if topo.warnings:
+        console.print()
+        for warning in topo.warnings:
+            print_warn(warning)
