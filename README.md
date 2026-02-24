@@ -2,6 +2,16 @@
 
 A command-line tool for auditing and configuring Home Assistant energy dashboards, area assignments, and device topology. While deeply aware of [SPAN Panel](https://www.span.io/) hierarchy (via the `span_ebus` integration), hass-atlas works across all energy integrations — Tesla Powerwall, Enphase, SolarEdge, and more.
 
+> **CAUTION: This is a power tool.**
+>
+> hass-atlas modifies your Home Assistant configuration directly via the WebSocket API — including the Energy Dashboard, device registry, entity registry, and area registry. Incorrect changes can break your energy tracking history or require manual cleanup.
+>
+> Before using hass-atlas to make changes:
+>
+> 1. **Create a full Home Assistant backup** and store it on another system (not just on the HA host). Go to *Settings > System > Backups > Create backup*.
+> 2. **Always run with `--dry-run` first** and carefully review the proposed changes before applying them.
+> 3. **Read-only commands are safe.** `audit`, `energy-topology`, and `energy-audit` (without `--prune`) only read data and never modify anything.
+
 **Key capabilities:**
 
 - **Auto-discover** your Home Assistant instance on the local network via mDNS
@@ -24,6 +34,15 @@ A command-line tool for auditing and configuring Home Assistant energy dashboard
 
 ```bash
 git clone <repo-url> && cd span-hass-tools
+
+# Option 1: pip (into a venv)
+python -m venv .venv && source .venv/bin/activate
+pip install .
+
+# Option 2: pipx (isolated install, no venv needed)
+pipx install .
+
+# Option 3: Poetry (for development)
 poetry install
 ```
 
@@ -38,12 +57,26 @@ export HASS_API_TOKEN="your-long-lived-access-token"
 ### First run
 
 ```bash
-# Auto-discovers HA on your network and shows device hierarchy
+# Auto-discovers HA on your network and shows device hierarchy (read-only)
 hass-atlas audit
 
-# See energy topology and what hass-atlas would configure
+# See energy topology analysis (read-only)
+hass-atlas energy-topology
+
+# Preview what energy would configure (dry-run, no changes made)
 hass-atlas --dry-run energy --topology
+
+# Apply after reviewing (creates a backup first!)
+hass-atlas energy --topology
 ```
+
+## Recommended Workflow
+
+1. **`hass-atlas audit`** — See your SPAN device tree, check for missing areas and energy gaps. Read-only.
+2. **`hass-atlas energy-topology`** — Understand your electrical topology and what hass-atlas recommends. Read-only.
+3. **`hass-atlas --dry-run energy --topology`** — Preview the exact Energy Dashboard changes.
+4. **`hass-atlas --dry-run areas`** — Preview area assignments for circuit devices.
+5. **Review the dry-run output carefully.** If it looks right, run without `--dry-run`.
 
 ## Commands
 
@@ -55,7 +88,19 @@ Every command accepts these options:
 |--------|---------|-------------|
 | `--url URL` | `HA_URL` | Home Assistant URL. Auto-discovered via mDNS if omitted. |
 | `--token TOKEN` | `HASS_API_TOKEN` | Long-lived access token. **Required.** |
-| `--dry-run` | — | Show what would change without applying. |
+| `--dry-run` | — | Preview changes without applying them. **Always use this first.** |
+
+### Command Summary
+
+| Command | Reads | Writes | Description |
+|---------|:-----:|:------:|-------------|
+| `audit` | Yes | No | Device tree + diagnostics |
+| `energy-topology` | Yes | No | Energy system analysis |
+| `energy-audit` | Yes | `--prune` | Find stale dashboard references |
+| `energy` | Yes | Yes | Auto-configure Energy Dashboard |
+| `areas` | Yes | Yes | Assign devices to areas |
+| `normalize` | Yes | Yes | Rename entity IDs |
+| `link-panels` | Yes | Yes | Link sub-panels in device registry |
 
 ### `audit` — Device & Energy Dashboard Health Check
 
@@ -261,7 +306,7 @@ src/hass_atlas/
 
 ```bash
 poetry install                          # install dependencies
-poetry run pytest tests/ -v             # run tests (118 tests)
+poetry run pytest tests/ -v             # run tests
 poetry run ruff check src/ tests/       # lint
 poetry run mypy src/                    # type check
 ```
@@ -294,4 +339,4 @@ Note: The `span_ebus` integration negates circuit `active-power` so that positiv
 
 ## License
 
-MIT
+[MIT](LICENSE)
