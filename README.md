@@ -1,6 +1,6 @@
 # hass-atlas
 
-A command-line tool for auditing and configuring Home Assistant energy dashboards, area assignments, and device topology. While deeply aware of [SPAN Panel](https://www.span.io/) hierarchy (via the `span_ebus` integration), hass-atlas works across all energy integrations — Tesla Powerwall, Enphase, SolarEdge, and more.
+A command-line tool for auditing and configuring Home Assistant energy dashboards, area assignments, and device topology. Designed as a companion to [span-hass](https://github.com/electrification-bus/span-hass) (the `span_ebus` HA integration for SPAN smart panels), but works across all energy integrations — Tesla Powerwall, Enphase, SolarEdge, and more.
 
 > **CAUTION: This is a power tool.**
 >
@@ -33,7 +33,7 @@ A command-line tool for auditing and configuring Home Assistant energy dashboard
 ### Installation
 
 ```bash
-git clone <repo-url> && cd span-hass-tools
+git clone https://github.com/electrification-bus/hass-atlas.git && cd hass-atlas
 
 # Option 1: pip (into a venv)
 python -m venv .venv && source .venv/bin/activate
