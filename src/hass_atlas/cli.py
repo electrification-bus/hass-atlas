@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 import click
 from dotenv import load_dotenv
 
 from hass_atlas.context import Context
 from hass_atlas.discovery import discover_ha
+from hass_atlas.ha_client import HAClientError
 from hass_atlas.output import print_error, print_info
 
 load_dotenv()
@@ -41,7 +43,21 @@ def _resolve_url(url: str | None) -> str:
     return instances[choice - 1].url
 
 
-@click.group()
+class _ErrorHandlingGroup(click.Group):
+    """Click group that catches connection errors and prints clean messages."""
+
+    def invoke(self, ctx: click.Context) -> Any:
+        try:
+            return super().invoke(ctx)
+        except HAClientError as exc:
+            raise click.ClickException(str(exc)) from None
+        except RuntimeError as exc:
+            if "mDNS" in str(exc):
+                raise click.ClickException(str(exc)) from None
+            raise
+
+
+@click.group(cls=_ErrorHandlingGroup)
 @click.option(
     "--url",
     envvar="HA_URL",

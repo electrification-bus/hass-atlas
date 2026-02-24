@@ -63,7 +63,10 @@ def discover_ha(timeout: float = DEFAULT_TIMEOUT) -> list[HAInstance]:
     Browses for ``_home-assistant._tcp`` services for *timeout* seconds.
     Returns a list of discovered instances (may be empty).
     """
-    zc = Zeroconf()
+    try:
+        zc = Zeroconf()
+    except OSError as exc:
+        raise RuntimeError(f"mDNS discovery failed: {exc}") from None
     listener = _HAListener()
     browser = ServiceBrowser(zc, HA_SERVICE_TYPE, listener)
     try:
