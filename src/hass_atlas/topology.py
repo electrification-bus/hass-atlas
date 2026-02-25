@@ -691,12 +691,14 @@ def build_energy_topology(
             if circuit:
                 solar_entity = _find_circuit_entity(circuit, "imported-energy")
                 if solar_entity:
-                    # Use PV sub-device's active-power for stat_rate (not the
-                    # feed circuit's, which is negated for consumption convention).
-                    solar_power = None
-                    pv_tree = serial_to_tree.get(topo.serial)
-                    if pv_tree and pv_tree.solar:
-                        solar_power = _find_circuit_entity(pv_tree.solar, "active-power")
+                    # Prefer generation-power on the feed circuit (non-negated,
+                    # positive = production — exactly what stat_rate needs).
+                    # Fall back to PV sub-device or circuit active-power.
+                    solar_power = _find_circuit_entity(circuit, "generation-power")
+                    if not solar_power:
+                        pv_tree = serial_to_tree.get(topo.serial)
+                        if pv_tree and pv_tree.solar:
+                            solar_power = _find_circuit_entity(pv_tree.solar, "active-power")
                     if not solar_power:
                         solar_power = _find_circuit_entity(circuit, "active-power")
                     assignments.append(EnergyRole(
@@ -736,7 +738,10 @@ def build_energy_topology(
             if tree.solar:
                 solar_entity = _find_circuit_entity(tree.solar, "imported-energy")
                 if solar_entity:
-                    solar_power = _find_circuit_entity(tree.solar, "active-power")
+                    solar_power = (
+                        _find_circuit_entity(tree.solar, "generation-power")
+                        or _find_circuit_entity(tree.solar, "active-power")
+                    )
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,

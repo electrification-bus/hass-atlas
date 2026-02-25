@@ -794,14 +794,51 @@ def test_build_energy_topology_circuit_rate_entity_id(
     assert garage.rate_entity_id is None
 
 
-def test_build_energy_topology_solar_rate_entity_id(
+def test_build_energy_topology_solar_rate_prefers_generation_power(
     panel_device: HADevice,
     site_meter_device: HADevice,
     pv_feed_circuit: HADevice,
     circuit_devices: list[HADevice],
 ) -> None:
-    """Solar IN_PANEL: PV feed circuit gets rate_entity_id if active-power exists."""
-    # Add an active-power entity to the PV feed circuit
+    """Solar IN_PANEL: prefers generation-power (non-negated) over active-power for stat_rate."""
+    from tests.conftest import make_entity, PV_FEED_CIRCUIT_DEVICE_ID, PV_FEED_CIRCUIT_NODE_ID
+    # Both active-power and generation-power exist on the circuit
+    pv_feed_circuit.entities.append(make_entity(
+        "sensor.span_pv_system_power",
+        f"{SERIAL}_{PV_FEED_CIRCUIT_NODE_ID}_active-power",
+        PV_FEED_CIRCUIT_DEVICE_ID,
+        device_class="power",
+    ))
+    pv_feed_circuit.entities.append(make_entity(
+        "sensor.span_pv_system_generation_power",
+        f"{SERIAL}_{PV_FEED_CIRCUIT_NODE_ID}_generation-power",
+        PV_FEED_CIRCUIT_DEVICE_ID,
+        device_class="power",
+    ))
+    tree = SpanDeviceTree(
+        panel=panel_device,
+        circuits=[pv_feed_circuit] + circuit_devices,
+        site_metering=site_meter_device,
+    )
+    topo = SpanTopology(
+        serial=SERIAL,
+        solar_position="IN_PANEL",
+        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
+    )
+    circuit_roles = classify_circuits([tree], [topo])
+    result = build_energy_topology([tree], [topo], [], circuit_roles)
+
+    solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
+    assert solar.rate_entity_id == "sensor.span_pv_system_generation_power"
+
+
+def test_build_energy_topology_solar_rate_falls_back_to_active_power(
+    panel_device: HADevice,
+    site_meter_device: HADevice,
+    pv_feed_circuit: HADevice,
+    circuit_devices: list[HADevice],
+) -> None:
+    """Solar IN_PANEL: falls back to active-power when generation-power is absent."""
     from tests.conftest import make_entity, PV_FEED_CIRCUIT_DEVICE_ID, PV_FEED_CIRCUIT_NODE_ID
     pv_feed_circuit.entities.append(make_entity(
         "sensor.span_pv_system_power",
