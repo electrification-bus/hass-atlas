@@ -425,14 +425,28 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
     keep_sources = []
     matched_preferred_eids: set[str] = set()
 
+    # Build proposed config to get updated stat_rate values
+    proposed = build_topology_aware_config(topo)
+    # Map source key → proposed stat_rate for updating existing sources
+    proposed_source_rates: dict[str, str | None] = {}
+    for source in proposed.get("energy_sources", []):
+        key = _source_key(source)
+        proposed_source_rates[key] = source.get("stat_rate")
+
     for source in existing_sources:
         source_eids = _extract_source_entity_ids(source)
         # If ANY entity in this source is in the skipped set, remove the source
         if source_eids & skipped_eids:
             continue
-        # If ALL entities in this source are in the wanted set, keep it as-is
+        # If ALL entities in this source are in the wanted set, keep it
         # (preserves extra fields like stat_cost, cost_adjustment_day)
+        # but update stat_rate if the topology proposes a different one.
         if source_eids and source_eids <= wanted_source_eids:
+            key = _source_key(source)
+            new_rate = proposed_source_rates.get(key)
+            if new_rate and source.get("stat_rate") != new_rate:
+                source = copy.deepcopy(source)
+                source["stat_rate"] = new_rate
             keep_sources.append(source)
             matched_preferred_eids |= source_eids
             continue
@@ -440,7 +454,6 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
         keep_sources.append(source)
 
     # Add new sources for preferred entities not already matched
-    proposed = build_topology_aware_config(topo)
     for source in proposed.get("energy_sources", []):
         source_eids = _extract_source_entity_ids(source)
         if not (source_eids <= matched_preferred_eids):
@@ -506,7 +519,23 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
         if diffs:
             updated_consumption[stat] = diffs
 
-    if not added_consumption and not removed_consumption and not added_source_eids and not removed_source_eids and not updated_consumption:
+    # Detect metadata updates on existing energy sources (stat_rate)
+    current_source_map = {_source_key(s): s for s in current_sources}
+    cleaned_source_map = {_source_key(s): s for s in cleaned_sources}
+    updated_sources: dict[str, dict[str, tuple[str | None, str | None]]] = {}
+    for key in set(current_source_map) & set(cleaned_source_map):
+        old_src = current_source_map[key]
+        new_src = cleaned_source_map[key]
+        diffs: dict[str, tuple[str | None, str | None]] = {}
+        for field in ("stat_rate",):
+            old_val = old_src.get(field)
+            new_val = new_src.get(field)
+            if old_val != new_val:
+                diffs[field] = (old_val, new_val)
+        if diffs:
+            updated_sources[key] = diffs
+
+    if not added_consumption and not removed_consumption and not added_source_eids and not removed_source_eids and not updated_consumption and not updated_sources:
         print_ok("No changes needed — energy dashboard is up to date")
         return
 
@@ -527,6 +556,14 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
                 old_disp = old_val or "(none)"
                 new_disp = new_val or "(none)"
                 console.print(f"  ~ {stat}: {field} {old_disp} → {new_disp}")
+
+    if updated_sources:
+        print_info(f"Updating {len(updated_sources)} energy source(s):")
+        for key in sorted(updated_sources):
+            for field, (old_val, new_val) in updated_sources[key].items():
+                old_disp = old_val or "(none)"
+                new_disp = new_val or "(none)"
+                console.print(f"  ~ {key}: {field} {old_disp} → {new_disp}")
 
     if removed_source_eids:
         print_info("Removing energy source entity/ies:")

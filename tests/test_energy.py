@@ -722,3 +722,55 @@ def test_apply_topology_new_entries_get_stat_rate() -> None:
     kitchen = result["device_consumption"][0]
     assert kitchen["stat_consumption"] == "sensor.kitchen_energy"
     assert kitchen["stat_rate"] == "sensor.kitchen_power"
+
+
+def test_apply_topology_updates_source_stat_rate() -> None:
+    """Existing solar source gets stat_rate updated when topology proposes a new one."""
+    current = {
+        "energy_sources": [
+            {
+                "type": "solar",
+                "stat_energy_from": "sensor.pv_energy",
+                "stat_rate": "sensor.pv_active_power",
+                "stat_cost": {"entity_id": "sensor.energy_cost"},
+            },
+        ],
+        "device_consumption": [],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("solar", "sensor.pv_energy", "span_ebus", True,
+                       "PV IN_PANEL", rate_entity_id="sensor.pv_generation_power"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    solar = next(s for s in result["energy_sources"] if s["type"] == "solar")
+    # stat_rate updated to generation-power
+    assert solar["stat_rate"] == "sensor.pv_generation_power"
+    # User fields preserved
+    assert solar["stat_cost"] == {"entity_id": "sensor.energy_cost"}
+
+
+def test_apply_topology_preserves_source_stat_rate_when_same() -> None:
+    """Existing source stat_rate is unchanged when topology matches."""
+    current = {
+        "energy_sources": [
+            {
+                "type": "solar",
+                "stat_energy_from": "sensor.pv_energy",
+                "stat_rate": "sensor.pv_generation_power",
+            },
+        ],
+        "device_consumption": [],
+    }
+    topo = _make_topo(
+        preferred=[
+            EnergyRole("solar", "sensor.pv_energy", "span_ebus", True,
+                       "PV IN_PANEL", rate_entity_id="sensor.pv_generation_power"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    solar = result["energy_sources"][0]
+    assert solar["stat_rate"] == "sensor.pv_generation_power"
+    # Original not mutated
+    assert current["energy_sources"][0]["stat_rate"] == "sensor.pv_generation_power"
