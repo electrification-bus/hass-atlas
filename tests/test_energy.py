@@ -751,6 +751,66 @@ def test_apply_topology_updates_source_stat_rate() -> None:
     assert solar["stat_cost"] == {"entity_id": "sensor.energy_cost"}
 
 
+def test_apply_topology_adds_panel_entries_for_all_panels() -> None:
+    """When topology proposes 3 panel entries and only 1 exists, the other 2 are added."""
+    current = {
+        "energy_sources": [],
+        "device_consumption": [
+            # Only lead panel exists; sub-panels missing
+            {"stat_consumption": "sensor.lead_upstream_energy"},
+            # Some circuits already present
+            {"stat_consumption": "sensor.kitchen_energy",
+             "included_in_stat": "sensor.lead_upstream_energy"},
+        ],
+    }
+    topo = _make_topo(
+        preferred=[
+            # 3 panel-level entries
+            EnergyRole("device_consumption", "sensor.lead_upstream_energy", "span_ebus", True,
+                       "Panel total energy — Sankey hierarchy parent",
+                       parent_entity_id=None,
+                       rate_entity_id="sensor.lead_upstream_power"),
+            EnergyRole("device_consumption", "sensor.mid_upstream_energy", "span_ebus", True,
+                       "Panel total energy — Sankey hierarchy parent",
+                       parent_entity_id="sensor.lead_upstream_energy",
+                       rate_entity_id="sensor.mid_upstream_power"),
+            EnergyRole("device_consumption", "sensor.tail_upstream_energy", "span_ebus", True,
+                       "Panel total energy — Sankey hierarchy parent",
+                       parent_entity_id="sensor.mid_upstream_energy",
+                       rate_entity_id="sensor.tail_upstream_power"),
+            # Circuit
+            EnergyRole("device_consumption", "sensor.kitchen_energy", "span_ebus", True,
+                       "ok", parent_entity_id="sensor.lead_upstream_energy"),
+        ],
+    )
+    result = apply_topology_prefs(current, topo)
+    stats = {d["stat_consumption"] for d in result["device_consumption"]}
+
+    # All 3 panel entries present
+    assert "sensor.lead_upstream_energy" in stats
+    assert "sensor.mid_upstream_energy" in stats
+    assert "sensor.tail_upstream_energy" in stats
+
+    # Mid and tail have correct included_in_stat and stat_rate
+    mid = next(e for e in result["device_consumption"]
+               if e["stat_consumption"] == "sensor.mid_upstream_energy")
+    assert mid["included_in_stat"] == "sensor.lead_upstream_energy"
+    assert mid["stat_rate"] == "sensor.mid_upstream_power"
+
+    tail = next(e for e in result["device_consumption"]
+                if e["stat_consumption"] == "sensor.tail_upstream_energy")
+    assert tail["included_in_stat"] == "sensor.mid_upstream_energy"
+    assert tail["stat_rate"] == "sensor.tail_upstream_power"
+
+    # Lead panel has no included_in_stat
+    lead = next(e for e in result["device_consumption"]
+                if e["stat_consumption"] == "sensor.lead_upstream_energy")
+    assert "included_in_stat" not in lead
+
+    # Circuit still present
+    assert "sensor.kitchen_energy" in stats
+
+
 def test_apply_topology_preserves_source_stat_rate_when_same() -> None:
     """Existing source stat_rate is unchanged when topology matches."""
     current = {

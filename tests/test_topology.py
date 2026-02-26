@@ -1002,6 +1002,10 @@ def test_build_energy_topology_multi_panel_hierarchy(
     assert len(sub_panel_entries) == 1
     sub_eid = sub_panel_entries[0].entity_id
 
+    # Exactly 2 panel-level entries total (lead + sub)
+    all_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
+    assert len(all_panel_entries) == 2
+
     # Lead circuits → parent is lead panel
     lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid
                      and "Sankey hierarchy" not in a.reason]
@@ -1181,6 +1185,10 @@ def test_build_energy_topology_daisy_chain_hierarchy(
     assert len(tail_entries) == 1
     tail_eid = tail_entries[0].entity_id
     assert tail_eid == "sensor.tail_imported_energy"
+
+    # Exactly 3 panel-level entries total (lead + mid + tail)
+    all_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
+    assert len(all_panel_entries) == 3
 
     # Lead circuits → parent is lead panel
     lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid

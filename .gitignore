@@ -14,3 +14,4 @@ build/
 .claude/
 CLAUDE.md
 AGENTS.md
+debug/
