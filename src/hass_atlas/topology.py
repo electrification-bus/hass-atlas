@@ -753,6 +753,13 @@ def build_energy_topology(
                     break
 
     # --- Device consumption (with Sankey hierarchy) ---
+    # Sub-panel upstream energy entities are added as device_consumption so that
+    # the Sankey diagram shows the hierarchy: Grid → Home → Panel → Circuits.
+    # Trade-off: HA's "Individual devices total usage" bar chart renders ALL
+    # device_consumption entries flat, so sub-panel aggregates double-count and
+    # dominate the chart.  HA has no "hierarchy-only" display option.
+    # Decision (2026-02-26): prioritize Sankey hierarchy.  See SHT-9fa.
+    #
     # Identify which upstream entities are already preferred grid sources
     preferred_grid_eids = {
         a.entity_id for a in assignments if a.role == "grid_import" and a.preferred
