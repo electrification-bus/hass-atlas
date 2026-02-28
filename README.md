@@ -21,6 +21,7 @@ A command-line tool for auditing and configuring Home Assistant energy dashboard
 - **Manage areas** by assigning circuit devices to Home Assistant areas
 - **Normalize** entity IDs to match current device names
 - **Link sub-panels** for daisy-chain SPAN panel configurations
+- **Configure water** sensors in the Energy Dashboard water tab
 
 ## Quick Start
 
@@ -101,6 +102,7 @@ Every command accepts these options:
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
 | `link-panels` | Yes | Yes | Link sub-panels in device registry |
+| `water` | Yes | Yes | Configure Energy Dashboard water tab |
 
 ### `audit` — Device & Energy Dashboard Health Check
 
@@ -185,6 +187,32 @@ hass-atlas normalize
 ```
 
 Renames entity IDs to match current device names. Useful when devices were first created before names were assigned (e.g., `circuit_050299_power` → `server_rack_1_spare_power`). Also updates Energy Dashboard references to use the new IDs.
+
+### `water` — Configure Energy Dashboard Water Tab
+
+```bash
+hass-atlas water [ENTITY_IDS...]
+```
+
+Adds water consumption sensors to the Energy Dashboard water tab. Works with any integration that provides water sensors (ESPHome pulse counters, smart water meters, etc.).
+
+**Auto-discovery mode** (no arguments): Finds all HA sensors with `device_class=water` and `state_class=total_increasing`, then adds them to the water tab.
+
+**Explicit mode** (with entity IDs): Adds only the specified sensors.
+
+```bash
+# Auto-discover all water sensors
+hass-atlas --dry-run water
+
+# Add specific sensors only
+hass-atlas water sensor.water_meters_water_house_cold \
+               sensor.water_meters_water_house_hot \
+               sensor.water_meters_water_irrigation
+```
+
+Additive-only — existing water sources are never removed. Duplicate entries are skipped.
+
+**HA schema note:** Water sources live under the `device_consumption_water` key in energy prefs, using `stat_consumption` as the entity reference (same pattern as `device_consumption` for electricity, not `stat_energy_from` like grid/solar sources).
 
 ### `link-panels` — Configure Panel Daisy-Chains
 
@@ -295,6 +323,7 @@ src/hass_atlas/
   discovery.py    — mDNS discovery of HA instances
   topology.py     — Core topology analysis engine
   energy.py       — Energy Dashboard configuration + topology apply
+  water.py        — Energy Dashboard water tab configuration
   audit.py        — Device tree audit + diagnostics
   areas.py        — Area assignment planning + execution
   normalize.py    — Entity ID normalization
