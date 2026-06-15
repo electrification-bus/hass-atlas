@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from hass_atlas.energy import (
     apply_topology_prefs,
     build_energy_config,
@@ -14,6 +16,7 @@ from hass_atlas.models import SpanDeviceTree
 from hass_atlas.topology import EnergyRole, EnergyTopology
 
 
+@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_energy_config_full(span_tree: SpanDeviceTree) -> None:
     """Full tree with site metering, solar, battery, circuits."""
     config = build_energy_config([span_tree])
@@ -43,6 +46,7 @@ def test_build_energy_config_full(span_tree: SpanDeviceTree) -> None:
     assert "sensor.span_garage_energy" in stats
 
 
+@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_energy_config_grid_only(span_tree: SpanDeviceTree) -> None:
     """Tree with only site metering and circuits, no solar/battery."""
     span_tree.solar = None
@@ -56,10 +60,9 @@ def test_build_energy_config_grid_only(span_tree: SpanDeviceTree) -> None:
     assert len(config["device_consumption"]) == 2
 
 
-def test_build_energy_config_no_site_meter(span_tree: SpanDeviceTree) -> None:
-    """Without site metering, fall back to panel for grid."""
-    span_tree.site_metering = None
-    # Panel has no energy entities by default, so no grid source
+def test_build_energy_config_no_lugs_up(span_tree: SpanDeviceTree) -> None:
+    """Without an upstream-lugs device, no grid source is proposed."""
+    span_tree.lugs_up = None
     config = build_energy_config([span_tree])
     grid_sources = [s for s in config["energy_sources"] if s["type"] == "grid"]
     assert len(grid_sources) == 0

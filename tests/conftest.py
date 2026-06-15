@@ -243,21 +243,79 @@ def circuit_devices() -> list[HADevice]:
 
 
 @pytest.fixture
-def span_tree(
+def span_tree_legacy(
     panel_device: HADevice,
     site_meter_device: HADevice,
     solar_device: HADevice,
     battery_device: HADevice,
     circuit_devices: list[HADevice],
 ) -> SpanDeviceTree:
+    """Flat-model hand-rolled SpanDeviceTree.
+
+    Kept for tests not yet migrated to the tree-v1 fixture data.  The flat-model
+    sub-devices (site_meter, solar with ``pv_feed``/``pv_relative-position``
+    entities, battery with ``bess_feed``) are attached to ``panel.children``
+    rather than to the new SpanDeviceTree fields — assertions on tree-shape
+    fields (``site_metering``, etc.) should migrate to the ``span_tree`` /
+    ``span_tree_def34`` fixtures below, which build from real tree-v1 wire
+    snapshots.
+    """
     panel_device.children = [site_meter_device, solar_device, battery_device] + circuit_devices
     return SpanDeviceTree(
         panel=panel_device,
         circuits=circuit_devices,
-        site_metering=site_meter_device,
         solar=solar_device,
         battery=battery_device,
     )
+
+
+# --- Tree-v1 fixtures (span-hass 0.2.0 wire snapshots) ---
+
+from tests._fixture_loader import load_abc12, load_def34  # noqa: E402
+
+
+@pytest.fixture
+def abc12_data():
+    """Lead-panel fixture: 16 devices (panel + lugs-up/dn + BESS + MID + 11 circuits)."""
+    return load_abc12()
+
+
+@pytest.fixture
+def def34_data():
+    """Sub-panel fixture: 25 devices (panel + lugs-up/dn + BESS + MID + PV + 19 circuits)."""
+    return load_def34()
+
+
+@pytest.fixture
+def span_tree(abc12_data) -> SpanDeviceTree:
+    """Default single-panel tree-v1 fixture (abc12 lead panel)."""
+    from hass_atlas.registry import build_span_trees
+
+    devices, entities, _ = abc12_data
+    trees = build_span_trees(devices, entities)
+    assert len(trees) == 1
+    return trees[0]
+
+
+@pytest.fixture
+def span_tree_def34(def34_data) -> SpanDeviceTree:
+    """Sub-panel tree-v1 fixture (def34 with PV)."""
+    from hass_atlas.registry import build_span_trees
+
+    devices, entities, _ = def34_data
+    trees = build_span_trees(devices, entities)
+    assert len(trees) == 1
+    return trees[0]
+
+
+@pytest.fixture
+def states_abc12(abc12_data) -> dict[str, dict[str, Any]]:
+    return abc12_data[2]
+
+
+@pytest.fixture
+def states_def34(def34_data) -> dict[str, dict[str, Any]]:
+    return def34_data[2]
 
 
 @pytest.fixture

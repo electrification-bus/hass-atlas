@@ -778,9 +778,6 @@ def build_energy_topology(
         a.entity_id for a in assignments if a.role == "grid_import" and a.preferred
     }
 
-    # Build serial → topology lookup
-    topo_by_serial: dict[str, SpanTopology] = {t.serial: t for t in topologies}
-
     # Build device_id → serial mapping for following via_device_id chain
     device_id_to_serial: dict[str, str] = {}
     for tree in trees:

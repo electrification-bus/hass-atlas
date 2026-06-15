@@ -61,7 +61,8 @@ def test_report_no_area_missing(span_tree: SpanDeviceTree) -> None:
 def test_report_energy_gaps_none_missing(span_tree: SpanDeviceTree) -> None:
     # All energy entities are "in" the dashboard
     energy_ids = set()
-    for device in [span_tree.panel, span_tree.site_metering] + span_tree.circuits:
+    devices_to_check = [span_tree.panel, *span_tree.all_child_devices, *span_tree.circuits]
+    for device in devices_to_check:
         if device:
             for e in device.entities:
                 if e.device_class == "energy":
@@ -70,6 +71,10 @@ def test_report_energy_gaps_none_missing(span_tree: SpanDeviceTree) -> None:
 
 
 def test_report_energy_gaps_some_missing(span_tree: SpanDeviceTree) -> None:
-    # Only site metering in dashboard
-    energy_ids = {"sensor.span_site_imported_energy", "sensor.span_site_exported_energy"}
+    # Only upstream-lug entities in dashboard
+    energy_ids = set()
+    if span_tree.lugs_up:
+        for e in span_tree.lugs_up.entities:
+            if e.device_class == "energy":
+                energy_ids.add(e.entity_id)
     _report_energy_gaps([span_tree], energy_ids)

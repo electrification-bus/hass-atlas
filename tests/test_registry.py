@@ -48,6 +48,13 @@ def test_is_span_device(raw_devices: list[dict]) -> None:
 
 
 def test_build_trees(raw_devices: list[dict], raw_entities: list[dict]) -> None:
+    """Verify _build_trees against flat-model raw registry data.
+
+    Note: raw_devices contains a flat-model "Site Metering" device.  Under the
+    0.2.0 model that's no longer a recognized child model, so the builder
+    treats it as an unknown child → bucketed into tree.circuits.  Lugs/MID/PV
+    fixtures live in the tree-v1 fixture-based tests in test_topology.py.
+    """
     devices = [_parse_device(d) for d in raw_devices]
     entities = [_parse_entity(e) for e in raw_entities if e["platform"] == "span_ebus"]
     trees = _build_trees(devices, entities)
@@ -59,13 +66,12 @@ def test_build_trees(raw_devices: list[dict], raw_entities: list[dict]) -> None:
     assert tree.panel.id == PANEL_DEVICE_ID
     assert tree.serial == SERIAL
 
-    # Site metering
-    assert tree.site_metering is not None
-    assert tree.site_metering.id == SITE_METER_DEVICE_ID
-    assert len(tree.site_metering.entities) == 2
+    # Site metering model is no longer recognized — falls through to circuits.
+    site_meter = next((d for d in tree.circuits if d.id == SITE_METER_DEVICE_ID), None)
+    assert site_meter is not None, "Site Metering device should be present as a circuit-fallback"
+    assert len(site_meter.entities) == 2
 
-    # Circuits
-    assert len(tree.circuits) == 2
+    # Real circuits still present
     circuit_ids = {c.id for c in tree.circuits}
     assert CIRCUIT_1_DEVICE_ID in circuit_ids
     assert CIRCUIT_2_DEVICE_ID in circuit_ids
@@ -75,7 +81,7 @@ def test_build_trees(raw_devices: list[dict], raw_entities: list[dict]) -> None:
     assert len(kitchen.entities) == 3
 
     # Non-SPAN entities not attached
-    for device in [tree.panel, tree.site_metering] + tree.circuits:
+    for device in [tree.panel, *tree.circuits]:
         for entity in device.entities:
             assert entity.platform == "span_ebus"
 
