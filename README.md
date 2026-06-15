@@ -249,20 +249,24 @@ On `span-hass` 0.2.x, position is derived from the `connection` capability — e
 The physical position of a sub-device determines which integration should meter it:
 
 **Battery UPSTREAM** (e.g., Tesla Powerwall between grid and SPAN):
+
 - Grid source: use Powerwall integration (SPAN sees post-battery power, not true grid)
 - Battery source: use Powerwall integration
 - SPAN upstream energy is *not* grid — it's panel bus power
 
 **Battery IN_PANEL** (battery connected to a SPAN circuit):
+
 - Grid source: use SPAN upstream lug (this *is* true grid)
 - Battery source: use SPAN feed circuit (charge = circuit consumption, discharge = circuit return)
 - Battery feed circuit excluded from device consumption
 
 **Solar IN_PANEL** (PV inverter connected to a SPAN circuit):
+
 - Solar source: use SPAN feed circuit's return energy (not the Enphase integration)
 - This maintains measurement consistency — all energy on the panel bus is measured by the same CTs
 
 **Solar UPSTREAM** (PV connected before the SPAN panel):
+
 - Solar source: use dedicated integration (Enphase, SolarEdge, etc.)
 
 ### Measurement Consistency
@@ -303,6 +307,7 @@ hass-atlas matches SPAN's vendor metadata against known HA integration platforms
 hass-atlas uses the Home Assistant [WebSocket API](https://developers.home-assistant.io/docs/api/websocket/) exclusively. The REST API does not expose device/entity registries or energy dashboard preferences — WebSocket is required.
 
 Commands used:
+
 - `config/device_registry/list` and `update` — device hierarchy and area assignment
 - `config/entity_registry/list` and `update` — entity metadata and renaming
 - `config/area_registry/list` and `create` — area management
