@@ -52,14 +52,30 @@ class HAArea:
 
 @dataclass
 class SpanDeviceTree:
-    """A SPAN panel and its child devices."""
+    """A SPAN panel and its child devices.
+
+    Tree shape mirrors span-hass 0.2.0 device topology:
+        panel
+          ├── lugs_up           (upstream feed metering)
+          ├── lugs_dn           (downstream feed metering)
+          ├── battery
+          │     └── mid         (grandchild — synthesized per BESS)
+          ├── solar
+          ├── ev_charger
+          └── circuits[]
+
+    Site metering is no longer a separate device — its entities now live on
+    the panel root as the ``power-flows`` capability.
+    """
 
     panel: HADevice
     circuits: list[HADevice] = field(default_factory=list)
     battery: HADevice | None = None
+    mid: HADevice | None = None
     solar: HADevice | None = None
     ev_charger: HADevice | None = None
-    site_metering: HADevice | None = None
+    lugs_up: HADevice | None = None
+    lugs_dn: HADevice | None = None
 
     @property
     def serial(self) -> str | None:
@@ -72,4 +88,15 @@ class SpanDeviceTree:
     @property
     def all_child_devices(self) -> list[HADevice]:
         """All non-circuit sub-devices."""
-        return [d for d in [self.battery, self.solar, self.ev_charger, self.site_metering] if d]
+        return [
+            d
+            for d in [
+                self.lugs_up,
+                self.lugs_dn,
+                self.battery,
+                self.mid,
+                self.solar,
+                self.ev_charger,
+            ]
+            if d
+        ]

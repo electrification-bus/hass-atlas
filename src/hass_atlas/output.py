@@ -54,7 +54,8 @@ def render_tree(
         _add_device_branch(root, span_tree.panel, energy_entity_ids)
 
         for label, device in [
-            ("Site Metering", span_tree.site_metering),
+            ("Upstream Lugs", span_tree.lugs_up),
+            ("Downstream Lugs", span_tree.lugs_dn),
             ("Solar PV", span_tree.solar),
             ("Battery", span_tree.battery),
             ("EV Charger", span_tree.ev_charger),
@@ -62,6 +63,11 @@ def render_tree(
             if device:
                 branch = root.add(f"[bold yellow]{label}[/bold yellow]")
                 _add_device_branch(branch, device, energy_entity_ids)
+
+        # MID is a grandchild of Battery — nest under it in the visual tree.
+        if span_tree.mid:
+            branch = root.add("[bold yellow]Microgrid Interconnect Device[/bold yellow]")
+            _add_device_branch(branch, span_tree.mid, energy_entity_ids)
 
         if span_tree.circuits:
             circuits_branch = root.add(

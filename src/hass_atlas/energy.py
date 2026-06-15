@@ -122,21 +122,17 @@ def build_energy_config(trees: list[SpanDeviceTree]) -> dict:
     device_consumption: list[dict] = []
 
     for tree in trees:
-        # Grid — upstream energy entities.
-        # In production: live on panel device (node: lugs-upstream)
-        # In some setups: live on site_metering child device
-        # Fallback chain: panel lugs-upstream → site_metering → panel generic
-        imported = _find_entity_by_property(tree.panel, "lugs-upstream_imported-energy")
-        if not imported and tree.site_metering:
-            imported = _find_entity_by_property(tree.site_metering, "imported-energy")
-        if not imported:
-            imported = _find_entity_by_property(tree.panel, "imported-energy")
-
-        exported = _find_entity_by_property(tree.panel, "lugs-upstream_exported-energy")
-        if not exported and tree.site_metering:
-            exported = _find_entity_by_property(tree.site_metering, "exported-energy")
-        if not exported:
-            exported = _find_entity_by_property(tree.panel, "exported-energy")
+        # Grid — upstream-lug energy entities live on tree.lugs_up in 0.2.0.
+        imported = (
+            _find_entity_by_property(tree.lugs_up, "imported-energy")
+            if tree.lugs_up
+            else None
+        )
+        exported = (
+            _find_entity_by_property(tree.lugs_up, "exported-energy")
+            if tree.lugs_up
+            else None
+        )
 
         if imported or exported:
             grid_source: dict = {"type": "grid", "flow_from": [], "flow_to": []}

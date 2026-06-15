@@ -181,21 +181,24 @@ def _state_value(
     return str(val)
 
 
-def _state_attr(
-    states: dict[str, dict[str, Any]],
-    entity: HAEntity | None,
-    attr_name: str,
-) -> str | None:
-    """Get an attribute value for an entity from the states dict."""
-    if entity is None:
+def _ha_device_homie_id(device: HADevice | None) -> str | None:
+    """Extract the Homie device-id segment from an HA device identifier.
+
+    span-hass 0.2.0 HA identifiers carry the Homie device-id after the
+    panel-serial prefix, e.g.:
+        ('span_ebus', 'nt-2026-c192x_nt-2026-c192x-tg121153003k7g')
+        ('span_ebus', 'nt-2026-c192x_nt-2026-c192x-iq7plus-72-x-us')
+
+    The Homie ``connection/feeds-device-id`` / ``connection/fed-by-device-id``
+    properties carry the bare Homie device-id (no panel-serial prefix), so
+    this strips the prefix so the two can be compared.
+    """
+    if device is None:
         return None
-    entry = states.get(entity.entity_id)
-    if entry is None:
-        return None
-    val = entry.get("attributes", {}).get(attr_name)
-    if val in (None, "", "unknown", "unavailable"):
-        return None
-    return str(val)
+    for domain, ident in device.identifiers:
+        if domain == "span_ebus" and "_" in ident:
+            return ident.split("_", 1)[1]
+    return None
 
 
 def extract_span_topology(
@@ -204,10 +207,18 @@ def extract_span_topology(
 ) -> list[SpanTopology]:
     """Extract topology properties for each SPAN panel from entity states.
 
-    Uses the entities already registered on the tree's sub-devices
-    (battery, solar) to find entity_ids, then looks up their live states.
-    This avoids constructing entity_ids from the serial, which doesn't
-    match HA's has_entity_name slugification.
+    span-hass 0.2.0: BESS/PV ``relative-position`` and ``feed`` entities are
+    retired.  Position is now derived from the ``connection`` capability:
+
+    - **IN_PANEL** — some circuit's ``connection/feeds-device-id`` equals the
+      DER's Homie device-id.  That circuit IS the feed circuit.
+    - **UPSTREAM** — the panel's upstream-lug ``connection/fed-by-device-id``
+      equals the DER's Homie device-id.  (SPAN does not publish lug
+      connection data today; this branch fires only when present.)
+    - **DOWNSTREAM** — SPAN does not publish the downstream-lug connection
+      capability; not detectable in v1.
+    - **None** — DER exists in the tree but no connection signal yet
+      (commissioning not done, or panel offline).
     """
     topologies: list[SpanTopology] = []
 
@@ -217,42 +228,51 @@ def extract_span_topology(
             continue
 
         topo = SpanTopology(serial=serial)
-
-        # Determine if this is the lead panel (no via_device_id pointing to another SPAN panel)
         topo.is_lead_panel = tree.panel.via_device_id is None
 
-        # Battery Storage topology — from tree.battery sub-device entities
+        # BESS identity (vendor/model/serial unique_id suffixes are stable in 0.2.0)
         bess = tree.battery
-        topo.battery_position = _state_value(
-            states, _find_sub_entity(bess, "_relative-position")
-        )
-        topo.battery_vendor = _state_value(
-            states, _find_sub_entity(bess, "_vendor-name")
-        )
-        topo.battery_model = _state_value(
-            states, _find_sub_entity(bess, "_model")
-        )
-        topo.battery_serial = _state_value(
-            states, _find_sub_entity(bess, "_serial-number")
-        )
-        bess_feed = _find_sub_entity(bess, "_feed")
-        topo.battery_feed_circuit_name = _state_value(states, bess_feed)
-        topo.battery_feed_circuit_id = _state_attr(states, bess_feed, "circuit_id")
+        topo.battery_vendor = _state_value(states, _find_sub_entity(bess, "_vendor-name"))
+        topo.battery_model = _state_value(states, _find_sub_entity(bess, "_model"))
+        topo.battery_serial = _state_value(states, _find_sub_entity(bess, "_serial-number"))
 
-        # Solar PV topology — from tree.solar sub-device entities
+        # PV identity
         pv = tree.solar
-        topo.solar_position = _state_value(
-            states, _find_sub_entity(pv, "_relative-position")
-        )
-        topo.solar_vendor = _state_value(
-            states, _find_sub_entity(pv, "_vendor-name")
-        )
-        topo.solar_product = _state_value(
-            states, _find_sub_entity(pv, "_product-name")
-        )
-        pv_feed = _find_sub_entity(pv, "_feed")
-        topo.solar_feed_circuit_name = _state_value(states, pv_feed)
-        topo.solar_feed_circuit_id = _state_attr(states, pv_feed, "circuit_id")
+        topo.solar_vendor = _state_value(states, _find_sub_entity(pv, "_vendor-name"))
+        topo.solar_product = _state_value(states, _find_sub_entity(pv, "_product-name"))
+
+        # Derive position from the connection graph.
+        bess_did = _ha_device_homie_id(bess)
+        pv_did = _ha_device_homie_id(pv)
+
+        # Pass 1: each circuit's feeds-device-id may point at an in-panel DER.
+        for circuit in tree.circuits:
+            fed_to = _state_value(
+                states, _find_sub_entity(circuit, "_connection_feeds-device-id")
+            )
+            if not fed_to:
+                continue
+            cid = _circuit_node_id(circuit)
+            if bess_did and fed_to == bess_did:
+                topo.battery_position = "IN_PANEL"
+                topo.battery_feed_circuit_id = cid
+                topo.battery_feed_circuit_name = circuit.display_name
+            elif pv_did and fed_to == pv_did:
+                topo.solar_position = "IN_PANEL"
+                topo.solar_feed_circuit_id = cid
+                topo.solar_feed_circuit_name = circuit.display_name
+
+        # Pass 2: upstream-lug's fed-by-device-id detects UPSTREAM DERs.
+        # Today SPAN does not publish this; the branch is forward-compatible.
+        if tree.lugs_up:
+            fed_by = _state_value(
+                states, _find_sub_entity(tree.lugs_up, "_connection_fed-by-device-id")
+            )
+            if fed_by:
+                if bess_did and fed_by == bess_did and not topo.battery_position:
+                    topo.battery_position = "UPSTREAM"
+                elif pv_did and fed_by == pv_did and not topo.solar_position:
+                    topo.solar_position = "UPSTREAM"
 
         topologies.append(topo)
 
@@ -404,23 +424,16 @@ def _find_upstream_energy(
     tree: SpanDeviceTree,
     suffix: str,
 ) -> HAEntity | None:
-    """Find an upstream lug energy entity on a SPAN panel.
+    """Find an upstream-lug entity by property suffix.
 
-    Looks for the entity on the panel device with unique_id ending in
-    'lugs-upstream_{suffix}'. Falls back to site_metering or panel
-    with just the suffix for compatibility with test fixtures.
+    span-hass 0.2.0: upstream-lug entities live on their own HA device
+    (``tree.lugs_up``) with unique_ids like ``..._meter_imported-energy``.
+    Pass the bare property suffix (``imported-energy``, ``active-power``);
+    ``_find_circuit_entity`` matches by ``endswith``.
     """
-    # Primary: panel's upstream lugs (matches live HA)
-    upstream_entity = _find_circuit_entity(tree.panel, f"lugs-upstream_{suffix}")
-    if upstream_entity:
-        return upstream_entity
-    # Fallback: site_metering device (matches test fixtures)
-    if tree.site_metering:
-        fallback = _find_circuit_entity(tree.site_metering, suffix)
-        if fallback:
-            return fallback
-    # Last resort: panel with generic suffix
-    return _find_circuit_entity(tree.panel, suffix)
+    if tree.lugs_up is None:
+        return None
+    return _find_circuit_entity(tree.lugs_up, suffix)
 
 
 def _topo_sort_trees(

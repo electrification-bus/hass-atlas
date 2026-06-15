@@ -9,12 +9,26 @@ from hass_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
 
 DOMAIN = "span_ebus"
 
-# Model strings used to classify child devices
+# Model strings used to classify child devices (span-hass 0.2.0)
+MODEL_PANEL = "SPAN Panel"
 MODEL_CIRCUIT = "Circuit"
 MODEL_BATTERY = "Battery Storage"
 MODEL_SOLAR = "Solar PV"
 MODEL_EV_CHARGER = "EV Charger"
-MODEL_SITE_METERING = "Site Metering"
+MODEL_LUGS = "Lugs"
+MODEL_MID = "Microgrid Interconnect Device"
+
+
+def _lug_direction(device: HADevice) -> str | None:
+    """Return 'up' or 'dn' from a Lugs device's identifier suffix."""
+    for domain, ident in device.identifiers:
+        if domain != DOMAIN:
+            continue
+        if ident.endswith("-lugs-up"):
+            return "up"
+        if ident.endswith("-lugs-dn"):
+            return "dn"
+    return None
 
 
 def _parse_device(raw: dict[str, Any]) -> HADevice:
@@ -83,11 +97,10 @@ def _build_trees(
             device.entities = entities_by_device.get(device.id, [])
             span_devices[device.id] = device
 
-    # Separate panel devices from sub-devices (circuits, battery, etc.).
+    # Separate panel devices from sub-devices (circuits, battery, lugs, ...).
     # A SPAN Panel device is always a panel even if via_device_id points
     # to another panel (sub-panel in a daisy-chain).  Only non-panel
-    # child devices are grouped under their parent panel.
-    MODEL_PANEL = "SPAN Panel"
+    # child devices are grouped under their parent.
     panels: list[HADevice] = []
     children_by_parent: dict[str, list[HADevice]] = {}
     for device in span_devices.values():
@@ -98,7 +111,8 @@ def _build_trees(
         else:
             children_by_parent.setdefault(device.via_device_id, []).append(device)
 
-    # Build trees
+    # Build trees.  Walks panel-direct children, then recurses one level for the
+    # MID (grandchild of BESS — synthesized per commissioned BESS).
     trees: list[SpanDeviceTree] = []
     for panel in panels:
         tree = SpanDeviceTree(panel=panel)
@@ -113,11 +127,23 @@ def _build_trees(
                 tree.solar = child
             elif model == MODEL_EV_CHARGER:
                 tree.ev_charger = child
-            elif model == MODEL_SITE_METERING:
-                tree.site_metering = child
+            elif model == MODEL_LUGS:
+                direction = _lug_direction(child)
+                if direction == "up":
+                    tree.lugs_up = child
+                elif direction == "dn":
+                    tree.lugs_dn = child
+                # Lugs with no direction suffix — drop on the floor; would
+                # indicate a span-hass identifier-format change worth surfacing.
             else:
                 # Unknown child type — treat as circuit
                 tree.circuits.append(child)
+        # Pick up the MID grandchild (via_device_id → BESS)
+        if tree.battery is not None:
+            for grandchild in children_by_parent.get(tree.battery.id, []):
+                tree.battery.children.append(grandchild)
+                if (grandchild.model or "") == MODEL_MID:
+                    tree.mid = grandchild
         trees.append(tree)
 
     return trees
