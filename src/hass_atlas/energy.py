@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any
 
 import click
@@ -603,7 +604,12 @@ async def _energy_topology_show(ctx: Context) -> None:
 
 
 def extract_energy_entity_ids(prefs: dict[str, Any]) -> set[str]:
-    """Extract all entity_ids referenced in energy dashboard config."""
+    """Extract all entity_ids referenced in energy dashboard config.
+
+    Covers source ``stat_energy_from`` / ``stat_energy_to`` / ``stat_rate``
+    (and their ``flow_from`` / ``flow_to`` variants) and device_consumption
+    ``stat_consumption`` / ``included_in_stat`` / ``stat_rate``.
+    """
     ids: set[str] = set()
     for source in prefs.get("energy_sources", []):
         for flow in source.get("flow_from", []):
@@ -612,13 +618,13 @@ def extract_energy_entity_ids(prefs: dict[str, Any]) -> set[str]:
         for flow in source.get("flow_to", []):
             if stat := flow.get("stat_energy_to"):
                 ids.add(stat)
-        if stat := source.get("stat_energy_from"):
-            ids.add(stat)
-        if stat := source.get("stat_energy_to"):
-            ids.add(stat)
+        for k in ("stat_energy_from", "stat_energy_to", "stat_rate"):
+            if stat := source.get(k):
+                ids.add(stat)
     for device in prefs.get("device_consumption", []):
-        if stat := device.get("stat_consumption"):
-            ids.add(stat)
+        for k in ("stat_consumption", "included_in_stat", "stat_rate"):
+            if stat := device.get(k):
+                ids.add(stat)
     return ids
 
 
@@ -628,7 +634,10 @@ def find_stale_references(
 ) -> dict[str, list[str]]:
     """Find energy dashboard references pointing to non-existent entities.
 
-    Returns a dict mapping section name to list of stale entity_ids.
+    Returns a dict mapping section name to list of stale entity_ids.  Covers
+    ``stat_energy_from`` / ``stat_energy_to`` on sources, ``stat_consumption``
+    / ``included_in_stat`` / ``stat_rate`` on device_consumption entries, and
+    ``stat_rate`` on sources.
     """
     stale: dict[str, list[str]] = {}
 
@@ -644,12 +653,117 @@ def find_stale_references(
             stale.setdefault(stype, []).append(stat)
         if (stat := source.get("stat_energy_to")) and stat not in all_entity_ids:
             stale.setdefault(stype, []).append(stat)
+        if (stat := source.get("stat_rate")) and stat not in all_entity_ids:
+            stale.setdefault(f"{stype} (stat_rate)", []).append(stat)
 
     for device in prefs.get("device_consumption", []):
         if (stat := device.get("stat_consumption")) and stat not in all_entity_ids:
             stale.setdefault("device_consumption", []).append(stat)
+        if (stat := device.get("included_in_stat")) and stat not in all_entity_ids:
+            stale.setdefault("device_consumption (included_in_stat)", []).append(stat)
+        if (stat := device.get("stat_rate")) and stat not in all_entity_ids:
+            stale.setdefault("device_consumption (stat_rate)", []).append(stat)
 
     return stale
+
+
+def remap_stale_references(
+    stale_ids: set[str],
+    all_entity_ids: set[str],
+    trees: list[SpanDeviceTree],
+) -> tuple[dict[str, str], list[str]]:
+    """Find live replacements for stale Energy Dashboard entity references.
+
+    Two replacement strategies are tried in order:
+
+    1. **``_2`` sibling.** When ``sensor.foo_energy`` no longer exists but
+       ``sensor.foo_energy_2`` does, HA picked up the orphan slug for the
+       new entity at integration registration time.  Map the old reference
+       to the new entity.
+    2. **Panel-device upstream → Lugs device.** Old flat-model entity_ids
+       like ``sensor.span_panel_nt_2026_c192x_upstream_imported_energy``
+       are matched against the live Lugs device on the corresponding panel
+       and remapped to the equivalent ``sensor.c192x_*lugs_imported_energy``.
+
+    Returns ``(remap, drop)`` where ``remap`` maps stale → live and ``drop``
+    lists stale entity_ids that no live equivalent could be found for.
+    """
+    remap: dict[str, str] = {}
+    drop: list[str] = []
+
+    for stale_id in sorted(stale_ids):
+        v2 = stale_id + "_2"
+        if v2 in all_entity_ids:
+            remap[stale_id] = v2
+            continue
+        replacement = _remap_panel_upstream(stale_id, trees)
+        if replacement and replacement in all_entity_ids:
+            remap[stale_id] = replacement
+            continue
+        drop.append(stale_id)
+
+    return remap, drop
+
+
+def _remap_panel_upstream(stale_id: str, trees: list[SpanDeviceTree]) -> str | None:
+    """Map an old flat-model panel-upstream entity_id to the new Lugs entity_id.
+
+    Flat-model entity_id format (from span-hass 0.1.x):
+        sensor.span_panel_{serial_with_underscores}_upstream_{prop}
+
+    where ``{prop}`` is ``imported_energy``, ``exported_energy``, or
+    ``active_power``.  The new home is the corresponding meter property on
+    the panel's upstream-Lugs HA device.
+    """
+    m = re.match(
+        r"^sensor\.span_panel_(?P<serial>nt_\d+_\w+)_upstream_(?P<prop>\w+)$",
+        stale_id,
+    )
+    if not m:
+        return None
+    serial_with_underscores = m.group("serial")
+    prop = m.group("prop")
+    panel_serial = serial_with_underscores.replace("_", "-")  # nt_2026_c192x → nt-2026-c192x
+
+    suffix_by_prop = {
+        "imported_energy": "_meter_imported-energy",
+        "exported_energy": "_meter_exported-energy",
+        "active_power": "_meter_active-power",
+    }
+    uid_suffix = suffix_by_prop.get(prop)
+    if not uid_suffix:
+        return None
+
+    for tree in trees:
+        if tree.serial != panel_serial or tree.lugs_up is None:
+            continue
+        for e in tree.lugs_up.entities:
+            if e.unique_id.endswith(uid_suffix) and not e.disabled_by:
+                return e.entity_id
+    return None
+
+
+def apply_remap_to_prefs(prefs: dict[str, Any], remap: dict[str, str]) -> dict[str, Any]:
+    """Rewrite all stale entity references in energy prefs using the remap dict.
+
+    Covers the same reference fields as ``find_stale_references``.
+    """
+    cleaned = copy.deepcopy(prefs)
+    for source in cleaned.get("energy_sources", []):
+        for flow in source.get("flow_from", []):
+            if (e := flow.get("stat_energy_from")) in remap:
+                flow["stat_energy_from"] = remap[e]
+        for flow in source.get("flow_to", []):
+            if (e := flow.get("stat_energy_to")) in remap:
+                flow["stat_energy_to"] = remap[e]
+        for k in ("stat_energy_from", "stat_energy_to", "stat_rate"):
+            if (e := source.get(k)) and e in remap:
+                source[k] = remap[e]
+    for device in cleaned.get("device_consumption", []):
+        for k in ("stat_consumption", "included_in_stat", "stat_rate"):
+            if (e := device.get(k)) and e in remap:
+                device[k] = remap[e]
+    return cleaned
 
 
 def remove_stale_references(
@@ -682,6 +796,9 @@ def remove_stale_references(
             source.pop("stat_energy_from", None)
         if source.get("stat_energy_to") in stale_ids:
             source.pop("stat_energy_to", None)
+        # Stat_rate refs are advisory — clear instead of drop the source
+        if source.get("stat_rate") in stale_ids:
+            source.pop("stat_rate", None)
         # Drop sources that have lost all entity references
         has_refs = (
             source.get("flow_from")
@@ -695,28 +812,40 @@ def remove_stale_references(
             clean_sources.append(source)
     cleaned["energy_sources"] = clean_sources
 
-    # Clean device_consumption
-    cleaned["device_consumption"] = [
-        d for d in cleaned.get("device_consumption", [])
-        if d.get("stat_consumption") not in stale_ids
-    ]
+    # Clean device_consumption — drop entries whose stat_consumption is stale,
+    # and clear (but don't drop the entry on) stale included_in_stat / stat_rate.
+    clean_consumption = []
+    for d in cleaned.get("device_consumption", []):
+        if d.get("stat_consumption") in stale_ids:
+            continue
+        if d.get("included_in_stat") in stale_ids:
+            d.pop("included_in_stat", None)
+        if d.get("stat_rate") in stale_ids:
+            d.pop("stat_rate", None)
+        clean_consumption.append(d)
+    cleaned["device_consumption"] = clean_consumption
 
     return cleaned
 
 
 @click.command("energy-audit")
-@click.option("--prune", is_flag=True, default=False, help="Remove stale entries from energy dashboard")
+@click.option("--prune", is_flag=True, default=False, help="Drop stale references")
+@click.option(
+    "--remap", is_flag=True, default=False,
+    help="Rewrite stale references to live equivalents where possible "
+    "(falls back to dropping refs with no match — implies --prune semantics for unmatchable refs)",
+)
 @pass_ctx
-def energy_audit(ctx: Context, prune: bool) -> None:
-    """Find stale/orphaned entity references in the Energy Dashboard."""
-    run_async(_energy_audit(ctx, prune))
+def energy_audit(ctx: Context, prune: bool, remap: bool) -> None:
+    """Find (and optionally fix) stale entity references in the Energy Dashboard."""
+    run_async(_energy_audit(ctx, prune, remap))
 
 
-async def _energy_audit(ctx: Context, prune: bool) -> None:
+async def _energy_audit(ctx: Context, prune: bool, remap: bool) -> None:
     async with ctx.client() as client:
         prefs = await fetch_energy_prefs(client)
-        raw_entities = await client.send_command("config/entity_registry/list")
-        all_entity_ids = {e["entity_id"] for e in raw_entities}
+        devices, entities, _ = await fetch_registries(client)
+    all_entity_ids = {e.entity_id for e in entities}
 
     ed_refs = extract_energy_entity_ids(prefs)
     stale = find_stale_references(prefs, all_entity_ids)
@@ -735,18 +864,48 @@ async def _energy_audit(ctx: Context, prune: bool) -> None:
             console.print(f"    - {entity_id}")
     console.print()
 
-    if not prune:
-        print_info("Run with --prune to remove stale entries")
-        return
-
-    if ctx.dry_run:
-        print_dry_run(f"Would remove {total} stale reference(s)")
+    if not prune and not remap:
+        print_info("Run with --remap to rewrite stale references to live equivalents,")
+        print_info("or --prune to drop them.")
         return
 
     stale_ids = {eid for ids in stale.values() for eid in ids}
-    cleaned = remove_stale_references(prefs, stale_ids)
 
+    if remap:
+        trees = build_span_trees(devices, entities)
+        replacements, unmatchable = remap_stale_references(stale_ids, all_entity_ids, trees)
+
+        if replacements:
+            console.print()
+            print_info(f"Would rewrite {len(replacements)} reference(s):")
+            for old, new in sorted(replacements.items()):
+                console.print(f"  - {old}")
+                console.print(f"    → {new}")
+        if unmatchable:
+            console.print()
+            print_warn(f"Would drop {len(unmatchable)} unmatchable reference(s):")
+            for old in unmatchable:
+                console.print(f"  - {old}")
+
+        if ctx.dry_run:
+            print_dry_run("Run without --dry-run to apply")
+            return
+
+        cleaned = apply_remap_to_prefs(prefs, replacements)
+        cleaned = remove_stale_references(cleaned, set(unmatchable))
+        async with ctx.client() as client:
+            await client.send_command("energy/save_prefs", **cleaned)
+        print_ok(
+            f"Rewrote {len(replacements)} reference(s); dropped {len(unmatchable)} unmatchable"
+        )
+        return
+
+    # --prune (no remap)
+    if ctx.dry_run:
+        print_dry_run(f"Would drop {total} stale reference(s)")
+        return
+
+    cleaned = remove_stale_references(prefs, stale_ids)
     async with ctx.client() as client:
         await client.send_command("energy/save_prefs", **cleaned)
-
-    print_ok(f"Removed {total} stale reference(s) from energy dashboard")
+    print_ok(f"Dropped {total} stale reference(s) from energy dashboard")

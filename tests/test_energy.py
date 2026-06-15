@@ -4,15 +4,19 @@ from __future__ import annotations
 
 
 from hass_atlas.energy import (
+    apply_remap_to_prefs,
     apply_topology_prefs,
     build_energy_config,
     extract_energy_entity_ids,
     find_stale_references,
     merge_prefs,
+    remap_stale_references,
     remove_stale_references,
 )
 from hass_atlas.models import SpanDeviceTree
 from hass_atlas.topology import EnergyRole, EnergyTopology
+
+from tests.conftest import make_panel_tree_with_lugs
 
 
 def test_build_energy_config_grid_and_circuits(span_tree: SpanDeviceTree) -> None:
@@ -835,3 +839,164 @@ def test_apply_topology_preserves_source_stat_rate_when_same() -> None:
     assert solar["stat_rate"] == "sensor.pv_generation_power"
     # Original not mutated
     assert current["energy_sources"][0]["stat_rate"] == "sensor.pv_generation_power"
+
+
+# ---------------------------------------------------------------------------
+# remap_stale_references — SHT-58b orphan cleanup
+# ---------------------------------------------------------------------------
+
+
+def test_remap_finds_underscore_2_sibling() -> None:
+    """Stale ref with a _2 sibling in the registry is remapped to it."""
+    tree = make_panel_tree_with_lugs("nt-0000-tst1", num_circuits=1)
+    stale = {"sensor.smoke_detectors_energy"}
+    all_ids = {"sensor.smoke_detectors_energy_2", "sensor.other_energy"}
+    remap, drop = remap_stale_references(stale, all_ids, [tree])
+
+    assert remap == {"sensor.smoke_detectors_energy": "sensor.smoke_detectors_energy_2"}
+    assert drop == []
+
+
+def test_remap_panel_upstream_to_lugs() -> None:
+    """Old flat-model panel-upstream entity_id is remapped to the live Lugs entity_id."""
+    tree = make_panel_tree_with_lugs("nt-2026-c192x", num_circuits=1)
+    stale = {
+        "sensor.span_panel_nt_2026_c192x_upstream_imported_energy",
+        "sensor.span_panel_nt_2026_c192x_upstream_exported_energy",
+        "sensor.span_panel_nt_2026_c192x_upstream_active_power",
+    }
+    # Build the all_entity_ids set from the synthetic tree's lugs_up entities
+    all_ids = {e.entity_id for e in tree.lugs_up.entities}
+    remap, drop = remap_stale_references(stale, all_ids, [tree])
+
+    assert drop == []
+    assert remap["sensor.span_panel_nt_2026_c192x_upstream_imported_energy"].endswith("_imported_energy")
+    assert remap["sensor.span_panel_nt_2026_c192x_upstream_exported_energy"].endswith("_exported_energy")
+    assert remap["sensor.span_panel_nt_2026_c192x_upstream_active_power"].endswith("_active_power")
+
+
+def test_remap_unmatchable_goes_to_drop() -> None:
+    """Stale refs with no live equivalent end up in the drop list."""
+    tree = make_panel_tree_with_lugs("nt-0000-tst1", num_circuits=1)
+    stale = {
+        "sensor.span_panel_nt_2143_c1akc_circuit_f71a4c_energy_exported",
+        "sensor.totally_unknown_thing",
+    }
+    all_ids = {"sensor.unrelated_entity"}
+    remap, drop = remap_stale_references(stale, all_ids, [tree])
+
+    assert remap == {}
+    assert set(drop) == stale
+
+
+def test_remap_panel_upstream_skips_wrong_panel() -> None:
+    """A stale ref pointing at panel X is not remapped to panel Y's Lugs entity."""
+    panel_x = make_panel_tree_with_lugs("nt-2026-c192x", num_circuits=1)
+    # Stale ref references c192x but we only have panel_y in the tree set
+    panel_y = make_panel_tree_with_lugs("nt-2143-c1akc", num_circuits=1)
+    stale = {"sensor.span_panel_nt_2026_c192x_upstream_imported_energy"}
+    all_ids = {e.entity_id for e in panel_y.lugs_up.entities}
+    remap, drop = remap_stale_references(stale, all_ids, [panel_y])
+
+    assert remap == {}  # no panel_x in tree set
+    assert drop == sorted(stale)
+
+    # But succeeds when panel_x IS in the tree set
+    all_ids_x = {e.entity_id for e in panel_x.lugs_up.entities}
+    remap2, drop2 = remap_stale_references(stale, all_ids_x, [panel_x])
+    assert remap2 != {} and drop2 == []
+
+
+def test_apply_remap_rewrites_all_reference_fields() -> None:
+    """apply_remap_to_prefs covers sources, flows, included_in_stat, and stat_rate."""
+    prefs = {
+        "energy_sources": [
+            {
+                "type": "grid",
+                "flow_from": [{"stat_energy_from": "sensor.old_grid_import"}],
+                "flow_to": [{"stat_energy_to": "sensor.old_grid_export"}],
+                "stat_rate": "sensor.old_grid_now",
+            },
+            {
+                "type": "solar",
+                "stat_energy_from": "sensor.old_solar",
+                "stat_rate": "sensor.old_solar_power",
+            },
+        ],
+        "device_consumption": [
+            {
+                "stat_consumption": "sensor.old_kitchen",
+                "included_in_stat": "sensor.old_panel",
+                "stat_rate": "sensor.old_kitchen_power",
+            },
+            {"stat_consumption": "sensor.unchanged"},
+        ],
+    }
+    remap = {
+        "sensor.old_grid_import": "sensor.new_grid_import",
+        "sensor.old_grid_export": "sensor.new_grid_export",
+        "sensor.old_grid_now": "sensor.new_grid_now",
+        "sensor.old_solar": "sensor.new_solar",
+        "sensor.old_solar_power": "sensor.new_solar_power",
+        "sensor.old_kitchen": "sensor.new_kitchen",
+        "sensor.old_panel": "sensor.new_panel",
+        "sensor.old_kitchen_power": "sensor.new_kitchen_power",
+    }
+    cleaned = apply_remap_to_prefs(prefs, remap)
+
+    grid = cleaned["energy_sources"][0]
+    assert grid["flow_from"][0]["stat_energy_from"] == "sensor.new_grid_import"
+    assert grid["flow_to"][0]["stat_energy_to"] == "sensor.new_grid_export"
+    assert grid["stat_rate"] == "sensor.new_grid_now"
+
+    solar = cleaned["energy_sources"][1]
+    assert solar["stat_energy_from"] == "sensor.new_solar"
+    assert solar["stat_rate"] == "sensor.new_solar_power"
+
+    kitchen = cleaned["device_consumption"][0]
+    assert kitchen["stat_consumption"] == "sensor.new_kitchen"
+    assert kitchen["included_in_stat"] == "sensor.new_panel"
+    assert kitchen["stat_rate"] == "sensor.new_kitchen_power"
+
+    # Unchanged entry pass-through
+    assert cleaned["device_consumption"][1]["stat_consumption"] == "sensor.unchanged"
+
+    # Original prefs not mutated
+    assert prefs["energy_sources"][0]["flow_from"][0]["stat_energy_from"] == "sensor.old_grid_import"
+
+
+def test_find_stale_includes_included_in_stat_and_stat_rate() -> None:
+    """find_stale_references catches stale included_in_stat and stat_rate refs."""
+    prefs = {
+        "energy_sources": [
+            {"type": "solar", "stat_energy_from": "sensor.solar", "stat_rate": "sensor.dead_rate"},
+        ],
+        "device_consumption": [
+            {
+                "stat_consumption": "sensor.kitchen",
+                "included_in_stat": "sensor.dead_parent",
+                "stat_rate": "sensor.dead_circuit_rate",
+            },
+        ],
+    }
+    all_ids = {"sensor.solar", "sensor.kitchen"}
+    stale = find_stale_references(prefs, all_ids)
+
+    assert "sensor.dead_rate" in stale.get("solar (stat_rate)", [])
+    assert "sensor.dead_parent" in stale.get("device_consumption (included_in_stat)", [])
+    assert "sensor.dead_circuit_rate" in stale.get("device_consumption (stat_rate)", [])
+
+
+def test_remove_stale_clears_included_in_stat_keeps_entry() -> None:
+    """Stale included_in_stat is cleared but the device_consumption entry stays."""
+    prefs = {
+        "energy_sources": [],
+        "device_consumption": [
+            {"stat_consumption": "sensor.kitchen", "included_in_stat": "sensor.dead_parent"},
+        ],
+    }
+    cleaned = remove_stale_references(prefs, {"sensor.dead_parent"})
+
+    assert len(cleaned["device_consumption"]) == 1  # entry preserved
+    assert cleaned["device_consumption"][0]["stat_consumption"] == "sensor.kitchen"
+    assert "included_in_stat" not in cleaned["device_consumption"][0]
