@@ -132,30 +132,41 @@ def load_tree_v1(
     for homie_id, fdev in fixture_devices.items():
         ha_dev = by_homie[homie_id]
         name_slug = _slug(ha_dev.name or homie_id)
-        for cap_prop, value in fdev.get("properties", {}).items():
-            if "/" not in cap_prop:
-                continue
-            capability, property_id = cap_prop.split("/", 1)
-            unique_id = f"{panel_serial}_{homie_id}_{capability}_{property_id}"
-            base_eid = f"sensor.{name_slug}_{_slug(capability)}_{_slug(property_id)}"
-            entity_id = base_eid
-            n = 2
-            while entity_id in states:
-                entity_id = f"{base_eid}_{n}"
-                n += 1
-            ent = HAEntity(
-                entity_id=entity_id,
-                unique_id=unique_id,
-                platform="span_ebus",
-                device_id=ha_dev.id,
-                device_class=_DEVICE_CLASS_BY_PROPERTY.get(property_id),
-                state_class=_STATE_CLASS_BY_PROPERTY.get(property_id),
-                original_name=property_id.replace("-", " ").title(),
-                has_entity_name=True,
-            )
-            entities.append(ent)
-            ha_dev.entities.append(ent)
-            states[entity_id] = {"state": str(value), "attributes": {}}
+        published = fdev.get("properties", {})
+        # Enumerate every (capability, property) declared in the descriptor —
+        # span-hass creates entities for these regardless of whether a value
+        # has been published yet (state defaults to "unknown" until then).
+        nodes = fdev.get("description", {}).get("nodes", {})
+        for capability, ndecl in nodes.items():
+            for property_id in ndecl.get("properties", {}):
+                cap_prop = f"{capability}/{property_id}"
+                unique_id = f"{panel_serial}_{homie_id}_{capability}_{property_id}"
+                # Match span-hass's entity_id format: {device-slug}_{property-slug}
+                # (capability is in the unique_id but not entity_id; collisions
+                # across capabilities resolve via the _2 suffix counter).
+                base_eid = f"sensor.{name_slug}_{_slug(property_id)}"
+                entity_id = base_eid
+                n = 2
+                while entity_id in states:
+                    entity_id = f"{base_eid}_{n}"
+                    n += 1
+                ent = HAEntity(
+                    entity_id=entity_id,
+                    unique_id=unique_id,
+                    platform="span_ebus",
+                    device_id=ha_dev.id,
+                    device_class=_DEVICE_CLASS_BY_PROPERTY.get(property_id),
+                    state_class=_STATE_CLASS_BY_PROPERTY.get(property_id),
+                    original_name=property_id.replace("-", " ").title(),
+                    has_entity_name=True,
+                )
+                entities.append(ent)
+                ha_dev.entities.append(ent)
+                value = published.get(cap_prop)
+                states[entity_id] = {
+                    "state": "unknown" if value is None else str(value),
+                    "attributes": {},
+                }
 
     return devices, entities, states
 

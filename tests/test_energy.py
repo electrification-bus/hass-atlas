@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from hass_atlas.energy import (
     apply_topology_prefs,
@@ -16,48 +15,47 @@ from hass_atlas.models import SpanDeviceTree
 from hass_atlas.topology import EnergyRole, EnergyTopology
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
-def test_build_energy_config_full(span_tree: SpanDeviceTree) -> None:
-    """Full tree with site metering, solar, battery, circuits."""
-    config = build_energy_config([span_tree])
+def test_build_energy_config_grid_and_circuits(span_tree: SpanDeviceTree) -> None:
+    """Non-topology path emits grid (from lugs_up) + one consumption entry per circuit.
 
+    In span-hass 0.2.0 the BESS device only exposes ``info`` and ``soc``
+    capabilities, and the PV device only exposes ``info`` — neither has the
+    ``meter`` capability the legacy ``build_energy_config`` looks for.
+    The non-topology path therefore proposes grid + circuit consumption only;
+    solar / battery sources are surfaced by the ``--topology`` path instead,
+    which routes them to the dedicated DER integration (Powerwall, Enphase).
+    """
+    config = build_energy_config([span_tree])
     sources = config["energy_sources"]
     consumption = config["device_consumption"]
 
-    # Grid source from site metering
+    # Grid source — single, from tree.lugs_up
     grid = next(s for s in sources if s["type"] == "grid")
     assert len(grid["flow_from"]) == 1
-    assert grid["flow_from"][0]["stat_energy_from"] == "sensor.span_site_imported_energy"
+    grid_import_eid = grid["flow_from"][0]["stat_energy_from"]
+    assert "lugs" in grid_import_eid and "imported_energy" in grid_import_eid
+
     assert len(grid["flow_to"]) == 1
-    assert grid["flow_to"][0]["stat_energy_to"] == "sensor.span_site_exported_energy"
+    grid_export_eid = grid["flow_to"][0]["stat_energy_to"]
+    assert "lugs" in grid_export_eid and "exported_energy" in grid_export_eid
 
-    # Solar source
-    solar = next(s for s in sources if s["type"] == "solar")
-    assert solar["stat_energy_from"] == "sensor.span_solar_imported_energy"
+    # No solar / battery in the non-topology path (see docstring).
+    assert all(s["type"] != "solar" for s in sources)
+    assert all(s["type"] != "battery" for s in sources)
 
-    # Battery source
-    battery = next(s for s in sources if s["type"] == "battery")
-    assert battery["stat_energy_from"] == "sensor.span_battery_imported_energy"
-    assert battery["stat_energy_to"] == "sensor.span_battery_exported_energy"
-
-    # Circuit consumption (uses exported-energy = consumption in SPAN convention)
-    stats = {d["stat_consumption"] for d in consumption}
-    assert "sensor.span_kitchen_energy" in stats
-    assert "sensor.span_garage_energy" in stats
+    # One consumption entry per circuit.
+    assert len(consumption) == len(span_tree.circuits)
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
-def test_build_energy_config_grid_only(span_tree: SpanDeviceTree) -> None:
-    """Tree with only site metering and circuits, no solar/battery."""
-    span_tree.solar = None
-    span_tree.battery = None
-    config = build_energy_config([span_tree])
+def test_build_energy_config_def34_sub_panel(span_tree_def34: SpanDeviceTree) -> None:
+    """Same shape on the sub-panel fixture (19 circuits, includes a PV device)."""
+    config = build_energy_config([span_tree_def34])
+    sources = config["energy_sources"]
 
-    source_types = {s["type"] for s in config["energy_sources"]}
-    assert "grid" in source_types
-    assert "solar" not in source_types
-    assert "battery" not in source_types
-    assert len(config["device_consumption"]) == 2
+    # Even though def34 has both BESS and PV devices, the non-topology path
+    # only proposes grid (BESS/PV have no meter capability in 0.2.0).
+    assert {s["type"] for s in sources} == {"grid"}
+    assert len(config["device_consumption"]) == 19
 
 
 def test_build_energy_config_no_lugs_up(span_tree: SpanDeviceTree) -> None:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from hass_atlas.energy import build_topology_aware_config
 from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
@@ -20,13 +19,12 @@ from hass_atlas.topology import (
 from tests.conftest import (
     BESS_FEED_CIRCUIT_NODE_ID,
     CIRCUIT_1_NODE_ID,
-    PANEL_DEVICE_ID,
     PV_FEED_CIRCUIT_DEVICE_ID,
     PV_FEED_CIRCUIT_NODE_ID,
     PW_DEVICE_ID,
     SERIAL,
+    make_panel_tree_with_lugs,
     make_platform_entity,
-    make_topology_states,
 )
 
 
@@ -92,96 +90,51 @@ def test_discover_energy_integrations_skips_disabled(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
-def test_extract_span_topology_lead_panel(span_tree: SpanDeviceTree) -> None:
-    """Lead panel: PV IN_PANEL, BESS UPSTREAM."""
-    states = make_topology_states(
-        battery=span_tree.battery,
-        solar=span_tree.solar,
-        bess_position="UPSTREAM",
-        bess_vendor="Tesla",
-        pv_position="IN_PANEL",
-        pv_vendor="Enphase",
-        pv_feed_name="Commissioned PV System",
-        pv_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
-    )
-    topos = extract_span_topology([span_tree], states)
+def test_extract_span_topology_lead_panel(span_tree_def34, states_def34) -> None:
+    """Lead panel with UPSTREAM BESS, derived from lugs-up connection capability.
+
+    span-hass 0.2.x publishes ``<panel>-lugs-up/connection/fed-by-device-id``
+    when an upstream DER feeds the panel; the topology engine reads that to
+    detect UPSTREAM position.  The def34 fixture has this property populated
+    pointing at its BESS.
+    """
+    topos = extract_span_topology([span_tree_def34], states_def34)
 
     assert len(topos) == 1
     t = topos[0]
-    assert t.serial == SERIAL
+    assert t.serial == "nt-0000-def34"
     assert t.is_lead_panel is True
     assert t.battery_position == "UPSTREAM"
     assert t.battery_vendor == "Tesla"
-    assert t.solar_position == "IN_PANEL"
-    assert t.solar_vendor == "Enphase"
-    assert t.solar_feed_circuit_name == "Commissioned PV System"
-    assert t.solar_feed_circuit_id == PV_FEED_CIRCUIT_NODE_ID
+    # PV identity is published; IN_PANEL position requires a circuit with
+    # connection/feeds-device-id pointing at the PV, which the fixture does
+    # not currently include — position stays None.
+    assert t.solar_vendor == "Enphase Energy"
+    assert t.solar_position is None
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_extract_span_topology_sub_panel() -> None:
-    """Sub-panel: PV UPSTREAM, BESS UPSTREAM, no feed circuit."""
-    sub_serial = "nt-0000-sub01"
-    panel = HADevice(
-        id="dev-sub-panel",
-        name="Sub Panel",
-        model="SPAN Panel",
-        identifiers=[("span_ebus", sub_serial)],
-        via_device_id="dev-main-panel",  # via another SPAN panel
-    )
-    batt = HADevice(
-        id="dev-sub-batt",
-        name="Battery Storage",
-        model="Battery Storage",
-        identifiers=[("span_ebus", f"{sub_serial}_battery")],
-        via_device_id="dev-sub-panel",
-        entities=[
-            HAEntity(
-                entity_id="sensor.sub_bess_relative_position",
-                unique_id=f"{sub_serial}_bess_relative-position",
-                platform="span_ebus", device_id="dev-sub-batt",
-                entity_category="diagnostic",
-            ),
-        ],
-    )
-    sol = HADevice(
-        id="dev-sub-solar",
-        name="Solar PV",
-        model="Solar PV",
-        identifiers=[("span_ebus", f"{sub_serial}_solar")],
-        via_device_id="dev-sub-panel",
-        entities=[
-            HAEntity(
-                entity_id="sensor.sub_pv_relative_position",
-                unique_id=f"{sub_serial}_pv_relative-position",
-                platform="span_ebus", device_id="dev-sub-solar",
-                entity_category="diagnostic",
-            ),
-            HAEntity(
-                entity_id="sensor.sub_pv_feed",
-                unique_id=f"{sub_serial}_pv_feed",
-                platform="span_ebus", device_id="dev-sub-solar",
-                entity_category="diagnostic",
-            ),
-        ],
-    )
-    tree = SpanDeviceTree(panel=panel, battery=batt, solar=sol)
-    states = make_topology_states(
-        battery=batt,
-        solar=sol,
-        bess_position="UPSTREAM",
-        pv_position="UPSTREAM",
-        pv_feed_name=None,
-        pv_feed_circuit_id=None,
+    """Sub-panel detection: panel.via_device_id is non-None → is_lead_panel=False.
+
+    span-hass 0.2.x does not yet publish the upstream-panel ``fed-by-device-id``
+    on a sub-panel's lugs-up (a known firmware gap — see CHANGELOG §Known
+    issues), so DER positions cannot be derived from the wire alone on a
+    sub-panel; the topology engine reports None for those fields here.  The
+    HA device-registry via_device_id linkage (set via ``link_subpanel``) is
+    still authoritative for the panel hierarchy.
+    """
+    sub = make_panel_tree_with_lugs(
+        "nt-0000-sub01",
+        num_circuits=1,
+        via_device_id="dev-nt-0000-lead1",  # marks this as a sub-panel
     )
 
-    topos = extract_span_topology([tree], states)
+    topos = extract_span_topology([sub], {})
     assert len(topos) == 1
     t = topos[0]
-    assert t.is_lead_panel is False  # has via_device_id
-    assert t.solar_position == "UPSTREAM"
-    assert t.solar_feed_circuit_name is None
+    assert t.is_lead_panel is False
+    assert t.battery_position is None
+    assert t.solar_position is None
     assert t.solar_feed_circuit_id is None
 
 
@@ -200,13 +153,12 @@ def test_extract_span_topology_no_states(span_tree: SpanDeviceTree) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_classify_circuits_pure_load(span_tree: SpanDeviceTree) -> None:
-    """Pure load circuits: skip return energy, keep consumption."""
-    topo = SpanTopology(serial=SERIAL)  # No PV/BESS feed info
+    """Without PV/BESS feed info, all circuits classify as pure 'load'."""
+    topo = SpanTopology(serial=span_tree.serial)  # No PV/BESS feed info
     roles = classify_circuits([span_tree], [topo])
 
-    assert len(roles) == 2
+    assert len(roles) == len(span_tree.circuits)  # abc12: 11 circuits
     for cr in roles:
         assert cr.role == "load"
         assert cr.skip_return_energy is True
@@ -413,7 +365,6 @@ def _make_enphase_integration(
     )
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_detect_overlaps_bess_upstream_with_powerwall(
     span_tree: SpanDeviceTree,
     powerwall_device: HADevice,
@@ -421,7 +372,7 @@ def test_detect_overlaps_bess_upstream_with_powerwall(
 ) -> None:
     """BESS UPSTREAM + Powerwall integration → prefer Powerwall for grid + battery."""
     topo = SpanTopology(
-        serial=SERIAL,
+        serial=span_tree.serial,
         battery_position="UPSTREAM",
         battery_vendor="Tesla",
     )
@@ -436,7 +387,7 @@ def test_detect_overlaps_bess_upstream_with_powerwall(
     assert grid_preferred[0].platform == "powerwall"
     assert "site_import" in grid_preferred[0].entity_id
 
-    # SPAN grid should be non-preferred
+    # SPAN grid should be non-preferred (post-battery, not true grid)
     grid_span = [a for a in result.role_assignments if a.role == "grid_import" and not a.preferred]
     assert len(grid_span) >= 1
     assert all(a.platform == "span_ebus" for a in grid_span)
@@ -452,13 +403,12 @@ def test_detect_overlaps_bess_upstream_with_powerwall(
     assert len(result.warnings) >= 1
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_detect_overlaps_bess_upstream_no_powerwall(
     span_tree: SpanDeviceTree,
 ) -> None:
     """BESS UPSTREAM but no matching integration → use SPAN for grid."""
     topo = SpanTopology(
-        serial=SERIAL,
+        serial=span_tree.serial,
         battery_position="UPSTREAM",
         battery_vendor="Tesla",
     )
@@ -602,10 +552,9 @@ def test_detect_overlaps_bess_upstream_uses_dedicated(
     assert all(a.platform == "powerwall" for a in batt_preferred)
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_detect_overlaps_span_only(span_tree: SpanDeviceTree) -> None:
-    """No other integrations, no topology — all SPAN preferred."""
-    topo = SpanTopology(serial=SERIAL)
+    """No other integrations, no UPSTREAM BESS — all SPAN preferred."""
+    topo = SpanTopology(serial=span_tree.serial)
     circuit_roles = classify_circuits([span_tree], [topo])
 
     result = build_energy_topology([span_tree], [topo], [], circuit_roles)
@@ -613,13 +562,13 @@ def test_detect_overlaps_span_only(span_tree: SpanDeviceTree) -> None:
     preferred = [a for a in result.role_assignments if a.preferred]
     assert all(a.platform == "span_ebus" for a in preferred)
 
-    # Grid comes from site metering
+    # Grid comes from the upstream lugs
     grid = [a for a in preferred if a.role == "grid_import"]
     assert len(grid) == 1
 
-    # Device consumption for both circuits
+    # One device_consumption entry per circuit (abc12: 11 circuits)
     consumption = [a for a in preferred if a.role == "device_consumption"]
-    assert len(consumption) == 2
+    assert len(consumption) == len(span_tree.circuits)
 
 
 def test_device_consumption_excludes_bess_feed(
@@ -684,24 +633,16 @@ def test_device_consumption_includes_pv_feed(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_topology_aware_config_full(
     span_tree: SpanDeviceTree,
     powerwall_device: HADevice,
     powerwall_entities: list[HAEntity],
-    pv_feed_circuit: HADevice,
 ) -> None:
-    """Full topology-aware config: PW grid+battery, SPAN circuit solar, SPAN consumption."""
-    # Add PV feed circuit to tree
-    span_tree.circuits.append(pv_feed_circuit)
-
+    """Full topology-aware config: BESS UPSTREAM → Powerwall grid + battery, SPAN circuits."""
     topo = SpanTopology(
-        serial=SERIAL,
+        serial=span_tree.serial,
         battery_position="UPSTREAM",
         battery_vendor="Tesla",
-        solar_position="IN_PANEL",
-        solar_vendor="Enphase",
-        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
     )
     integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
     circuit_roles = classify_circuits([span_tree], [topo])
@@ -712,24 +653,29 @@ def test_build_topology_aware_config_full(
     # Grid from powerwall
     grid_sources = [s for s in config["energy_sources"] if s["type"] == "grid"]
     assert len(grid_sources) == 1
-    grid = grid_sources[0]
-    assert any("powerwall_site_import" in f["stat_energy_from"] for f in grid["flow_from"])
-
-    # Solar from SPAN PV feed circuit return energy
-    solar_sources = [s for s in config["energy_sources"] if s["type"] == "solar"]
-    assert len(solar_sources) == 1
-    assert "energy_returned" in solar_sources[0]["stat_energy_from"]
+    assert any("powerwall_site_import" in f["stat_energy_from"]
+               for f in grid_sources[0]["flow_from"])
 
     # Battery from powerwall
     batt_sources = [s for s in config["energy_sources"] if s["type"] == "battery"]
     assert len(batt_sources) == 1
     assert "powerwall" in batt_sources[0].get("stat_energy_from", "")
 
-    # Device consumption — Kitchen + Garage + PV circuit (parasitic)
+    # No solar source — abc12 has no PV device.  (Solar IN_PANEL requires a
+    # circuit's ``connection/feeds-device-id`` to point at the PV; covered in
+    # the PV-specific overlap tests below.)
+    solar_sources = [s for s in config["energy_sources"] if s["type"] == "solar"]
+    assert len(solar_sources) == 0
+
+    # One device_consumption per circuit, plus a panel-tier root entry for
+    # the Sankey hierarchy (BESS upstream → SPAN lugs is non-preferred grid
+    # and surfaces as device_consumption).
     consumption_ids = {d["stat_consumption"] for d in config["device_consumption"]}
-    assert "sensor.span_kitchen_energy" in consumption_ids
-    assert "sensor.span_garage_energy" in consumption_ids
-    assert "sensor.span_pv_system_energy" in consumption_ids
+    panel_eid = next(iter(c for c in consumption_ids if "lugs_imported_energy" in c), None)
+    assert panel_eid is not None
+    # Every circuit gets an entry
+    circuit_consumption = {c for c in consumption_ids if c != panel_eid}
+    assert len(circuit_consumption) == len(span_tree.circuits)
 
 
 # ---------------------------------------------------------------------------
@@ -737,17 +683,20 @@ def test_build_topology_aware_config_full(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_backward_compat_basic_energy_command(span_tree: SpanDeviceTree) -> None:
-    """The original build_energy_config still works unchanged."""
+    """The original build_energy_config still works against the tree-v1 shape.
+
+    Note: span-hass 0.2.x's BESS and PV devices don't expose a ``meter``
+    capability, so the non-topology path only proposes grid (from lugs_up)
+    + circuit consumption.  Use the topology-aware path for solar/battery
+    sources sourced from dedicated DER integrations.
+    """
     from hass_atlas.energy import build_energy_config
 
     config = build_energy_config([span_tree])
     source_types = {s["type"] for s in config["energy_sources"]}
-    assert "grid" in source_types
-    assert "solar" in source_types
-    assert "battery" in source_types
-    assert len(config["device_consumption"]) == 2
+    assert source_types == {"grid"}
+    assert len(config["device_consumption"]) == len(span_tree.circuits)
 
 
 # ---------------------------------------------------------------------------
@@ -778,22 +727,39 @@ def test_circuit_node_id_non_span() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
-def test_build_energy_topology_circuit_rate_entity_id(
-    span_tree: SpanDeviceTree,
-) -> None:
-    """Circuits with active-power entities get rate_entity_id set."""
-    topo = SpanTopology(serial=SERIAL, is_lead_panel=True)
-    circuit_roles = classify_circuits([span_tree], [topo])
-    result = build_energy_topology([span_tree], [topo], [], circuit_roles)
+def test_build_energy_topology_circuit_rate_entity_id() -> None:
+    """Circuits with active-power get rate_entity_id; circuits without get None.
 
-    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
-    # Kitchen circuit has active-power entity in conftest
-    kitchen = next(a for a in consumption if "kitchen" in a.entity_id)
-    assert kitchen.rate_entity_id == "sensor.span_kitchen_active_power"
+    Build a synthetic tree with two circuits: the first has an active-power
+    entity, the second doesn't.  ``build_energy_topology`` should set
+    ``rate_entity_id`` only on the first.
+    """
+    tree = make_panel_tree_with_lugs(
+        "nt-0000-rate1",
+        num_circuits=1,
+        circuit_names=["Kitchen"],
+        include_circuit_power=True,
+    )
+    no_power = make_panel_tree_with_lugs(
+        "nt-0000-rate2",
+        num_circuits=1,
+        circuit_names=["Garage"],
+        include_circuit_power=False,
+    )
+    tree.circuits.append(no_power.circuits[0])
 
-    # Garage circuit does NOT have active-power entity in conftest
-    garage = next(a for a in consumption if "garage" in a.entity_id)
+    topo = SpanTopology(serial=tree.serial, is_lead_panel=True)
+    circuit_roles = classify_circuits([tree], [topo])
+    result = build_energy_topology([tree], [topo], [], circuit_roles)
+
+    consumption = [
+        a for a in result.role_assignments
+        if a.role == "device_consumption" and a.preferred
+    ]
+    kitchen = next(a for a in consumption if "kitchen" in a.entity_id.lower())
+    assert kitchen.rate_entity_id == "sensor.kitchen_active_power"
+
+    garage = next(a for a in consumption if "garage" in a.entity_id.lower())
     assert garage.rate_entity_id is None
 
 
@@ -869,15 +835,14 @@ def test_build_energy_topology_solar_rate_falls_back_to_active_power(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_energy_topology_panel_parents_bess_upstream(
     span_tree: SpanDeviceTree,
     powerwall_device: HADevice,
     powerwall_entities: list[HAEntity],
 ) -> None:
-    """BESS UPSTREAM: panel upstream → device_consumption parent, circuits get parent_entity_id."""
+    """BESS UPSTREAM → panel upstream emitted as Sankey-root consumption, circuits nest under it."""
     topo = SpanTopology(
-        serial=SERIAL,
+        serial=span_tree.serial,
         battery_position="UPSTREAM",
         battery_vendor="Tesla",
         is_lead_panel=True,
@@ -887,16 +852,18 @@ def test_build_energy_topology_panel_parents_bess_upstream(
 
     result = build_energy_topology([span_tree], [topo], integrations, circuit_roles)
 
-    # Panel upstream should be added as device_consumption (it's non-preferred for grid)
-    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+    consumption = [
+        a for a in result.role_assignments
+        if a.role == "device_consumption" and a.preferred
+    ]
     panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
     assert len(panel_entries) == 1
     panel_eid = panel_entries[0].entity_id
     assert panel_entries[0].parent_entity_id is None  # lead panel has no parent
 
-    # Circuit entries should have parent_entity_id pointing to panel
+    # Every circuit nests under the panel entry
     circuit_entries = [a for a in consumption if a.entity_id != panel_eid]
-    assert len(circuit_entries) == 2  # kitchen + garage
+    assert len(circuit_entries) == len(span_tree.circuits)
     for ce in circuit_entries:
         assert ce.parent_entity_id == panel_eid
 
@@ -919,69 +886,31 @@ def test_build_energy_topology_no_parents_when_span_is_grid(
         assert a.parent_entity_id is None
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_energy_topology_multi_panel_hierarchy(
-    panel_device: HADevice,
-    site_meter_device: HADevice,
-    circuit_devices: list[HADevice],
     powerwall_device: HADevice,
     powerwall_entities: list[HAEntity],
 ) -> None:
-    """Multi-panel: lead → sub-panel → circuits, 3-level hierarchy."""
-    lead_serial = SERIAL
-    sub_serial = "nt-0000-sub01"
-
-    # Lead panel tree
-    lead_tree = SpanDeviceTree(
-        panel=panel_device,
-        circuits=circuit_devices,
+    """Lead + sub-panel: 2-level Sankey hierarchy via via_device_id."""
+    lead_tree = make_panel_tree_with_lugs(
+        "nt-0000-lead1",
+        num_circuits=2,
+        circuit_names=["Lead Kitchen", "Lead Garage"],
+    )
+    sub_tree = make_panel_tree_with_lugs(
+        "nt-0000-sub01",
+        num_circuits=1,
+        circuit_names=["Sub Office"],
+        via_device_id=lead_tree.panel.id,
     )
 
-    # Sub-panel tree
-    sub_panel = HADevice(
-        id="dev-sub-panel",
-        name="Sub Panel",
-        model="SPAN Panel",
-        identifiers=[("span_ebus", sub_serial)],
-        via_device_id=PANEL_DEVICE_ID,
+    lead_topo = SpanTopology(
+        serial=lead_tree.serial, battery_position="UPSTREAM",
+        battery_vendor="Tesla", is_lead_panel=True,
     )
-    sub_site_meter = HADevice(  # noqa: F841
-        id="dev-sub-site-meter",
-        name="Sub Site Metering",
-        model="Site Metering",
-        identifiers=[("span_ebus", f"{sub_serial}_site-meter")],
-        via_device_id="dev-sub-panel",
-        entities=[
-            HAEntity(
-                entity_id="sensor.sub_site_imported_energy",
-                unique_id=f"{sub_serial}_site-meter_imported-energy",
-                platform="span_ebus", device_id="dev-sub-site-meter",
-            ),
-        ],
+    sub_topo = SpanTopology(
+        serial=sub_tree.serial, battery_position="UPSTREAM",
+        battery_vendor="Tesla", is_lead_panel=False,
     )
-    sub_circuit = HADevice(
-        id="dev-sub-circuit-001",
-        name="Sub Kitchen",
-        model="Circuit",
-        identifiers=[("span_ebus", f"{sub_serial}_sc1-node")],
-        via_device_id="dev-sub-panel",
-        entities=[
-            HAEntity(
-                entity_id="sensor.sub_kitchen_energy",
-                unique_id=f"{sub_serial}_sc1-node_exported-energy",
-                platform="span_ebus", device_id="dev-sub-circuit-001",
-            ),
-        ],
-    )
-    sub_tree = SpanDeviceTree(
-        panel=sub_panel,
-        circuits=[sub_circuit],
-    )
-
-    lead_topo = SpanTopology(serial=lead_serial, battery_position="UPSTREAM",
-                             battery_vendor="Tesla", is_lead_panel=True)
-    sub_topo = SpanTopology(serial=sub_serial, battery_position="UPSTREAM",
-                            battery_vendor="Tesla", is_lead_panel=False)
 
     trees = [lead_tree, sub_tree]
     integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
@@ -989,174 +918,83 @@ def test_build_energy_topology_multi_panel_hierarchy(
 
     result = build_energy_topology(trees, [lead_topo, sub_topo], integrations, circuit_roles)
 
-    consumption = [a for a in result.role_assignments if a.role == "device_consumption" and a.preferred]
+    consumption = [
+        a for a in result.role_assignments
+        if a.role == "device_consumption" and a.preferred
+    ]
 
-    # Lead panel entry — no parent
-    lead_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
-                         and a.parent_entity_id is None]
+    # Lead panel — no parent
+    lead_panel_entries = [
+        a for a in consumption
+        if "Sankey hierarchy" in a.reason and a.parent_entity_id is None
+    ]
     assert len(lead_panel_entries) == 1
     lead_eid = lead_panel_entries[0].entity_id
 
-    # Sub-panel entry — parent is lead panel
-    sub_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
-                        and a.parent_entity_id == lead_eid]
+    # Sub-panel — parent is lead
+    sub_panel_entries = [
+        a for a in consumption
+        if "Sankey hierarchy" in a.reason and a.parent_entity_id == lead_eid
+    ]
     assert len(sub_panel_entries) == 1
     sub_eid = sub_panel_entries[0].entity_id
 
-    # Exactly 2 panel-level entries total (lead + sub)
+    # Exactly 2 panel-level entries total
     all_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
     assert len(all_panel_entries) == 2
 
-    # Lead circuits → parent is lead panel
-    lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid
-                     and "Sankey hierarchy" not in a.reason]
-    assert len(lead_circuits) == 2  # kitchen + garage
+    # Lead circuits nest under lead panel
+    lead_circuits = [
+        a for a in consumption
+        if a.parent_entity_id == lead_eid and "Sankey hierarchy" not in a.reason
+    ]
+    assert len(lead_circuits) == 2
 
-    # Sub circuits → parent is sub-panel
+    # Sub-panel circuits nest under sub panel
     sub_circuits = [a for a in consumption if a.parent_entity_id == sub_eid]
     assert len(sub_circuits) == 1
-    assert sub_circuits[0].entity_id == "sensor.sub_kitchen_energy"
+    assert "sub_office" in sub_circuits[0].entity_id.lower()
 
 
-@pytest.mark.xfail(reason="SHT-0fz: rewrite for tree-v1 fixtures")
 def test_build_energy_topology_daisy_chain_hierarchy(
     powerwall_device: HADevice,
     powerwall_entities: list[HAEntity],
 ) -> None:
-    """Daisy-chain: lead → mid → tail, each panel points to its direct parent."""
-    lead_serial = "nt-2024-a1b2c"
-    mid_serial = "nt-2024-d3e4f"
-    tail_serial = "nt-2024-g5h6j"
-
-    # Lead panel (no via_device_id)
-    lead_panel = HADevice(
-        id="dev-lead",
-        name="Lead Panel",
-        model="SPAN Panel",
-        identifiers=[("span_ebus", lead_serial)],
+    """Daisy-chain: lead → mid → tail.  Each panel parents to its DIRECT predecessor."""
+    lead_tree = make_panel_tree_with_lugs(
+        "nt-2024-a1b2c",
+        num_circuits=1,
+        circuit_names=["Lead Kitchen"],
     )
-    lead_site_meter = HADevice(  # noqa: F841
-        id="dev-lead-sm",
-        name="Lead Site Metering",
-        model="Site Metering",
-        identifiers=[("span_ebus", f"{lead_serial}_site-meter")],
-        via_device_id="dev-lead",
-        entities=[
-            HAEntity(
-                entity_id="sensor.lead_imported_energy",
-                unique_id=f"{lead_serial}_site-meter_imported-energy",
-                platform="span_ebus", device_id="dev-lead-sm",
-            ),
-        ],
+    mid_tree = make_panel_tree_with_lugs(
+        "nt-2024-d3e4f",
+        num_circuits=1,
+        circuit_names=["Mid Kitchen"],
+        via_device_id=lead_tree.panel.id,
     )
-    lead_circuit = HADevice(
-        id="dev-lead-c1",
-        name="Lead Kitchen",
-        model="Circuit",
-        identifiers=[("span_ebus", f"{lead_serial}_lc1")],
-        via_device_id="dev-lead",
-        entities=[
-            HAEntity(
-                entity_id="sensor.lead_kitchen_energy",
-                unique_id=f"{lead_serial}_lc1_exported-energy",
-                platform="span_ebus", device_id="dev-lead-c1",
-            ),
-        ],
-    )
-    lead_tree = SpanDeviceTree(
-        panel=lead_panel, circuits=[lead_circuit],
+    tail_tree = make_panel_tree_with_lugs(
+        "nt-2024-g5h6j",
+        num_circuits=1,
+        circuit_names=["Tail Office"],
+        via_device_id=mid_tree.panel.id,
     )
 
-    # Mid panel (via_device_id → lead)
-    mid_panel = HADevice(
-        id="dev-mid",
-        name="Mid Panel",
-        model="SPAN Panel",
-        identifiers=[("span_ebus", mid_serial)],
-        via_device_id="dev-lead",
+    # All BESS UPSTREAM so SPAN lugs become non-preferred grid → free to use
+    # as Sankey-hierarchy device_consumption parents.
+    lead_topo = SpanTopology(
+        serial=lead_tree.serial, battery_position="UPSTREAM",
+        battery_vendor="Tesla", is_lead_panel=True,
     )
-    mid_site_meter = HADevice(  # noqa: F841
-        id="dev-mid-sm",
-        name="Mid Site Metering",
-        model="Site Metering",
-        identifiers=[("span_ebus", f"{mid_serial}_site-meter")],
-        via_device_id="dev-mid",
-        entities=[
-            HAEntity(
-                entity_id="sensor.mid_imported_energy",
-                unique_id=f"{mid_serial}_site-meter_imported-energy",
-                platform="span_ebus", device_id="dev-mid-sm",
-            ),
-        ],
+    mid_topo = SpanTopology(
+        serial=mid_tree.serial, battery_position="UPSTREAM",
+        battery_vendor="Tesla", is_lead_panel=False,
     )
-    mid_circuit = HADevice(
-        id="dev-mid-c1",
-        name="Mid Kitchen",
-        model="Circuit",
-        identifiers=[("span_ebus", f"{mid_serial}_mc1")],
-        via_device_id="dev-mid",
-        entities=[
-            HAEntity(
-                entity_id="sensor.mid_kitchen_energy",
-                unique_id=f"{mid_serial}_mc1_exported-energy",
-                platform="span_ebus", device_id="dev-mid-c1",
-            ),
-        ],
-    )
-    mid_tree = SpanDeviceTree(
-        panel=mid_panel, circuits=[mid_circuit],
+    tail_topo = SpanTopology(
+        serial=tail_tree.serial, battery_position="UPSTREAM",
+        battery_vendor="Tesla", is_lead_panel=False,
     )
 
-    # Tail panel (via_device_id → mid)
-    tail_panel = HADevice(
-        id="dev-tail",
-        name="Tail Panel",
-        model="SPAN Panel",
-        identifiers=[("span_ebus", tail_serial)],
-        via_device_id="dev-mid",
-    )
-    tail_site_meter = HADevice(  # noqa: F841
-        id="dev-tail-sm",
-        name="Tail Site Metering",
-        model="Site Metering",
-        identifiers=[("span_ebus", f"{tail_serial}_site-meter")],
-        via_device_id="dev-tail",
-        entities=[
-            HAEntity(
-                entity_id="sensor.tail_imported_energy",
-                unique_id=f"{tail_serial}_site-meter_imported-energy",
-                platform="span_ebus", device_id="dev-tail-sm",
-            ),
-        ],
-    )
-    tail_circuit = HADevice(
-        id="dev-tail-c1",
-        name="Tail Office",
-        model="Circuit",
-        identifiers=[("span_ebus", f"{tail_serial}_tc1")],
-        via_device_id="dev-tail",
-        entities=[
-            HAEntity(
-                entity_id="sensor.tail_office_energy",
-                unique_id=f"{tail_serial}_tc1_exported-energy",
-                platform="span_ebus", device_id="dev-tail-c1",
-            ),
-        ],
-    )
-    tail_tree = SpanDeviceTree(
-        panel=tail_panel, circuits=[tail_circuit],
-    )
-
-    # All panels must see BESS UPSTREAM for Powerwall to claim grid source,
-    # freeing SPAN upstream entities for Sankey hierarchy
-    lead_topo = SpanTopology(serial=lead_serial, battery_position="UPSTREAM",
-                             battery_vendor="Tesla", is_lead_panel=True)
-    mid_topo = SpanTopology(serial=mid_serial, battery_position="UPSTREAM",
-                            battery_vendor="Tesla", is_lead_panel=False)
-    tail_topo = SpanTopology(serial=tail_serial, battery_position="UPSTREAM",
-                             battery_vendor="Tesla", is_lead_panel=False)
-
-    # Pass trees in REVERSE order to also test topological sort
+    # Reverse order — exercises topological sort inside build_energy_topology.
     trees = [tail_tree, mid_tree, lead_tree]
     topos = [lead_topo, mid_topo, tail_topo]
     integrations = [_make_pw_integration(powerwall_device, powerwall_entities)]
@@ -1164,47 +1002,54 @@ def test_build_energy_topology_daisy_chain_hierarchy(
 
     result = build_energy_topology(trees, topos, integrations, circuit_roles)
 
-    consumption = [a for a in result.role_assignments
-                   if a.role == "device_consumption" and a.preferred]
+    consumption = [
+        a for a in result.role_assignments
+        if a.role == "device_consumption" and a.preferred
+    ]
 
-    # Lead panel — no parent (it's the root)
-    lead_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
-                    and a.parent_entity_id is None]
+    # Lead — root of the chain
+    lead_entries = [
+        a for a in consumption
+        if "Sankey hierarchy" in a.reason and a.parent_entity_id is None
+    ]
     assert len(lead_entries) == 1
     lead_eid = lead_entries[0].entity_id
-    assert lead_eid == "sensor.lead_imported_energy"
 
-    # Mid panel — parent is lead panel
-    mid_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
-                   and a.parent_entity_id == lead_eid]
+    # Mid — parent is lead
+    mid_entries = [
+        a for a in consumption
+        if "Sankey hierarchy" in a.reason and a.parent_entity_id == lead_eid
+    ]
     assert len(mid_entries) == 1
     mid_eid = mid_entries[0].entity_id
-    assert mid_eid == "sensor.mid_imported_energy"
 
-    # Tail panel — parent is mid panel (NOT lead panel)
-    tail_entries = [a for a in consumption if "Sankey hierarchy" in a.reason
-                    and a.parent_entity_id == mid_eid]
+    # Tail — parent is mid (NOT lead)
+    tail_entries = [
+        a for a in consumption
+        if "Sankey hierarchy" in a.reason and a.parent_entity_id == mid_eid
+    ]
     assert len(tail_entries) == 1
     tail_eid = tail_entries[0].entity_id
-    assert tail_eid == "sensor.tail_imported_energy"
 
-    # Exactly 3 panel-level entries total (lead + mid + tail)
+    # Exactly 3 panel-level entries
     all_panel_entries = [a for a in consumption if "Sankey hierarchy" in a.reason]
     assert len(all_panel_entries) == 3
 
-    # Lead circuits → parent is lead panel
-    lead_circuits = [a for a in consumption if a.parent_entity_id == lead_eid
-                     and "Sankey hierarchy" not in a.reason]
+    # Each panel's circuit nests under its own panel entry
+    lead_circuits = [
+        a for a in consumption
+        if a.parent_entity_id == lead_eid and "Sankey hierarchy" not in a.reason
+    ]
     assert len(lead_circuits) == 1
-    assert lead_circuits[0].entity_id == "sensor.lead_kitchen_energy"
+    assert "lead_kitchen" in lead_circuits[0].entity_id.lower()
 
-    # Mid circuits → parent is mid panel
-    mid_circuits = [a for a in consumption if a.parent_entity_id == mid_eid
-                    and "Sankey hierarchy" not in a.reason]
+    mid_circuits = [
+        a for a in consumption
+        if a.parent_entity_id == mid_eid and "Sankey hierarchy" not in a.reason
+    ]
     assert len(mid_circuits) == 1
-    assert mid_circuits[0].entity_id == "sensor.mid_kitchen_energy"
+    assert "mid_kitchen" in mid_circuits[0].entity_id.lower()
 
-    # Tail circuits → parent is tail panel
     tail_circuits = [a for a in consumption if a.parent_entity_id == tail_eid]
     assert len(tail_circuits) == 1
-    assert tail_circuits[0].entity_id == "sensor.tail_office_energy"
+    assert "tail_office" in tail_circuits[0].entity_id.lower()

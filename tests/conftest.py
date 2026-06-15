@@ -43,6 +43,134 @@ def make_entity(
     )
 
 
+def make_panel_tree_with_lugs(
+    panel_serial: str,
+    num_circuits: int = 2,
+    via_device_id: str | None = None,
+    *,
+    circuit_names: list[str] | None = None,
+    include_circuit_power: bool = True,
+) -> SpanDeviceTree:
+    """Build a synthetic SpanDeviceTree with panel root + lugs_up + N circuits.
+
+    Shape matches what span-hass 0.2.x publishes — minimum entities for the
+    topology engine to walk (lugs imported/exported/active-power energies,
+    circuit exported-energy + active-power).  Use ``via_device_id`` to mark
+    this panel as a sub-panel (HA device-registry hierarchy).  Lugs and
+    circuit entity unique_ids follow the live shape.
+    """
+    short = panel_serial.rsplit("-", 1)[-1]
+    pid = f"dev-{panel_serial}"
+
+    panel = HADevice(
+        id=pid,
+        name=f"SPAN Panel {panel_serial}",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", panel_serial)],
+        via_device_id=via_device_id,
+    )
+
+    lugs_up_id = f"{pid}-lugs-up"
+    lugs_up = HADevice(
+        id=lugs_up_id,
+        name=f"{short} Upstream Lugs",
+        model="Lugs",
+        identifiers=[("span_ebus", f"{panel_serial}_{panel_serial}-lugs-up")],
+        via_device_id=pid,
+        entities=[
+            HAEntity(
+                entity_id=f"sensor.{short}_lugs_imported_energy",
+                unique_id=f"{panel_serial}_{panel_serial}-lugs-up_meter_imported-energy",
+                platform="span_ebus", device_id=lugs_up_id,
+                device_class="energy", state_class="total_increasing",
+            ),
+            HAEntity(
+                entity_id=f"sensor.{short}_lugs_exported_energy",
+                unique_id=f"{panel_serial}_{panel_serial}-lugs-up_meter_exported-energy",
+                platform="span_ebus", device_id=lugs_up_id,
+                device_class="energy", state_class="total_increasing",
+            ),
+            HAEntity(
+                entity_id=f"sensor.{short}_lugs_active_power",
+                unique_id=f"{panel_serial}_{panel_serial}-lugs-up_meter_active-power",
+                platform="span_ebus", device_id=lugs_up_id,
+                device_class="power",
+            ),
+        ],
+    )
+
+    circuit_devices: list[HADevice] = []
+    for i in range(num_circuits):
+        name = (circuit_names[i] if circuit_names and i < len(circuit_names)
+                else f"Circuit-{i + 1}")
+        cid = f"{pid}-circuit-{i + 1}"
+        uuid = f"circuit-uuid-{i + 1:02d}"
+        ents = [
+            HAEntity(
+                entity_id=f"sensor.{_slugify(name)}_exported_energy",
+                unique_id=f"{panel_serial}_{uuid}_meter_exported-energy",
+                platform="span_ebus", device_id=cid,
+                device_class="energy", state_class="total_increasing",
+            ),
+        ]
+        if include_circuit_power:
+            ents.append(HAEntity(
+                entity_id=f"sensor.{_slugify(name)}_active_power",
+                unique_id=f"{panel_serial}_{uuid}_meter_active-power",
+                platform="span_ebus", device_id=cid,
+                device_class="power",
+            ))
+        circuit_devices.append(HADevice(
+            id=cid,
+            name=name,
+            model="Circuit",
+            identifiers=[("span_ebus", f"{panel_serial}_{uuid}")],
+            via_device_id=pid,
+            entities=ents,
+        ))
+
+    return SpanDeviceTree(
+        panel=panel,
+        lugs_up=lugs_up,
+        circuits=circuit_devices,
+    )
+
+
+def _slugify(s: str) -> str:
+    import re
+    return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
+
+
+def make_circuit_tree(
+    circuits: list[tuple[str, str | None]],
+    panel_serial: str = "nt-0000-test1",
+) -> SpanDeviceTree:
+    """Build a minimal SpanDeviceTree with the given circuit (name, area_id) pairs.
+
+    Useful for tests that exercise circuit-iteration logic and need controlled
+    names and area assignments without the noise of a full 11-circuit fixture.
+    """
+    panel = HADevice(
+        id=f"dev-{panel_serial}",
+        name=f"SPAN Panel {panel_serial}",
+        model="SPAN Panel",
+        identifiers=[("span_ebus", panel_serial)],
+    )
+    circuit_devices: list[HADevice] = []
+    for i, (name, area_id) in enumerate(circuits, start=1):
+        circuit_devices.append(
+            HADevice(
+                id=f"dev-circuit-{i}",
+                name=name,
+                model="Circuit",
+                identifiers=[("span_ebus", f"{panel_serial}_circuit-uuid-{i}")],
+                via_device_id=panel.id,
+                area_id=area_id,
+            )
+        )
+    return SpanDeviceTree(panel=panel, circuits=circuit_devices)
+
+
 @pytest.fixture
 def panel_device() -> HADevice:
     return HADevice(
