@@ -2,6 +2,8 @@
 
 A command-line tool for auditing and configuring Home Assistant energy dashboards, area assignments, and device topology. Designed as a companion to [span-hass](https://github.com/electrification-bus/span-hass) (the `span_ebus` HA integration for SPAN smart panels), but works across all energy integrations — Tesla Powerwall, Enphase, SolarEdge, and more.
 
+**Compatibility:** Targets `span-hass` 0.2.x (the parent/child Homie 5 tree-data-model line). For panels still on `span-hass` 0.1.x, pin hass-atlas to the pre-`SHT-br5` commit on `main`.
+
 > **CAUTION: This is a power tool.**
 >
 > hass-atlas modifies your Home Assistant configuration directly via the WebSocket API — including the Energy Dashboard, device registry, entity registry, and area registry. Incorrect changes can break your energy tracking history or require manual cleanup.
@@ -240,6 +242,8 @@ Home Assistant's Energy Dashboard requires manual configuration. When you have m
 
 SPAN panels expose rich metadata about connected sub-systems: battery vendor and model, solar inverter product, their physical position relative to the panel (UPSTREAM, IN_PANEL, DOWNSTREAM), and which circuit feeds each sub-device. hass-atlas reads this metadata and cross-references it with other HA integrations to make the right configuration choices.
 
+On `span-hass` 0.2.x, position is derived from the `connection` capability — each circuit's `connection/feeds-device-id` and each upstream lug's `connection/fed-by-device-id` are matched against the BESS / PV Homie device-ids. When commissioning data hasn't been published yet for a given DER, hass-atlas reports `position=None` and degrades gracefully (preferring SPAN upstream lugs as the grid source) rather than guessing wrong. See `CHANGELOG.md` §Known issues for the SPAN-side publish gaps that affect this.
+
 ### Position-Dependent Rules
 
 The physical position of a sub-device determines which integration should meter it:
@@ -342,14 +346,16 @@ poetry run mypy src/                    # type check
 
 ### Testing
 
-Tests use mock WebSocket fixtures — no live HA instance needed. Test coverage includes:
+Tests run against sanitized tree-v1 wire snapshots loaded via `tests/_fixture_loader.py` (no live HA instance needed). The two reference panels under `tests/fixtures/tree/` are an in-panel-BESS lead panel and a sub-panel with PV, both with populated connection records — together they exercise the topology engine's IN_PANEL / UPSTREAM detection paths. Test coverage includes:
 
-- Registry parsing and tree building
+- Registry parsing and tree building (SPAN Panel + Lugs + BESS + MID + PV + circuits)
 - Energy config construction and merging
-- Topology analysis with 30+ scenarios (multi-panel, multi-vendor)
+- Topology analysis with multi-panel, multi-vendor scenarios
 - Entity ID slugification and normalization
 - WebSocket client auth and command handling
 - Area assignment planning
+
+Several legacy scenario tests are currently marked `xfail` pending rewrite against the tree-v1 fixtures — they assert on flat-model entity layouts (e.g., Kitchen / Garage circuits, `sensor.span_site_imported_energy`) that don't exist in the new shape. See `CHANGELOG.md` §Known issues.
 
 ## SPAN Energy Direction Convention
 
