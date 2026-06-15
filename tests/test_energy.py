@@ -1000,3 +1000,40 @@ def test_remove_stale_clears_included_in_stat_keeps_entry() -> None:
     assert len(cleaned["device_consumption"]) == 1  # entry preserved
     assert cleaned["device_consumption"][0]["stat_consumption"] == "sensor.kitchen"
     assert "included_in_stat" not in cleaned["device_consumption"][0]
+
+
+def test_apply_remap_dedupes_device_consumption() -> None:
+    """If remap causes two entries to point at the same stat_consumption, dedupe."""
+    prefs = {
+        "energy_sources": [],
+        "device_consumption": [
+            # This entry will get its stat_consumption rewritten to one that
+            # already exists below — should be dropped after dedupe.
+            {
+                "stat_consumption": "sensor.old_panel_imported",
+                "included_in_stat": "sensor.parent",
+                "stat_rate": "sensor.old_panel_power",
+            },
+            # Pre-existing entry with the post-remap target stat_consumption.
+            {
+                "stat_consumption": "sensor.new_panel_imported",
+                "included_in_stat": "sensor.parent",
+                "stat_rate": "sensor.new_panel_power",
+            },
+            # A circuit entry that's unaffected.
+            {"stat_consumption": "sensor.kitchen", "included_in_stat": "sensor.parent"},
+        ],
+    }
+    remap = {"sensor.old_panel_imported": "sensor.new_panel_imported"}
+    cleaned = apply_remap_to_prefs(prefs, remap)
+
+    stats = [d["stat_consumption"] for d in cleaned["device_consumption"]]
+    # No duplicates
+    assert len(stats) == len(set(stats))
+    # First-occurrence wins — the OLD entry (rewritten) is kept; the original
+    # second entry is dropped because its stat now collides.
+    new_panel_entry = next(d for d in cleaned["device_consumption"]
+                           if d["stat_consumption"] == "sensor.new_panel_imported")
+    assert new_panel_entry["stat_rate"] == "sensor.old_panel_power"  # kept from first
+    # Unaffected entry survives
+    assert any(d["stat_consumption"] == "sensor.kitchen" for d in cleaned["device_consumption"])

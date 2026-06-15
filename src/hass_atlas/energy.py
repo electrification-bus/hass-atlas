@@ -394,8 +394,11 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
     # --- Device consumption: keep wanted + non-SPAN user entries ---
     existing_consumption = result.get("device_consumption", [])
     keep_consumption = []
+    seen_stats: set[str] = set()
     for entry in existing_consumption:
         stat = entry.get("stat_consumption", "")
+        if stat in seen_stats:
+            continue  # dedupe pre-existing duplicates (e.g. from prior --remap)
         if stat in wanted_consumption:
             updated = copy.deepcopy(entry)
             if stat in consumption_parents:
@@ -404,9 +407,12 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
                 updated["stat_rate"] = consumption_rates[stat]
             keep_consumption.append(updated)
             wanted_consumption.discard(stat)  # mark as already present
+            seen_stats.add(stat)
         elif stat not in skipped_eids:
             # Not in wanted or skipped — user-configured entry, preserve it
             keep_consumption.append(entry)
+            if stat:
+                seen_stats.add(stat)
     # Add new entries not yet present
     for stat in sorted(wanted_consumption):
         new_entry: dict[str, str] = {"stat_consumption": stat}
@@ -746,7 +752,10 @@ def _remap_panel_upstream(stale_id: str, trees: list[SpanDeviceTree]) -> str | N
 def apply_remap_to_prefs(prefs: dict[str, Any], remap: dict[str, str]) -> dict[str, Any]:
     """Rewrite all stale entity references in energy prefs using the remap dict.
 
-    Covers the same reference fields as ``find_stale_references``.
+    Covers the same reference fields as ``find_stale_references``.  After
+    remapping, device_consumption is deduplicated by ``stat_consumption`` —
+    if remapping caused two entries to point at the same stat, the first
+    wins (preserving its ``included_in_stat`` / ``stat_rate``).
     """
     cleaned = copy.deepcopy(prefs)
     for source in cleaned.get("energy_sources", []):
@@ -763,6 +772,19 @@ def apply_remap_to_prefs(prefs: dict[str, Any], remap: dict[str, str]) -> dict[s
         for k in ("stat_consumption", "included_in_stat", "stat_rate"):
             if (e := device.get(k)) and e in remap:
                 device[k] = remap[e]
+
+    # Dedupe device_consumption — HA's Sankey rejects duplicate stat_consumption.
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for device in cleaned.get("device_consumption", []):
+        stat = device.get("stat_consumption")
+        if stat and stat in seen:
+            continue
+        if stat:
+            seen.add(stat)
+        deduped.append(device)
+    cleaned["device_consumption"] = deduped
+
     return cleaned
 
 
