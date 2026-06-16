@@ -98,12 +98,13 @@ Every command accepts these options:
 | Command | Reads | Writes | Description |
 |---------|:-----:|:------:|-------------|
 | `audit` | Yes | No | Device tree + diagnostics |
+| `cascade` | Yes | No | Panel-cascade tree from publisher topology |
 | `energy-topology` | Yes | No | Energy system analysis |
-| `energy-audit` | Yes | `--prune` | Find stale dashboard references |
+| `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
-| `link-panels` | Yes | Yes | Link sub-panels in device registry |
+| `link-panels` | Yes | Yes | Link sub-panels in device registry (mostly redundant on span-hass 0.2.x — auto-derived from publisher) |
 | `water` | Yes | Yes | Configure Energy Dashboard water tab |
 
 ### `audit` — Device & Energy Dashboard Health Check

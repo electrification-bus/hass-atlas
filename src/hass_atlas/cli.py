@@ -87,6 +87,7 @@ def cli(ctx: click.Context, url: str | None, token: str, dry_run: bool) -> None:
 # Register subcommands (imported after cli is defined to avoid circular deps)
 from hass_atlas.audit import audit  # noqa: E402
 from hass_atlas.areas import areas  # noqa: E402
+from hass_atlas.cascade import cascade  # noqa: E402
 from hass_atlas.energy import energy, energy_audit, energy_topology  # noqa: E402
 from hass_atlas.normalize import normalize  # noqa: E402
 from hass_atlas.panels import link_panels  # noqa: E402
@@ -94,6 +95,7 @@ from hass_atlas.water import water  # noqa: E402
 
 cli.add_command(audit)
 cli.add_command(areas)
+cli.add_command(cascade)
 cli.add_command(energy)
 cli.add_command(energy_audit)
 cli.add_command(energy_topology)
