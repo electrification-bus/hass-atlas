@@ -4,7 +4,9 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 ## [Unreleased]
 
-The 0.1.0 line is the initial alpha. All work to date is grouped here pending the first tagged release; once `v0.1.0` is tagged, this section will move under `[0.1.0]` with the tag date.
+## [0.1.0] - 2026-06-24
+
+The 0.1.0 line is the initial alpha; this is the first tagged release.
 
 ### Added
 
@@ -19,6 +21,7 @@ The 0.1.0 line is the initial alpha. All work to date is grouped here pending th
 - **`link-panels`** — Sets `via_device` in the HA device registry for daisy-chained SPAN sub-panels. Required for the multi-panel Sankey hierarchy.
 - **`water`** — Configures the Energy Dashboard water tab. Auto-discovers `device_class=water` + `state_class=total_increasing` sensors, or accepts an explicit list. Additive-only.
 - **Topology-aware Energy Dashboard configuration.** Reads physical placement of BESS / PV / EVSE from the SPAN data model, classifies circuits (load, PV feed, BESS feed, EV feed), detects which other HA integrations (Powerwall, Enphase, etc.) meter the same flows, and resolves overlaps in favor of measurement consistency. CT-noise suppression on pure-load circuits prevents false-positive return-energy entries.
+- **Solar `stat_rate` from a positive PV power sensor.** The Energy Dashboard "Now" Power-sources card plots a source only via its `stat_rate` power sensor and treats solar as positive = production (it does not derive power from energy statistics). hass-atlas sources `stat_rate` from the SPAN PV-feed circuit's `active-power`, which span-hass 0.2.1 publishes positive while generating and measurement-consistent with the circuit's `imported-energy` (the source's `stat_energy_from`). It falls back to a dedicated PV integration's production-power sensor when no SPAN power sensor is present, and otherwise omits `stat_rate` with a warning rather than wiring a wrong-sign sensor (which the Now tab would clamp to a flat zero).
 - **Sankey hierarchy via `included_in_stat`.** Each circuit's consumption nests under its panel; each sub-panel nests under its parent panel. The Energy Dashboard "Now" tab renders the full daisy chain (Grid → Home → lead → sub-panel → circuits).
 - **Compatibility with span-hass 0.2.x** (the tree-data-model line). hass-atlas reads BESS / PV position from the `connection` capability's `feeds-device-id` / `fed-by-device-id` properties instead of the retired `bess/relative-position` and `bess/feed` entities. When commissioning data isn't yet published on the wire (a known span-side gap for some installs), position degrades gracefully to `None` rather than guessing wrong.
 - **Tree-v1 test fixtures.** `tests/fixtures/tree/{nt-0000-abc12.json, nt-0000-def34.json}` are sanitized wire snapshots captured directly from the SPAN firmware on the parent/child Homie 5 publication. `tests/_fixture_loader.py` translates them to HA-shaped registry records so test scenarios exercise the real shape rather than hand-rolled mocks.
@@ -36,4 +39,5 @@ The 0.1.0 line is the initial alpha. All work to date is grouped here pending th
 - **Multi-panel UPSTREAM (sub-panel fed by a parent SPAN panel)** is not derivable from the wire today — SPAN does not yet write `connection/fed-by-device-id = <parent-panel>` on the sub-panel's upstream lugs. Use `link-panels` to express the relationship in HA's device registry directly; hass-atlas's Sankey hierarchy honors that linkage.
 - **Several scenario tests are marked `xfail` pending rewrite against the tree-v1 fixtures.** The test infrastructure is correct (103 tests pass against the new fixtures); 19 specific scenario tests still assert on flat-model entity layouts (Kitchen / Garage circuits, `sensor.span_site_imported_energy`, retired `bess/feed`-style entities) and need per-test migration. Tracked locally in beads as SHT-0fz.
 
-[Unreleased]: https://github.com/electrification-bus/hass-atlas/commits/main
+[Unreleased]: https://github.com/electrification-bus/hass-atlas/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.1.0
