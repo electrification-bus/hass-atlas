@@ -101,7 +101,7 @@ def build_cascade(
     for tree in trees:
         if not tree.serial:
             continue
-        pointer = read_upstream_pointer(tree, states)
+        pointer: UpstreamPointer | None = read_upstream_pointer(tree, states)
         panels[tree.serial] = CascadeNode(
             kind="panel",
             label=tree.serial,

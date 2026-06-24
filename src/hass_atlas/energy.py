@@ -529,14 +529,14 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
     for key in set(current_source_map) & set(cleaned_source_map):
         old_src = current_source_map[key]
         new_src = cleaned_source_map[key]
-        diffs: dict[str, tuple[str | None, str | None]] = {}
+        source_diffs: dict[str, tuple[str | None, str | None]] = {}
         for field in ("stat_rate",):
             old_val = old_src.get(field)
             new_val = new_src.get(field)
             if old_val != new_val:
-                diffs[field] = (old_val, new_val)
-        if diffs:
-            updated_sources[key] = diffs
+                source_diffs[field] = (old_val, new_val)
+        if source_diffs:
+            updated_sources[key] = source_diffs
 
     if not added_consumption and not removed_consumption and not added_source_eids and not removed_source_eids and not updated_consumption and not updated_sources:
         print_ok("No changes needed — energy dashboard is up to date")
