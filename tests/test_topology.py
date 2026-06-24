@@ -19,6 +19,7 @@ from hass_atlas.topology import (
 from tests.conftest import (
     BESS_FEED_CIRCUIT_NODE_ID,
     CIRCUIT_1_NODE_ID,
+    ENPHASE_DEVICE_ID,
     PV_FEED_CIRCUIT_DEVICE_ID,
     PV_FEED_CIRCUIT_NODE_ID,
     PW_DEVICE_ID,
@@ -60,6 +61,38 @@ def test_discover_energy_integrations_multi_platform(
 
     enphase_int = next(i for i in integrations if i.platform == "enphase_envoy")
     assert len(enphase_int.energy_entities) == 1
+
+
+def test_discover_energy_integrations_collects_power_entities(
+    enphase_device: HADevice,
+    enphase_entities: list[HAEntity],
+) -> None:
+    """Power (W) sensors are attached to the matching platform's integration."""
+    prod_power = make_platform_entity(
+        "sensor.pv_current_power_production",
+        "envoy_prod",
+        "enphase_envoy",
+        ENPHASE_DEVICE_ID,
+        device_class="power",
+        state_class="measurement",
+    )
+    disabled_power = make_platform_entity(
+        "sensor.envoy_power_disabled",
+        "envoy_disabled",
+        "enphase_envoy",
+        ENPHASE_DEVICE_ID,
+        device_class="power",
+        state_class="measurement",
+    )
+    disabled_power.disabled_by = "user"
+
+    integrations = discover_energy_integrations(
+        [enphase_device], enphase_entities + [prod_power, disabled_power]
+    )
+    enphase_int = next(i for i in integrations if i.platform == "enphase_envoy")
+    power_ids = {e.entity_id for e in enphase_int.power_entities}
+    assert "sensor.pv_current_power_production" in power_ids
+    assert "sensor.envoy_power_disabled" not in power_ids  # disabled excluded
 
 
 def test_discover_energy_integrations_no_energy_entities() -> None:
@@ -763,50 +796,16 @@ def test_build_energy_topology_circuit_rate_entity_id() -> None:
     assert garage.rate_entity_id is None
 
 
-def test_build_energy_topology_solar_rate_prefers_generation_power(
+def test_build_energy_topology_solar_rate_prefers_span_active_power(
     panel_device: HADevice,
     site_meter_device: HADevice,
     pv_feed_circuit: HADevice,
     circuit_devices: list[HADevice],
 ) -> None:
-    """Solar IN_PANEL: prefers generation-power (non-negated) over active-power for stat_rate."""
-    from tests.conftest import make_entity, PV_FEED_CIRCUIT_DEVICE_ID, PV_FEED_CIRCUIT_NODE_ID
-    # Both active-power and generation-power exist on the circuit
-    pv_feed_circuit.entities.append(make_entity(
-        "sensor.span_pv_system_power",
-        f"{SERIAL}_{PV_FEED_CIRCUIT_NODE_ID}_active-power",
-        PV_FEED_CIRCUIT_DEVICE_ID,
-        device_class="power",
-    ))
-    pv_feed_circuit.entities.append(make_entity(
-        "sensor.span_pv_system_generation_power",
-        f"{SERIAL}_{PV_FEED_CIRCUIT_NODE_ID}_generation-power",
-        PV_FEED_CIRCUIT_DEVICE_ID,
-        device_class="power",
-    ))
-    tree = SpanDeviceTree(
-        panel=panel_device,
-        circuits=[pv_feed_circuit] + circuit_devices,
-    )
-    topo = SpanTopology(
-        serial=SERIAL,
-        solar_position="IN_PANEL",
-        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
-    )
-    circuit_roles = classify_circuits([tree], [topo])
-    result = build_energy_topology([tree], [topo], [], circuit_roles)
-
-    solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
-    assert solar.rate_entity_id == "sensor.span_pv_system_generation_power"
-
-
-def test_build_energy_topology_solar_rate_falls_back_to_active_power(
-    panel_device: HADevice,
-    site_meter_device: HADevice,
-    pv_feed_circuit: HADevice,
-    circuit_devices: list[HADevice],
-) -> None:
-    """Solar IN_PANEL: falls back to active-power when generation-power is absent."""
+    """Solar IN_PANEL: prefers the SPAN PV-feed circuit's active-power (positive
+    and measurement-consistent since span-hash >= 0.2.1) over a dedicated PV
+    integration's production-power sensor.
+    """
     from tests.conftest import make_entity, PV_FEED_CIRCUIT_DEVICE_ID, PV_FEED_CIRCUIT_NODE_ID
     pv_feed_circuit.entities.append(make_entity(
         "sensor.span_pv_system_power",
@@ -818,16 +817,113 @@ def test_build_energy_topology_solar_rate_falls_back_to_active_power(
         panel=panel_device,
         circuits=[pv_feed_circuit] + circuit_devices,
     )
+    # A dedicated PV integration is present, but the SPAN-native sensor wins.
+    enphase = EnergyIntegration(
+        platform="enphase_envoy",
+        devices=[],
+        energy_entities=[],
+        power_entities=[
+            make_platform_entity(
+                "sensor.pv_current_power_production",
+                "envoy_prod",
+                "enphase_envoy",
+                ENPHASE_DEVICE_ID,
+                device_class="power",
+                state_class="measurement",
+            ),
+        ],
+    )
     topo = SpanTopology(
         serial=SERIAL,
         solar_position="IN_PANEL",
+        solar_vendor="Enphase",
         solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
     )
     circuit_roles = classify_circuits([tree], [topo])
-    result = build_energy_topology([tree], [topo], [], circuit_roles)
+    result = build_energy_topology([tree], [topo], [enphase], circuit_roles)
 
     solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
     assert solar.rate_entity_id == "sensor.span_pv_system_power"
+    assert not any("no power sensor" in w for w in result.warnings)
+
+
+def test_build_energy_topology_solar_rate_falls_back_to_pv_integration(
+    panel_device: HADevice,
+    site_meter_device: HADevice,
+    pv_feed_circuit: HADevice,
+    circuit_devices: list[HADevice],
+) -> None:
+    """Solar IN_PANEL: with no SPAN power sensor on the feed circuit, stat_rate
+    falls back to a dedicated PV integration's production-power sensor, preferring
+    the aggregate over per-phase readings.
+    """
+    tree = SpanDeviceTree(
+        panel=panel_device,
+        circuits=[pv_feed_circuit] + circuit_devices,
+    )
+    enphase = EnergyIntegration(
+        platform="enphase_envoy",
+        devices=[],
+        energy_entities=[],
+        power_entities=[
+            make_platform_entity(
+                "sensor.envoy_current_power_production_l1",
+                "envoy_prod_l1",
+                "enphase_envoy",
+                ENPHASE_DEVICE_ID,
+                device_class="power",
+                state_class="measurement",
+            ),
+            make_platform_entity(
+                "sensor.pv_current_power_production",
+                "envoy_prod",
+                "enphase_envoy",
+                ENPHASE_DEVICE_ID,
+                device_class="power",
+                state_class="measurement",
+            ),
+        ],
+    )
+    topo = SpanTopology(
+        serial=SERIAL,
+        solar_position="IN_PANEL",
+        solar_vendor="Enphase",
+        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
+    )
+    circuit_roles = classify_circuits([tree], [topo])
+    result = build_energy_topology([tree], [topo], [enphase], circuit_roles)
+
+    solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
+    # Aggregate production sensor preferred over per-phase.
+    assert solar.rate_entity_id == "sensor.pv_current_power_production"
+    assert not any("no power sensor" in w for w in result.warnings)
+
+
+def test_build_energy_topology_solar_rate_omits_when_no_power_source(
+    panel_device: HADevice,
+    site_meter_device: HADevice,
+    pv_feed_circuit: HADevice,
+    circuit_devices: list[HADevice],
+) -> None:
+    """Solar IN_PANEL: with no SPAN power sensor and no PV integration, stat_rate
+    is omitted and an (accurate) warning is emitted, since the Now tab needs a
+    power sensor to show live solar.
+    """
+    tree = SpanDeviceTree(
+        panel=panel_device,
+        circuits=[pv_feed_circuit] + circuit_devices,
+    )
+    topo = SpanTopology(
+        serial=SERIAL,
+        solar_position="IN_PANEL",
+        solar_feed_circuit_id=PV_FEED_CIRCUIT_NODE_ID,
+    )
+    circuit_roles = classify_circuits([tree], [topo])
+    result = build_energy_topology([tree], [topo], [], circuit_roles)
+
+    solar = next(a for a in result.role_assignments if a.role == "solar" and a.preferred)
+    assert solar.rate_entity_id is None
+    assert any("no power sensor" in w for w in result.warnings)
 
 
 # ---------------------------------------------------------------------------

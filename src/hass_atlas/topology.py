@@ -7,7 +7,7 @@ configuration that avoids double-counting and suppresses CT-noise false positive
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
@@ -55,6 +55,9 @@ class EnergyIntegration:
     platform: str
     devices: list[HADevice]
     energy_entities: list[HAEntity]
+    # Power (W) sensors on the same platform, used to source a positive
+    # production-power sensor for a solar source's stat_rate (Now tab).
+    power_entities: list[HAEntity] = field(default_factory=list)
 
 
 @dataclass
@@ -124,6 +127,19 @@ def discover_energy_integrations(
     for entity in energy_entities:
         by_platform.setdefault(entity.platform, []).append(entity)
 
+    # Index power (W) sensors by platform; these provide a positive
+    # production-power sensor for a solar source's stat_rate (Now tab). Only
+    # platforms that already expose energy entities become integrations.
+    power_by_platform: dict[str, list[HAEntity]] = {}
+    for entity in entities:
+        if (
+            entity.platform != "span_ebus"
+            and entity.device_class == "power"
+            and entity.state_class == "measurement"
+            and not entity.disabled_by
+        ):
+            power_by_platform.setdefault(entity.platform, []).append(entity)
+
     integrations: list[EnergyIntegration] = []
     for platform, plat_entities in sorted(by_platform.items()):
         # Collect unique devices for this platform
@@ -139,6 +155,7 @@ def discover_energy_integrations(
                 platform=platform,
                 devices=plat_devices,
                 energy_entities=plat_entities,
+                power_entities=power_by_platform.get(platform, []),
             )
         )
 
@@ -507,6 +524,71 @@ def _find_circuit_entity(
     return None
 
 
+def _find_production_power(integration: EnergyIntegration) -> HAEntity | None:
+    """Find a positive production-power sensor on a PV integration.
+
+    The Energy Dashboard 'Now' card plots solar from its stat_rate power sensor
+    and treats solar as positive=production. This selects a device_class=power
+    sensor whose id indicates production (e.g. Enphase
+    ``sensor.pv_current_power_production``), preferring a whole-system reading
+    over per-phase ones (``..._l1``/``..._l2``).
+    """
+    candidates = [
+        e
+        for e in integration.power_entities
+        if "production" in e.entity_id.lower() or "produced" in e.entity_id.lower()
+    ]
+    if not candidates:
+        return None
+    # Prefer non-per-phase (no _l1/_l2 suffix), then the shortest id (the
+    # aggregate sensor is usually the most concise).
+    candidates.sort(key=lambda e: (1 if _is_per_phase(e.entity_id) else 0, len(e.entity_id)))
+    return candidates[0]
+
+
+def _is_per_phase(entity_id: str) -> bool:
+    """True if the entity id looks like a per-phase reading (``..._l1``/``_l2``)."""
+    tail = entity_id.rsplit("_", 1)[-1]
+    return len(tail) == 2 and tail[0] == "l" and tail[1].isdigit()
+
+
+def _solar_rate_entity(
+    device: HADevice | None,
+    pv_integration: EnergyIntegration | None,
+) -> tuple[str | None, str | None]:
+    """Resolve a solar source's stat_rate power sensor.
+
+    The Energy Dashboard 'Now' Power-sources card shows a source ONLY if it has
+    a stat_rate power sensor, and treats solar as positive=production.
+
+    Preference order:
+      1. The SPAN PV-feed circuit's ``active-power``. span-hass >= 0.2.1 publishes
+         this POSITIVE while generating (the pv_sign_aware fix suppresses the
+         load-convention negation for PV-feed circuits), so it agrees in sign with
+         the circuit's ``imported-energy`` and is measurement-consistent with the
+         solar source's ``stat_energy_from``. Prefer it over a separate meter.
+      2. A dedicated PV integration's positive production-power sensor, used when
+         the SPAN power sensor is absent.
+      3. None, with a warning. (Silently omitting would drop solar from the Now
+         tab entirely, so the caller surfaces the warning instead.)
+
+    Returns ``(rate_entity_id, warning)``.
+    """
+    span_power = _find_circuit_entity(device, "active-power") if device else None
+    if span_power:
+        return span_power.entity_id, None
+    if pv_integration:
+        prod = _find_production_power(pv_integration)
+        if prod:
+            return prod.entity_id, None
+    return None, (
+        "Solar source has no power sensor for stat_rate, so the Energy Dashboard "
+        "'Now' tab will not show live solar power. Enable a dedicated PV "
+        "integration with a production-power sensor, or ensure span-hash publishes "
+        "the PV-feed circuit's active-power."
+    )
+
+
 def _find_circuit_by_node_id(
     trees: list[SpanDeviceTree],
     target_node_id: str,
@@ -704,23 +786,21 @@ def build_energy_topology(
             if circuit:
                 solar_entity = _find_circuit_entity(circuit, "imported-energy")
                 if solar_entity:
-                    # Prefer generation-power on the feed circuit (non-negated,
-                    # positive = production — exactly what stat_rate needs).
-                    # Fall back to PV sub-device or circuit active-power.
-                    solar_power = _find_circuit_entity(circuit, "generation-power")
-                    if not solar_power:
-                        pv_tree = serial_to_tree.get(topo.serial)
-                        if pv_tree and pv_tree.solar:
-                            solar_power = _find_circuit_entity(pv_tree.solar, "active-power")
-                    if not solar_power:
-                        solar_power = _find_circuit_entity(circuit, "active-power")
+                    # stat_rate must be POSITIVE production power. Prefer the
+                    # SPAN PV-feed circuit's active-power (span-hash >= 0.2.1
+                    # publishes it positive and measurement-consistent with the
+                    # circuit's imported-energy), else a dedicated PV
+                    # integration's production-power sensor.
+                    rate_eid, rate_warning = _solar_rate_entity(circuit, pv_integration)
+                    if rate_warning:
+                        warnings.append(rate_warning)
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,
                         platform="span_ebus",
                         preferred=True,
                         reason="PV IN_PANEL — SPAN circuit imported-energy = solar production",
-                        rate_entity_id=solar_power.entity_id if solar_power else None,
+                        rate_entity_id=rate_eid,
                     ))
             # Dedicated PV integration is non-preferred
             if pv_integration:
@@ -751,17 +831,21 @@ def build_energy_topology(
             if tree.solar:
                 solar_entity = _find_circuit_entity(tree.solar, "imported-energy")
                 if solar_entity:
-                    solar_power = (
-                        _find_circuit_entity(tree.solar, "generation-power")
-                        or _find_circuit_entity(tree.solar, "active-power")
+                    # Positive production power only (see _solar_rate_entity):
+                    # the SPAN solar device's active-power, else a PV
+                    # integration's production-power sensor.
+                    rate_eid, rate_warning = _solar_rate_entity(
+                        tree.solar, pv_integration
                     )
+                    if rate_warning:
+                        warnings.append(rate_warning)
                     assignments.append(EnergyRole(
                         role="solar",
                         entity_id=solar_entity.entity_id,
                         platform="span_ebus",
                         preferred=True,
                         reason="SPAN solar device — no dedicated PV integration found",
-                        rate_entity_id=solar_power.entity_id if solar_power else None,
+                        rate_entity_id=rate_eid,
                     ))
                     break
 
