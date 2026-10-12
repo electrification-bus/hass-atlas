@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from hass_atlas.ha_client import HAClient
+from hass_atlas.ha_client import HAClient, HAClientError
 from hass_atlas.models import HAArea, HADevice, HAEntity, SpanDeviceTree
 
 DOMAIN = "span_ebus"
@@ -29,6 +29,34 @@ def _lug_direction(device: HADevice) -> str | None:
         if ident.endswith("-lugs-dn"):
             return "dn"
     return None
+
+
+# unique_id suffixes of a branch circuit's breaker-space entity: ``info/spaces``
+# (r202639 firmware) and ``info/space`` (earlier firmware).
+_SPACE_SUFFIXES = ("_info_spaces", "_info_space")
+
+
+def _has_space_entity(device: HADevice) -> bool:
+    return any(e.unique_id.endswith(_SPACE_SUFFIXES) for e in device.entities)
+
+
+def split_remote_cts(circuits: list[HADevice]) -> tuple[list[HADevice], list[HADevice]]:
+    """Split a panel's Circuit-model devices into branch circuits and remote CTs.
+
+    span-hass treats a circuit that declares no ``info/spaces`` as a meter
+    outside the panel (``util.is_off_panel_circuit``), and creates no
+    breaker-space entity for it.  hass-atlas sees the entities, not the
+    declaration, so a circuit without a breaker-space entity is a remote CT
+    only when another circuit on the same panel has one; that leaves panels
+    whose integration creates no space entity at all classified as before.
+    """
+    if not any(_has_space_entity(c) for c in circuits):
+        return list(circuits), []
+    remote = [
+        c for c in circuits if c.model == MODEL_CIRCUIT and not _has_space_entity(c)
+    ]
+    remote_ids = {c.id for c in remote}
+    return [c for c in circuits if c.id not in remote_ids], remote
 
 
 def _parse_device(raw: dict[str, Any]) -> HADevice:
@@ -138,6 +166,7 @@ def _build_trees(
             else:
                 # Unknown child type — treat as circuit
                 tree.circuits.append(child)
+        tree.circuits, tree.remote_cts = split_remote_cts(tree.circuits)
         # Pick up the MID grandchild (via_device_id → BESS)
         if tree.battery is not None:
             for grandchild in children_by_parent.get(tree.battery.id, []):
@@ -181,17 +210,36 @@ def build_span_trees(
     return _build_trees(devices, span_entities)
 
 
-async def fetch_registries(client: HAClient) -> tuple[list[HADevice], list[HAEntity], list[HAArea]]:
-    """Fetch device, entity, and area registries from HA."""
+async def fetch_raw_registries(
+    client: HAClient,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Fetch raw device, entity, and area registry rows from HA."""
     raw_devices = await client.send_command("config/device_registry/list")
     raw_entities = await client.send_command("config/entity_registry/list")
     raw_areas = await client.send_command("config/area_registry/list")
+    return raw_devices, raw_entities, raw_areas
 
+
+def parse_registries(
+    raw_devices: list[dict[str, Any]],
+    raw_entities: list[dict[str, Any]],
+    raw_areas: list[dict[str, Any]],
+) -> tuple[list[HADevice], list[HAEntity], list[HAArea]]:
+    """Parse raw registry rows into model objects."""
     devices = [_parse_device(d) for d in raw_devices]
     entities = [_parse_entity(e) for e in raw_entities]
     areas = [_parse_area(a) for a in raw_areas]
-
     return devices, entities, areas
+
+
+def entity_area_ids(raw_entities: list[dict[str, Any]]) -> dict[str, str]:
+    """Map entity_id to the area assigned on the entity itself (not via its device)."""
+    return {e["entity_id"]: e["area_id"] for e in raw_entities if e.get("area_id")}
+
+
+async def fetch_registries(client: HAClient) -> tuple[list[HADevice], list[HAEntity], list[HAArea]]:
+    """Fetch device, entity, and area registries from HA."""
+    return parse_registries(*await fetch_raw_registries(client))
 
 
 async def fetch_span_trees(client: HAClient) -> list[SpanDeviceTree]:
@@ -209,8 +257,16 @@ async def fetch_areas(client: HAClient) -> list[HAArea]:
 
 
 async def fetch_energy_prefs(client: HAClient) -> dict:
-    """Fetch energy dashboard preferences."""
-    return await client.send_command("energy/get_prefs") or {}
+    """Fetch energy dashboard preferences.
+
+    HA answers ``not_found`` ("No prefs") until the dashboard is first saved.
+    """
+    try:
+        return await client.send_command("energy/get_prefs") or {}
+    except HAClientError as err:
+        if err.code == "not_found":
+            return {}
+        raise
 
 
 async def fetch_entity_states(

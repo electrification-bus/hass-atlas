@@ -13,7 +13,8 @@ from hass_atlas.context import Context, pass_ctx, run_async
 from hass_atlas.ha_client import HAClient
 from hass_atlas.models import HADevice, HAEntity
 from hass_atlas.output import console, print_dry_run, print_error, print_info, print_ok, print_warn
-from hass_atlas.registry import fetch_energy_prefs, fetch_span_trees
+from hass_atlas.registry import build_span_trees, fetch_energy_prefs, fetch_registries
+from hass_atlas.span_panel import exit_writer_unsupported, span_panel_only
 
 
 def slugify(text: str) -> str:
@@ -136,8 +137,11 @@ def normalize(ctx: Context) -> None:
 
 async def _normalize(ctx: Context) -> None:
     async with ctx.client() as client:
-        trees = await fetch_span_trees(client)
+        devices, entities, _ = await fetch_registries(client)
+        trees = build_span_trees(devices, entities)
         if not trees:
+            if span_panel_only(devices):
+                exit_writer_unsupported("normalize")
             print_warn("No SPAN devices found in Home Assistant")
             return
 

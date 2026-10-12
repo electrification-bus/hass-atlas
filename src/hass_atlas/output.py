@@ -6,11 +6,13 @@ import json as json_mod
 from typing import TYPE_CHECKING
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 from rich.tree import Tree
 
 if TYPE_CHECKING:
     from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
+    from hass_atlas.span_panel import CircuitRoleOverride, Gap, PanelTopology
     from hass_atlas.topology import EnergyTopology
 
 console = Console()
@@ -75,6 +77,14 @@ def render_tree(
             )
             for circuit in sorted(span_tree.circuits, key=lambda d: d.display_name):
                 _add_device_branch(circuits_branch, circuit, energy_entity_ids)
+
+        if span_tree.remote_cts:
+            ct_branch = root.add(
+                f"[bold blue]Remote CTs[/bold blue] ({len(span_tree.remote_cts)}, "
+                "meters outside the panel)"
+            )
+            for ct in sorted(span_tree.remote_cts, key=lambda d: d.display_name):
+                _add_device_branch(ct_branch, ct, energy_entity_ids)
 
         console.print(root)
 
@@ -162,9 +172,26 @@ def print_error(msg: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def render_topology(topo: EnergyTopology) -> None:
-    """Render energy topology as a Rich tree showing physical hierarchy and decisions."""
+_CONSUMPTION_REASON: dict[str, str] = {
+    "span_ebus": "Circuit exported-energy = consumption",
+    "span_panel": "Circuit consumed_energy = consumption",
+}
+
+
+def render_topology(
+    topo: EnergyTopology,
+    span_panels: list[PanelTopology] | None = None,
+    states: dict[str, dict] | None = None,
+) -> None:
+    """Render energy topology as a Rich tree showing physical hierarchy and decisions.
+
+    ``span_panels`` adds a span_panel panel summary where span_ebus panels
+    are otherwise shown.
+    """
     console.rule("[bold]Energy System Topology[/bold]")
+
+    if span_panels:
+        render_span_panel_summary(span_panels, states or {})
 
     # Panel topology
     for panel in topo.panels:
@@ -180,7 +207,8 @@ def render_topology(topo: EnergyTopology) -> None:
                 batt_label += f" model={panel.battery_model}"
             batt_branch = root.add(batt_label)
             if panel.battery_feed_circuit_name:
-                batt_branch.add(f"feed-circuit: {panel.battery_feed_circuit_name}")
+                via = " (Feeds Role STORAGE)" if panel.battery_by_role else ""
+                batt_branch.add(f"feed-circuit: {panel.battery_feed_circuit_name}{via}")
 
         # Solar info
         if panel.solar_position:
@@ -192,6 +220,11 @@ def render_topology(topo: EnergyTopology) -> None:
             solar_branch = root.add(solar_label)
             if panel.solar_feed_circuit_name:
                 solar_branch.add(f"feed-circuit: {panel.solar_feed_circuit_name}")
+            for _cid, name in panel.solar_role_circuits:
+                solar_branch.add(f"feed-circuit: {escape(name)} (Feeds Role SOLAR)")
+
+        for name, node_id in panel.remote_cts:
+            root.add(f"[bold blue]Remote CT[/bold blue] {escape(name)} [dim]{escape(node_id)}[/dim]")
 
         console.print(root)
 
@@ -224,7 +257,9 @@ def render_topology(topo: EnergyTopology) -> None:
                 "load": "",
                 "pv_feed": "[cyan]",
                 "bess_feed": "[yellow]",
+                "subpanel_feed": "[magenta]",
                 "ev_feed": "[green]",
+                "shared_meter_member": "[dim]",
             }.get(cr.role, "")
             role_end = "[/]" if role_style else ""
             return_status = "[red]suppressed[/red]" if cr.skip_return_energy else "[green]included[/green]"
@@ -255,13 +290,15 @@ def render_topology(topo: EnergyTopology) -> None:
                 continue  # Too many — summarize instead
             assign_table.add_row(a.role, a.entity_id, a.platform, a.reason)
         # Summarize device_consumption
-        consumption_count = sum(1 for a in preferred if a.role == "device_consumption")
-        if consumption_count:
+        consumption = [a for a in preferred if a.role == "device_consumption"]
+        if consumption:
+            platforms = sorted({a.platform for a in consumption})
             assign_table.add_row(
                 "device_consumption",
-                f"({consumption_count} circuits)",
-                "span_ebus",
-                "Circuit exported-energy = consumption",
+                f"({len(consumption)} circuits)",
+                ", ".join(platforms),
+                _CONSUMPTION_REASON.get(platforms[0], "Circuit consumption")
+                if len(platforms) == 1 else "Circuit consumption",
             )
         console.print(assign_table)
 
@@ -280,3 +317,133 @@ def render_topology(topo: EnergyTopology) -> None:
         console.print()
         for warning in topo.warnings:
             print_warn(warning)
+
+
+# ---------------------------------------------------------------------------
+# span_panel rendering
+# ---------------------------------------------------------------------------
+
+
+def render_span_panel_summary(
+    panels: list[PanelTopology],
+    states: dict[str, dict],
+) -> None:
+    """Render each span_panel panel with its sub-devices and circuit counts."""
+    from hass_atlas.span_panel import at_service_entrance
+
+    for panel in panels:
+        size = f" size={panel.panel_size}" if panel.panel_size else ""
+        root = Tree(
+            f"[bold magenta]SPAN Panel[/bold magenta] {panel.serial} "
+            f"[dim]{escape(panel.model or 'unknown model')}{size} {escape(panel.firmware)}[/dim]"
+        )
+        entrance = at_service_entrance(panel, states)
+        if entrance is not None:
+            root.add(f"at service entrance: {'yes' if entrance else 'no'}")
+        meter = panel.main_meter_consumed
+        root.add(f"main meter: {meter.entity_id if meter else '[red]not found[/red]'}")
+        for sub in panel.sub_devices:
+            label = (
+                f"[bold yellow]{escape(str(sub.get('type', 'unknown')))}[/bold yellow] "
+                f"{escape(str(sub.get('name')))}"
+            )
+            if sub.get("model"):
+                label += f" [dim]{escape(str(sub.get('model')))}[/dim]"
+            branch = root.add(label)
+            solar = sub.get("solar")
+            if solar:
+                branch.add(escape(
+                    f"vendor={solar.get('vendor')} feed-circuit={solar.get('feed_circuit_id')}"
+                ))
+        remote = sum(1 for c in panel.circuits if c.remote_ct)
+        generation = sum(1 for c in panel.circuits if c.generation)
+        grouped = sum(1 for c in panel.circuits if c.shared_meter_group)
+        root.add(
+            f"[bold blue]Circuits[/bold blue] ({len(panel.circuits)}): "
+            f"{remote} remote CT, {generation} generation, {grouped} in shared meter groups"
+        )
+        console.print(root)
+
+
+def render_span_panel_circuits(
+    panels: list[PanelTopology],
+    entity_areas: dict[str, str],
+    area_names: dict[str, str],
+    energy_entity_ids: set[str],
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
+    assigned: set[str] | None = None,
+) -> None:
+    """Render a circuit table per span_panel panel.
+
+    ``assigned`` holds the entity ids hass-atlas would use; the Energy? column
+    reports whether a circuit's ones are in the dashboard ("Y", "partial"), and adds
+    "extra" when the dashboard lists a circuit energy entity hass-atlas would not use.
+    """
+    roles = roles or {}
+    assigned = assigned or set()
+
+    def flag(value: bool | None) -> str:
+        return "?" if value is None else ("Y" if value else "")
+
+    # "*" marks a remote CT inferred from a missing breaker position (payload
+    # without outside_panel).
+
+    for panel in panels:
+        table = Table(title=f"Circuits on {panel.serial}")
+        table.add_column("Tabs")
+        table.add_column("Circuit", style="bold")
+        table.add_column("Type")
+        table.add_column("Remote CT", justify="center")
+        table.add_column("Generation", justify="center")
+        table.add_column("Meter Group")
+        table.add_column("Role")
+        table.add_column("Areas")
+        table.add_column("Energy?", justify="center")
+        for c in panel.circuits:
+            areas = sorted({
+                area_names.get(entity_areas[eid], entity_areas[eid])
+                for eid in c.entities.values()
+                if eid in entity_areas
+            })
+            override = roles.get((panel.serial, c.id))
+            energy_eids = [
+                eid for key in ("consumed_energy", "produced_energy")
+                if (eid := c.entities.get(key))
+            ]
+            used = [eid for eid in energy_eids if eid in assigned]
+            in_dashboard = [eid for eid in used if eid in energy_entity_ids]
+            mark = ""
+            if used:
+                mark = "Y" if len(in_dashboard) == len(used) else (
+                    "partial" if in_dashboard else ""
+                )
+            if any(e in energy_entity_ids for e in energy_eids if e not in used):
+                mark = f"{mark} extra".strip()
+            table.add_row(
+                ",".join(str(t) for t in c.tabs) or "-",
+                f"{escape(c.label)} [dim]{escape(c.id)}[/dim]" if c.name else escape(c.id),
+                c.device_type,
+                ("Y" if c.remote_ct else "") + ("*" if c.outside_panel is None else ""),
+                flag(c.is_generation),
+                c.shared_meter_group or "",
+                str(override) if override else "",
+                ", ".join(areas),
+                mark,
+            )
+        console.print(table)
+
+
+def render_gaps(gaps: list[Gap]) -> None:
+    """Render what hass-atlas could not determine, with how to state it."""
+    console.print()
+    console.rule("[bold]Gaps[/bold]")
+    if not gaps:
+        print_ok("Nothing left undetermined")
+        return
+    for gap in gaps:
+        where = ":".join(x for x in (gap.serial, gap.circuit_id) if x)
+        print_warn(escape(f"[{gap.kind}]{' ' + where if where else ''} {gap.message}"))
+        for suggestion in gap.suggestions:
+            console.print(f"    suggestion (not applied): {escape(suggestion)}")
+        if gap.hint:
+            console.print(f"    fix: {escape(gap.hint)}")

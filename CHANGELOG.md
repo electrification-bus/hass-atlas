@@ -4,6 +4,26 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-12
+
+### Added
+
+- **Read-only support for the [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`).** `audit`, `energy-topology` and `energy-audit` (without `--remap`) read each panel through the admin-only `span_panel/panel_topology` WebSocket command. The commands that write exit with a message when only `span_panel` is installed.
+- **Gaps report.** `audit`, `energy-topology` and `energy` list what hass-atlas could not determine (what a remote CT measures, which circuit feeds a battery or another panel, where the service entrance is) with the option value that states it. Suggested circuits are shown but never applied.
+- **`--circuit-role [<serial>:]<circuit-id>=<role>`** on `audit`, `energy`, `energy-topology` and `energy-audit`, with role `grid`, `load`, `solar`, `battery`, `subpanel:<serial>` or `ignore`. With `span_ebus` it applies to remote CTs, and `subpanel:<serial>` to breaker circuits.
+- **Feeds Role on `span_ebus` (`span-hass` 0.6.0b1).** A circuit whose Feeds Role is SOLAR is a solar source and not a consumer, STORAGE marks the battery feed circuit, SUBPANEL suggests the panel it feeds, and GENERATOR, MIXED, and a disabled Feeds Role are reported as gaps.
+
+### Fixed
+
+- **Energy Dashboard saves on Home Assistant 2026.3 and later.** The grid is written in the unified format those releases require, and in the legacy format before 2026.3. Saves now include `cost_adjustment_day` and the legacy price keys, which every release requires. Readers accept both formats, and existing costs and sources hass-atlas does not own are kept.
+- `audit` and `energy-audit` no longer fail on a Home Assistant whose Energy Dashboard has never been saved.
+- `--help` no longer runs mDNS discovery; the Home Assistant URL is resolved when a command first connects.
+- **`span_ebus` on panel models other than MAIN 32:** a remote CT is no longer counted as a device consumer, circuits that share one meter are counted once, and plain `energy` finds solar and battery sources from their feed circuits, as `--topology` does. Battery and solar feed circuits are looked up on their own panel, so a node id that repeats across panels resolves to the right circuit.
+
+### Changed
+
+- The README states the `span-hass` releases targeted (v0.5.0, and the v0.6.0b1 pre-release for panel models other than MAIN 32) and warns that panel models other than MAIN 32, and the `span_panel` integration, are barely tested.
+
 ## [0.1.0] - 2026-06-24
 
 The 0.1.0 line is the initial alpha; this is the first tagged release.
@@ -26,7 +46,7 @@ The 0.1.0 line is the initial alpha; this is the first tagged release.
 - **Compatibility with span-hass 0.2.x** (the tree-data-model line). hass-atlas reads BESS / PV position from the `connection` capability's `feeds-device-id` / `fed-by-device-id` properties instead of the retired `bess/relative-position` and `bess/feed` entities. When commissioning data isn't yet published on the wire (a known span-side gap for some installs), position degrades gracefully to `None` rather than guessing wrong.
 - **Tree-v1 test fixtures.** `tests/fixtures/tree/{nt-0000-abc12.json, nt-0000-def34.json}` are sanitized wire snapshots captured directly from the SPAN firmware on the parent/child Homie 5 publication. `tests/_fixture_loader.py` translates them to HA-shaped registry records so test scenarios exercise the real shape rather than hand-rolled mocks.
 - **`energy-audit --remap`** — post-upgrade cleanup for Energy Dashboard references that became stale across a span-hass major version (e.g. 0.1.x → 0.2.x). For each dead reference, tries the `_2`-suffix sibling first (HA's collision-rename pattern when a unique-ID change leaves an orphan slug behind), then falls back to a panel-device → Lugs-device remapping (the old `sensor.span_panel_nt_*_upstream_imported_energy` → `sensor.c*_*lugs_imported_energy` form). Refs with no live equivalent are dropped. Pairs with `--dry-run` for preview. The pre-existing `--prune` flag (drop without remap) remains.
-- **`cascade`** — render the multi-panel cascade tree as published by SPAN panels' upstream-lugs `connection/fed-by-*` triplet (the new G3P-24911 / SPAN-c7h publication). Walks upward via `fed-by-device-id`, terminating on `fed-by-device-type = bess` (BESS at the top of the cascade), null triplet (utility feed), or unrecognized device-type (defensive stop). `--check` cross-references the publisher cascade against HA's device-registry `via_device` chain; in span-hass 0.2.x the latter is auto-derived from the former on each init→ready cycle, so divergence indicates stale registry state (reload the span_ebus config entry to refresh).
+- **`cascade`** — render the multi-panel cascade tree as published by SPAN panels' upstream-lugs `connection/fed-by-*` triplet. Walks upward via `fed-by-device-id`, terminating on `fed-by-device-type = bess` (BESS at the top of the cascade), null triplet (utility feed), or unrecognized device-type (defensive stop). `--check` cross-references the publisher cascade against HA's device-registry `via_device` chain; in span-hass 0.2.x the latter is auto-derived from the former on each init→ready cycle, so divergence indicates stale registry state (reload the span_ebus config entry to refresh).
 
 ### Changed
 
@@ -39,5 +59,6 @@ The 0.1.0 line is the initial alpha; this is the first tagged release.
 - **Multi-panel UPSTREAM (sub-panel fed by a parent SPAN panel)** is not derivable from the wire today — SPAN does not yet write `connection/fed-by-device-id = <parent-panel>` on the sub-panel's upstream lugs. Use `link-panels` to express the relationship in HA's device registry directly; hass-atlas's Sankey hierarchy honors that linkage.
 - **Several scenario tests are marked `xfail` pending rewrite against the tree-v1 fixtures.** The test infrastructure is correct (103 tests pass against the new fixtures); 19 specific scenario tests still assert on flat-model entity layouts (Kitchen / Garage circuits, `sensor.span_site_imported_energy`, retired `bess/feed`-style entities) and need per-test migration. Tracked locally in beads as SHT-0fz.
 
-[Unreleased]: https://github.com/electrification-bus/hass-atlas/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/electrification-bus/hass-atlas/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.2.0
 [0.1.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.1.0

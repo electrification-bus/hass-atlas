@@ -1,0 +1,5266 @@
+{
+  "binary_sensor.span_panel_door_state": {
+    "attributes": {
+      "device_class": "tamper",
+      "friendly_name": "Span Panel Door State"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_ethernet_link": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Ethernet Link"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_ev_charger_span_drive_charging": {
+    "attributes": {
+      "device_class": "battery_charging",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Charging"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_ev_charger_span_drive_ev_connected": {
+    "attributes": {
+      "device_class": "plug",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) EV Connected"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_ev_charger_span_drive_evse_panel_link": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) EVSE Panel Link"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_grid_islandable": {
+    "attributes": {
+      "device_class": "power",
+      "friendly_name": "Span Panel Grid Islandable"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_panel_status": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Panel Status"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_pcs_active": {
+    "attributes": {
+      "device_class": "running",
+      "friendly_name": "Span Panel PCS Active"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_wi_fi_link": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Wi-Fi Link"
+    },
+    "state": "off"
+  },
+  "lock.span_panel_ev_charger_span_drive_evse_lock": {
+    "attributes": {
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) EVSE Lock",
+      "supported_features": 0
+    },
+    "state": "unlocked"
+  },
+  "number.span_panel_ev_charger_span_drive_evse_charge_current_limit": {
+    "attributes": {
+      "device_class": "current",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) EVSE Charge Current Limit",
+      "max": 48,
+      "min": 0,
+      "mode": "box",
+      "step": 1,
+      "unit_of_measurement": "A"
+    },
+    "state": "48"
+  },
+  "select.span_panel_basement_lights_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement / Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [31]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_basement_lights_outlets_circuit_priority_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement / Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [37]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_basement_outlets_exit_door_wall_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement Outlets exit door wall Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [26]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_basement_outlets_french_door_wall_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [29]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bathroom_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Bathroom / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [39]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bed_2_shared_bath_lights_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [16]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bedroom_lights_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Lights Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [44]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bedroom_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [20]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bedroom_outlets_circuit_priority_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [44]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_bidet_outlets_basement_main_floor_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [47]",
+      "voltage": 120.0
+    },
+    "state": "off_grid"
+  },
+  "select.span_panel_dining_room_lights_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Lights Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [48]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_dining_room_lights_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [10]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_dining_room_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [48]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_dishwasher_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Dishwasher Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [25]",
+      "voltage": 120.0
+    },
+    "state": "soc_threshold"
+  },
+  "select.span_panel_electric_double_oven_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric Double-Oven Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [2:4]",
+      "voltage": 240.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_electric_infared_sauna_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric Infared Sauna Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [43]",
+      "voltage": 120.0
+    },
+    "state": "off_grid"
+  },
+  "select.span_panel_electric_range_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric range Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [9]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_family_room_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Family Room Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [17]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_freezer_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Freezer Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [40]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_furnace_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Furnace Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [14]",
+      "voltage": 120.0
+    },
+    "state": "soc_threshold"
+  },
+  "select.span_panel_heat_pump_water_heater_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Heat Pump Water Heater Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [5:7]",
+      "voltage": 240.0
+    },
+    "state": "soc_threshold"
+  },
+  "select.span_panel_hood_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Hood Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [35]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_hvac_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel HVAC Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [1:3]",
+      "voltage": 240.0
+    },
+    "state": "off_grid"
+  },
+  "select.span_panel_kitchen_fr_door_isle_alt_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [12]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_kitchen_lights_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Lights Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [32]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_kitchen_lights_circuit_priority_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Lights Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [42]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_kitchen_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [15]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_kitchen_outlets_circuit_priority_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [41]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_kitchen_sink_garbage_disposal_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [23]",
+      "voltage": 120.0
+    },
+    "state": "soc_threshold"
+  },
+  "select.span_panel_laundry_room_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Laundry Room Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [6:8]",
+      "voltage": 240.0
+    },
+    "state": "off_grid"
+  },
+  "select.span_panel_living_room_lights_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Lights Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [46]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_living_room_lights_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [28]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_living_room_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [46]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_main_office_dedicated_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [45]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_main_office_fam_tv_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Main Office & Fam TV Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [27]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_microwave_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Microwave Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [11]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_primary_bath_closets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary Bath & Closets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [22]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_primary_bath_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary Bath Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [13]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_primary_bedroom_lights_outlets_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [18]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_refrigerator_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Refrigerator Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [38]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_security_system_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Security system Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [34]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_smoke_co_detectors_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Smoke/CO Detectors Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [24]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_sump_pump_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Sump Pump Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [30]",
+      "voltage": 120.0
+    },
+    "state": "off_grid"
+  },
+  "select.span_panel_utility_room_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Utility Room Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [33]",
+      "voltage": 120.0
+    },
+    "state": "never"
+  },
+  "select.span_panel_utility_room_dedicated_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel Utility Room Dedicated Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [36]",
+      "voltage": 120.0
+    },
+    "state": "off_grid"
+  },
+  "sensor.span_panel_basement_lights_outlets_breaker_rating": null,
+  "sensor.span_panel_basement_lights_outlets_breaker_rating_2": null,
+  "sensor.span_panel_basement_lights_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617040+00:00",
+      "last_valid_state": "712.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [31]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "712.7"
+  },
+  "sensor.span_panel_basement_lights_outlets_consumed_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617191+00:00",
+      "last_valid_state": "726.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [37]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "726.3"
+  },
+  "sensor.span_panel_basement_lights_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [31]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_lights_outlets_current_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [37]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_lights_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617052+00:00",
+      "last_valid_state": "164.20000000000005",
+      "state_class": "total",
+      "tabs": "tabs [31]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "164.2"
+  },
+  "sensor.span_panel_basement_lights_outlets_net_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617202+00:00",
+      "last_valid_state": "171.19999999999993",
+      "state_class": "total",
+      "tabs": "tabs [37]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "171.2"
+  },
+  "sensor.span_panel_basement_lights_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [31]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_lights_outlets_power_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [37]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_lights_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617029+00:00",
+      "last_valid_state": "548.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [31]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "548.5"
+  },
+  "sensor.span_panel_basement_lights_outlets_produced_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement / Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617180+00:00",
+      "last_valid_state": "555.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [37]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "555.1"
+  },
+  "sensor.span_panel_basement_outlets_exit_door_wall_breaker_rating": null,
+  "sensor.span_panel_basement_outlets_exit_door_wall_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets exit door wall Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617735+00:00",
+      "last_valid_state": "667.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [26]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "667.0"
+  },
+  "sensor.span_panel_basement_outlets_exit_door_wall_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Basement Outlets exit door wall Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [26]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_outlets_exit_door_wall_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets exit door wall Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617747+00:00",
+      "last_valid_state": "485.9",
+      "state_class": "total",
+      "tabs": "tabs [26]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "485.9"
+  },
+  "sensor.span_panel_basement_outlets_exit_door_wall_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Basement Outlets exit door wall Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [26]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_outlets_exit_door_wall_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets exit door wall Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617724+00:00",
+      "last_valid_state": "181.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [26]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "181.1"
+  },
+  "sensor.span_panel_basement_outlets_french_door_wall_breaker_rating": null,
+  "sensor.span_panel_basement_outlets_french_door_wall_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616989+00:00",
+      "last_valid_state": "717.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [29]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "717.4"
+  },
+  "sensor.span_panel_basement_outlets_french_door_wall_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [29]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_basement_outlets_french_door_wall_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617001+00:00",
+      "last_valid_state": "167.60000000000002",
+      "state_class": "total",
+      "tabs": "tabs [29]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "167.6"
+  },
+  "sensor.span_panel_basement_outlets_french_door_wall_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [29]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_basement_outlets_french_door_wall_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616978+00:00",
+      "last_valid_state": "549.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [29]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "549.8"
+  },
+  "sensor.span_panel_bathroom_outlets_breaker_rating": null,
+  "sensor.span_panel_bathroom_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bathroom / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618185+00:00",
+      "last_valid_state": "734.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [39]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "734.1"
+  },
+  "sensor.span_panel_bathroom_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bathroom / Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [39]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bathroom_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bathroom / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618196+00:00",
+      "last_valid_state": "164.60000000000002",
+      "state_class": "total",
+      "tabs": "tabs [39]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "164.6"
+  },
+  "sensor.span_panel_bathroom_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bathroom / Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [39]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bathroom_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bathroom / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618174+00:00",
+      "last_valid_state": "569.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [39]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "569.5"
+  },
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_breaker_rating": null,
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617538+00:00",
+      "last_valid_state": "513.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "513.3"
+  },
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617553+00:00",
+      "last_valid_state": "104.39999999999998",
+      "state_class": "total",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "104.4"
+  },
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bed_2_shared_bath_lights_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617526+00:00",
+      "last_valid_state": "408.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "408.9"
+  },
+  "sensor.span_panel_bedroom_lights_breaker_rating": null,
+  "sensor.span_panel_bedroom_lights_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Lights Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618335+00:00",
+      "last_valid_state": "494.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "494.8"
+  },
+  "sensor.span_panel_bedroom_lights_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bedroom / Lights Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bedroom_lights_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Lights Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618348+00:00",
+      "last_valid_state": "107.30000000000001",
+      "state_class": "total",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "107.3"
+  },
+  "sensor.span_panel_bedroom_lights_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bedroom / Lights Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_bedroom_lights_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Lights Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618324+00:00",
+      "last_valid_state": "387.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "387.5"
+  },
+  "sensor.span_panel_bedroom_outlets_breaker_rating": null,
+  "sensor.span_panel_bedroom_outlets_breaker_rating_2": null,
+  "sensor.span_panel_bedroom_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618136+00:00",
+      "last_valid_state": "666.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "666.5"
+  },
+  "sensor.span_panel_bedroom_outlets_consumed_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618406+00:00",
+      "last_valid_state": "494.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "494.8"
+  },
+  "sensor.span_panel_bedroom_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bedroom / Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bedroom_outlets_current_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bedroom / Outlets Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bedroom_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618148+00:00",
+      "last_valid_state": "157.7",
+      "state_class": "total",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "157.7"
+  },
+  "sensor.span_panel_bedroom_outlets_net_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618419+00:00",
+      "last_valid_state": "107.30000000000001",
+      "state_class": "total",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "107.3"
+  },
+  "sensor.span_panel_bedroom_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bedroom / Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_bedroom_outlets_power_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bedroom / Outlets Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_bedroom_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618125+00:00",
+      "last_valid_state": "508.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "508.8"
+  },
+  "sensor.span_panel_bedroom_outlets_produced_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bedroom / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618394+00:00",
+      "last_valid_state": "387.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [44]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "387.5"
+  },
+  "sensor.span_panel_bidet_outlets_basement_main_floor_breaker_rating": null,
+  "sensor.span_panel_bidet_outlets_basement_main_floor_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617339+00:00",
+      "last_valid_state": "720.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [47]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "720.5"
+  },
+  "sensor.span_panel_bidet_outlets_basement_main_floor_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 5,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [47]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bidet_outlets_basement_main_floor_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617351+00:00",
+      "last_valid_state": "165.79999999999995",
+      "state_class": "total",
+      "tabs": "tabs [47]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "165.8"
+  },
+  "sensor.span_panel_bidet_outlets_basement_main_floor_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 5,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [47]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_bidet_outlets_basement_main_floor_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617328+00:00",
+      "last_valid_state": "554.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [47]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "554.7"
+  },
+  "sensor.span_panel_binding_constraint": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Binding Constraint",
+      "options": [
+        "fsr",
+        "doe",
+        "voltage",
+        "off_grid",
+        "requested",
+        "operator",
+        "none",
+        "unknown"
+      ]
+    },
+    "state": "fsr"
+  },
+  "sensor.span_panel_busbar_current": {
+    "attributes": {
+      "device_class": "current",
+      "friendly_name": "Span Panel Busbar Current",
+      "state_class": "measurement",
+      "unit_of_measurement": "A"
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_current_power": {
+    "attributes": {
+      "amperage": 0.08,
+      "device_class": "power",
+      "friendly_name": "Span Panel Current Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "18.4"
+  },
+  "sensor.span_panel_current_run_config": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Current Run Config",
+      "options": [
+        "panel_backup",
+        "panel_off_grid",
+        "panel_on_grid",
+        "unknown"
+      ]
+    },
+    "state": "panel_on_grid"
+  },
+  "sensor.span_panel_dining_room_lights_breaker_rating": null,
+  "sensor.span_panel_dining_room_lights_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618567+00:00",
+      "last_valid_state": "715.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "715.0"
+  },
+  "sensor.span_panel_dining_room_lights_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Dining room / Lights Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_lights_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618581+00:00",
+      "last_valid_state": "144.70000000000005",
+      "state_class": "total",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "144.7"
+  },
+  "sensor.span_panel_dining_room_lights_outlets_breaker_rating": null,
+  "sensor.span_panel_dining_room_lights_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617387+00:00",
+      "last_valid_state": "520.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "520.7"
+  },
+  "sensor.span_panel_dining_room_lights_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_lights_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617400+00:00",
+      "last_valid_state": "106.30000000000007",
+      "state_class": "total",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "106.3"
+  },
+  "sensor.span_panel_dining_room_lights_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_lights_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617376+00:00",
+      "last_valid_state": "414.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "414.4"
+  },
+  "sensor.span_panel_dining_room_lights_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Dining room / Lights Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_lights_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Lights Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618555+00:00",
+      "last_valid_state": "570.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "570.3"
+  },
+  "sensor.span_panel_dining_room_outlets_breaker_rating": null,
+  "sensor.span_panel_dining_room_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618626+00:00",
+      "last_valid_state": "715.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "715.0"
+  },
+  "sensor.span_panel_dining_room_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Dining room / Outlets Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Dining room / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Dining room / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618638+00:00",
+      "last_valid_state": "144.70000000000005",
+      "state_class": "total",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "144.7"
+  },
+  "sensor.span_panel_dining_room_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Dining room / Outlets Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Dining room / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Dining room / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dining_room_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dining room / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618614+00:00",
+      "last_valid_state": "570.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [48]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "570.3"
+  },
+  "sensor.span_panel_dishwasher_breaker_rating": null,
+  "sensor.span_panel_dishwasher_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dishwasher Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616886+00:00",
+      "last_valid_state": "677.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [25]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "677.1"
+  },
+  "sensor.span_panel_dishwasher_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Dishwasher Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 46,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [25]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dishwasher_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dishwasher Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616899+00:00",
+      "last_valid_state": "167.40000000000003",
+      "state_class": "total",
+      "tabs": "tabs [25]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "167.4"
+  },
+  "sensor.span_panel_dishwasher_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Dishwasher Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 46,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [25]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_dishwasher_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Dishwasher Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616875+00:00",
+      "last_valid_state": "509.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [25]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "509.7"
+  },
+  "sensor.span_panel_downstream_l1_current": null,
+  "sensor.span_panel_downstream_l2_current": null,
+  "sensor.span_panel_dsm_grid_state": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel DSM Grid State",
+      "options": [
+        "dsm_off_grid",
+        "dsm_on_grid",
+        "unknown"
+      ]
+    },
+    "state": "dsm_on_grid"
+  },
+  "sensor.span_panel_dsm_state": null,
+  "sensor.span_panel_electric_double_oven_breaker_rating": null,
+  "sensor.span_panel_electric_double_oven_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Double-Oven Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616442+00:00",
+      "last_valid_state": "88644.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [2:4]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "88644.0"
+  },
+  "sensor.span_panel_electric_double_oven_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Electric Double-Oven Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 30,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [2:4]",
+      "unit_of_measurement": "A",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_electric_double_oven_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Double-Oven Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616456+00:00",
+      "last_valid_state": "-2504911596854.9",
+      "state_class": "total",
+      "tabs": "tabs [2:4]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "-2504911596854.9"
+  },
+  "sensor.span_panel_electric_double_oven_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Electric Double-Oven Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 30,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [2:4]",
+      "unit_of_measurement": "W",
+      "voltage": 240.0
+    },
+    "state": "4.5"
+  },
+  "sensor.span_panel_electric_double_oven_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Double-Oven Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616428+00:00",
+      "last_valid_state": "2504911685498.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [2:4]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "2504911685498.9"
+  },
+  "sensor.span_panel_electric_infared_sauna_breaker_rating": null,
+  "sensor.span_panel_electric_infared_sauna_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Infared Sauna Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617240+00:00",
+      "last_valid_state": "485.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [43]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "485.9"
+  },
+  "sensor.span_panel_electric_infared_sauna_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Electric Infared Sauna Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 17,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [43]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_electric_infared_sauna_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Infared Sauna Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617252+00:00",
+      "last_valid_state": "110.69999999999999",
+      "state_class": "total",
+      "tabs": "tabs [43]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "110.7"
+  },
+  "sensor.span_panel_electric_infared_sauna_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Electric Infared Sauna Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 17,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [43]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_electric_infared_sauna_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric Infared Sauna Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617228+00:00",
+      "last_valid_state": "375.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [43]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "375.2"
+  },
+  "sensor.span_panel_electric_range_breaker_rating": null,
+  "sensor.span_panel_electric_range_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric range Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616580+00:00",
+      "last_valid_state": "8385.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "8385.6"
+  },
+  "sensor.span_panel_electric_range_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Electric range Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 31,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_electric_range_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric range Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616593+00:00",
+      "last_valid_state": "7981.200000000001",
+      "state_class": "total",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "7981.2"
+  },
+  "sensor.span_panel_electric_range_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Electric range Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 31,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_electric_range_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Electric range Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616568+00:00",
+      "last_valid_state": "404.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "404.4"
+  },
+  "sensor.span_panel_ev_charger_span_drive_breaker_rating": null,
+  "sensor.span_panel_ev_charger_span_drive_charger_status": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Charger Status",
+      "options": [
+        "available",
+        "charging",
+        "faulted",
+        "finishing",
+        "preparing",
+        "reserved",
+        "suspended_ev",
+        "suspended_evse",
+        "unavailable",
+        "unknown"
+      ]
+    },
+    "state": "unavailable"
+  },
+  "sensor.span_panel_ev_charger_span_drive_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618681+00:00",
+      "last_valid_state": "4770835.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [19:21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "4770835.0"
+  },
+  "sensor.span_panel_ev_charger_span_drive_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 1,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [19:21]",
+      "unit_of_measurement": "A",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_ev_charger_span_drive_lock_state": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Lock State",
+      "options": [
+        "locked",
+        "unlocked",
+        "unknown"
+      ]
+    },
+    "state": "unlocked"
+  },
+  "sensor.span_panel_ev_charger_span_drive_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618696+00:00",
+      "last_valid_state": "4770660.3",
+      "state_class": "total",
+      "tabs": "tabs [19:21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "4770660.3"
+  },
+  "sensor.span_panel_ev_charger_span_drive_part_number": null,
+  "sensor.span_panel_ev_charger_span_drive_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 1,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [19:21]",
+      "unit_of_measurement": "W",
+      "voltage": 240.0
+    },
+    "state": "1.3"
+  },
+  "sensor.span_panel_ev_charger_span_drive_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel EV Charger (SPAN Drive) Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618667+00:00",
+      "last_valid_state": "174.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [19:21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "174.7"
+  },
+  "sensor.span_panel_family_room_breaker_rating": null,
+  "sensor.span_panel_family_room_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Family Room Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616782+00:00",
+      "last_valid_state": "15724.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "15724.0"
+  },
+  "sensor.span_panel_family_room_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Family Room Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_family_room_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Family Room Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616795+00:00",
+      "last_valid_state": "15349.5",
+      "state_class": "total",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "15349.5"
+  },
+  "sensor.span_panel_family_room_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Family Room Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_family_room_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Family Room Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616771+00:00",
+      "last_valid_state": "374.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "374.5"
+  },
+  "sensor.span_panel_feed_through_consumed_energy": null,
+  "sensor.span_panel_feed_through_net_energy": null,
+  "sensor.span_panel_feed_through_power": null,
+  "sensor.span_panel_feed_through_produced_energy": null,
+  "sensor.span_panel_freezer_breaker_rating": null,
+  "sensor.span_panel_freezer_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Freezer Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618038+00:00",
+      "last_valid_state": "714.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [40]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "714.3"
+  },
+  "sensor.span_panel_freezer_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Freezer Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 38,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [40]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_freezer_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Freezer Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618050+00:00",
+      "last_valid_state": "146.5",
+      "state_class": "total",
+      "tabs": "tabs [40]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "146.5"
+  },
+  "sensor.span_panel_freezer_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Freezer Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 38,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [40]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_freezer_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Freezer Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618027+00:00",
+      "last_valid_state": "567.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [40]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "567.8"
+  },
+  "sensor.span_panel_frequency": {
+    "attributes": {
+      "device_class": "frequency",
+      "friendly_name": "Span Panel Frequency",
+      "state_class": "measurement",
+      "unit_of_measurement": "Hz"
+    },
+    "state": "60.01"
+  },
+  "sensor.span_panel_furnace_breaker_rating": null,
+  "sensor.span_panel_furnace_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Furnace Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617488+00:00",
+      "last_valid_state": "426.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "426.4"
+  },
+  "sensor.span_panel_furnace_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Furnace Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 20,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_furnace_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Furnace Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617500+00:00",
+      "last_valid_state": "86.59999999999997",
+      "state_class": "total",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "86.6"
+  },
+  "sensor.span_panel_furnace_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Furnace Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 20,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_furnace_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Furnace Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617476+00:00",
+      "last_valid_state": "339.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "339.8"
+  },
+  "sensor.span_panel_grid_forming_entity": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Grid Forming Entity",
+      "options": [
+        "battery",
+        "generator",
+        "grid",
+        "none",
+        "pv",
+        "unknown"
+      ]
+    },
+    "state": "grid"
+  },
+  "sensor.span_panel_grid_power": {
+    "attributes": {
+      "amperage": 0.08,
+      "device_class": "power",
+      "friendly_name": "Span Panel Grid Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "18.4"
+  },
+  "sensor.span_panel_heat_pump_water_heater_breaker_rating": null,
+  "sensor.span_panel_heat_pump_water_heater_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Heat Pump Water Heater Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616385+00:00",
+      "last_valid_state": "1012.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [5:7]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "1012.5"
+  },
+  "sensor.span_panel_heat_pump_water_heater_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Heat Pump Water Heater Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 9,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [5:7]",
+      "unit_of_measurement": "A",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_heat_pump_water_heater_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Heat Pump Water Heater Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616399+00:00",
+      "last_valid_state": "-19110737.1",
+      "state_class": "total",
+      "tabs": "tabs [5:7]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "-19110737.1"
+  },
+  "sensor.span_panel_heat_pump_water_heater_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Heat Pump Water Heater Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 9,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [5:7]",
+      "unit_of_measurement": "W",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_heat_pump_water_heater_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Heat Pump Water Heater Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616371+00:00",
+      "last_valid_state": "19111749.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [5:7]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "19111749.6"
+  },
+  "sensor.span_panel_hood_breaker_rating": null,
+  "sensor.span_panel_hood_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Hood Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617141+00:00",
+      "last_valid_state": "664.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [35]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "664.0"
+  },
+  "sensor.span_panel_hood_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Hood Current",
+      "is_sheddable": false,
+      "pcs_managed": false,
+      "pcs_priority": 44,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [35]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_hood_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Hood Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617153+00:00",
+      "last_valid_state": "168.89999999999998",
+      "state_class": "total",
+      "tabs": "tabs [35]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "168.9"
+  },
+  "sensor.span_panel_hood_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Hood Power",
+      "is_sheddable": false,
+      "pcs_managed": false,
+      "pcs_priority": 44,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [35]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_hood_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Hood Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617130+00:00",
+      "last_valid_state": "495.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [35]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "495.1"
+  },
+  "sensor.span_panel_hvac_breaker_rating": null,
+  "sensor.span_panel_hvac_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel HVAC Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616317+00:00",
+      "last_valid_state": "60911.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [1:3]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "60911.5"
+  },
+  "sensor.span_panel_hvac_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel HVAC Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 40,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [1:3]",
+      "unit_of_measurement": "A",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_hvac_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel HVAC Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616337+00:00",
+      "last_valid_state": "60538.2",
+      "state_class": "total",
+      "tabs": "tabs [1:3]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "60538.2"
+  },
+  "sensor.span_panel_hvac_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel HVAC Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 40,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [1:3]",
+      "unit_of_measurement": "W",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_hvac_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel HVAC Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616301+00:00",
+      "last_valid_state": "373.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [1:3]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "373.3"
+  },
+  "sensor.span_panel_import_limit": {
+    "attributes": {
+      "device_class": "current",
+      "feed_import_limit": 180.0,
+      "feed_import_limit_active": true,
+      "feed_import_limit_enablement": "ENABLED",
+      "friendly_name": "Span Panel Import Limit",
+      "off_grid_import_limit_active": false,
+      "off_grid_import_limit_enablement": "UNCONFIGURED",
+      "operator_import_limit_active": false,
+      "operator_import_limit_enablement": "UNCONFIGURED",
+      "pcs_enabled": true,
+      "requested_import_limit": 200.0,
+      "requested_import_limit_active": false,
+      "requested_import_limit_enablement": "UNCONFIGURED",
+      "state_class": "measurement",
+      "unit_of_measurement": "A"
+    },
+    "state": "180.0"
+  },
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_breaker_rating": null,
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617439+00:00",
+      "last_valid_state": "527.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "527.5"
+  },
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617451+00:00",
+      "last_valid_state": "107.0",
+      "state_class": "total",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "107.0"
+  },
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_fr_door_isle_alt_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617427+00:00",
+      "last_valid_state": "420.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "420.5"
+  },
+  "sensor.span_panel_kitchen_lights_breaker_rating": null,
+  "sensor.span_panel_kitchen_lights_breaker_rating_2": null,
+  "sensor.span_panel_kitchen_lights_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617884+00:00",
+      "last_valid_state": "709.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [32]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "709.2"
+  },
+  "sensor.span_panel_kitchen_lights_consumed_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618284+00:00",
+      "last_valid_state": "1223102142.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [42]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "1223102142.9"
+  },
+  "sensor.span_panel_kitchen_lights_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen / Lights Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [32]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_lights_current_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen / Lights Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [42]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_lights_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617896+00:00",
+      "last_valid_state": "147.80000000000007",
+      "state_class": "total",
+      "tabs": "tabs [32]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "147.8"
+  },
+  "sensor.span_panel_kitchen_lights_net_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618296+00:00",
+      "last_valid_state": "1223101599.7",
+      "state_class": "total",
+      "tabs": "tabs [42]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "1223101599.7"
+  },
+  "sensor.span_panel_kitchen_lights_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen / Lights Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [32]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_kitchen_lights_power_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen / Lights Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [42]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_lights_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617873+00:00",
+      "last_valid_state": "561.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [32]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "561.4"
+  },
+  "sensor.span_panel_kitchen_lights_produced_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Lights Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618273+00:00",
+      "last_valid_state": "543.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [42]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "543.2"
+  },
+  "sensor.span_panel_kitchen_outlets_breaker_rating": null,
+  "sensor.span_panel_kitchen_outlets_breaker_rating_2": null,
+  "sensor.span_panel_kitchen_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616733+00:00",
+      "last_valid_state": "536.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "536.0"
+  },
+  "sensor.span_panel_kitchen_outlets_consumed_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618233+00:00",
+      "last_valid_state": "152888357.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [41]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "152888357.7"
+  },
+  "sensor.span_panel_kitchen_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen / Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_outlets_current_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen / Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [41]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616744+00:00",
+      "last_valid_state": "132.3",
+      "state_class": "total",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "132.3"
+  },
+  "sensor.span_panel_kitchen_outlets_net_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618246+00:00",
+      "last_valid_state": "152887850.2",
+      "state_class": "total",
+      "tabs": "tabs [41]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "152887850.2"
+  },
+  "sensor.span_panel_kitchen_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen / Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_outlets_power_2": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen / Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [41]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616722+00:00",
+      "last_valid_state": "403.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "403.7"
+  },
+  "sensor.span_panel_kitchen_outlets_produced_energy_2": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618222+00:00",
+      "last_valid_state": "507.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [41]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "507.5"
+  },
+  "sensor.span_panel_kitchen_sink_garbage_disposal_breaker_rating": null,
+  "sensor.span_panel_kitchen_sink_garbage_disposal_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616835+00:00",
+      "last_valid_state": "726.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "726.9"
+  },
+  "sensor.span_panel_kitchen_sink_garbage_disposal_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 47,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_kitchen_sink_garbage_disposal_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616847+00:00",
+      "last_valid_state": "180.19999999999993",
+      "state_class": "total",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "180.2"
+  },
+  "sensor.span_panel_kitchen_sink_garbage_disposal_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 47,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "SOC_THRESHOLD",
+      "state_class": "measurement",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_kitchen_sink_garbage_disposal_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616823+00:00",
+      "last_valid_state": "546.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "546.7"
+  },
+  "sensor.span_panel_l1_voltage": null,
+  "sensor.span_panel_l2_voltage": null,
+  "sensor.span_panel_laundry_room_breaker_rating": null,
+  "sensor.span_panel_laundry_room_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Laundry Room Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616498+00:00",
+      "last_valid_state": "86490.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [6:8]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "86490.0"
+  },
+  "sensor.span_panel_laundry_room_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Laundry Room Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 24,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [6:8]",
+      "unit_of_measurement": "A",
+      "voltage": 240.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_laundry_room_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Laundry Room Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616539+00:00",
+      "last_valid_state": "85723.5",
+      "state_class": "total",
+      "tabs": "tabs [6:8]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "85723.5"
+  },
+  "sensor.span_panel_laundry_room_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Laundry Room Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 24,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [6:8]",
+      "unit_of_measurement": "W",
+      "voltage": 240.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_laundry_room_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Laundry Room Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616486+00:00",
+      "last_valid_state": "766.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [6:8]",
+      "unit_of_measurement": "Wh",
+      "voltage": 240.0
+    },
+    "state": "766.5"
+  },
+  "sensor.span_panel_living_room_lights_breaker_rating": null,
+  "sensor.span_panel_living_room_lights_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618514+00:00",
+      "last_valid_state": "735.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "735.9"
+  },
+  "sensor.span_panel_living_room_lights_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Living room / Lights Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Living room / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Living room / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_living_room_lights_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618529+00:00",
+      "last_valid_state": "149.29999999999995",
+      "state_class": "total",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "149.3"
+  },
+  "sensor.span_panel_living_room_lights_outlets_breaker_rating": null,
+  "sensor.span_panel_living_room_lights_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617785+00:00",
+      "last_valid_state": "664.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [28]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "664.9"
+  },
+  "sensor.span_panel_living_room_lights_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Living room / Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [28]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_living_room_lights_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617797+00:00",
+      "last_valid_state": "132.29999999999995",
+      "state_class": "total",
+      "tabs": "tabs [28]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "132.3"
+  },
+  "sensor.span_panel_living_room_lights_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Living room / Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [28]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_living_room_lights_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617774+00:00",
+      "last_valid_state": "532.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [28]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "532.6"
+  },
+  "sensor.span_panel_living_room_lights_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Living room / Lights Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Living room / Outlets"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Living room / Outlets"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_living_room_lights_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Lights Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618503+00:00",
+      "last_valid_state": "586.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "586.6"
+  },
+  "sensor.span_panel_living_room_outlets_breaker_rating": null,
+  "sensor.span_panel_living_room_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618461+00:00",
+      "last_valid_state": "735.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "735.9"
+  },
+  "sensor.span_panel_living_room_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Living room / Outlets Current",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Living room / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Living room / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_living_room_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618476+00:00",
+      "last_valid_state": "149.29999999999995",
+      "state_class": "total",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "149.3"
+  },
+  "sensor.span_panel_living_room_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Living room / Outlets Power",
+      "is_sheddable": false,
+      "meter_shared_with": [
+        "Living room / Lights"
+      ],
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_shared_with": [
+        "Living room / Lights"
+      ],
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_living_room_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Living room / Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618447+00:00",
+      "last_valid_state": "586.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [46]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "586.6"
+  },
+  "sensor.span_panel_main_meter_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Meter Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616230+00:00",
+      "last_valid_state": "3550605.9",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh",
+      "voltage": 240
+    },
+    "state": "3550605.9"
+  },
+  "sensor.span_panel_main_meter_net_energy": null,
+  "sensor.span_panel_main_meter_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Meter Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616200+00:00",
+      "last_valid_state": "181.4",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh",
+      "voltage": 240
+    },
+    "state": "181.4"
+  },
+  "sensor.span_panel_main_office_dedicated_outlets_breaker_rating": null,
+  "sensor.span_panel_main_office_dedicated_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617290+00:00",
+      "last_valid_state": "709.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [45]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "709.6"
+  },
+  "sensor.span_panel_main_office_dedicated_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [45]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_main_office_dedicated_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617302+00:00",
+      "last_valid_state": "161.89999999999998",
+      "state_class": "total",
+      "tabs": "tabs [45]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "161.9"
+  },
+  "sensor.span_panel_main_office_dedicated_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [45]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_main_office_dedicated_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617278+00:00",
+      "last_valid_state": "547.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [45]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "547.7"
+  },
+  "sensor.span_panel_main_office_fam_tv_breaker_rating": null,
+  "sensor.span_panel_main_office_fam_tv_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office & Fam TV Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616938+00:00",
+      "last_valid_state": "671.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [27]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "671.9"
+  },
+  "sensor.span_panel_main_office_fam_tv_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Main Office & Fam TV Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [27]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_main_office_fam_tv_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office & Fam TV Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616950+00:00",
+      "last_valid_state": "167.7",
+      "state_class": "total",
+      "tabs": "tabs [27]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "167.7"
+  },
+  "sensor.span_panel_main_office_fam_tv_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Main Office & Fam TV Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [27]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_main_office_fam_tv_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Office & Fam TV Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616927+00:00",
+      "last_valid_state": "504.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [27]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "504.2"
+  },
+  "sensor.span_panel_main_relay_state": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Main Relay State",
+      "options": [
+        "closed",
+        "open",
+        "unknown"
+      ]
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_microwave_breaker_rating": null,
+  "sensor.span_panel_microwave_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Microwave Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616634+00:00",
+      "last_valid_state": "5934.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "5934.2"
+  },
+  "sensor.span_panel_microwave_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Microwave Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 48,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_microwave_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Microwave Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616646+00:00",
+      "last_valid_state": "5689.2",
+      "state_class": "total",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "5689.2"
+  },
+  "sensor.span_panel_microwave_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Microwave Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 48,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "OPEN",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_microwave_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Microwave Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616622+00:00",
+      "last_valid_state": "245.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "245.0"
+  },
+  "sensor.span_panel_primary_bath_closets_breaker_rating": null,
+  "sensor.span_panel_primary_bath_closets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath & Closets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617641+00:00",
+      "last_valid_state": "743.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "743.2"
+  },
+  "sensor.span_panel_primary_bath_closets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Primary Bath & Closets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_primary_bath_closets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath & Closets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617652+00:00",
+      "last_valid_state": "173.80000000000007",
+      "state_class": "total",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "173.8"
+  },
+  "sensor.span_panel_primary_bath_closets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Primary Bath & Closets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_primary_bath_closets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath & Closets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617630+00:00",
+      "last_valid_state": "569.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "569.4"
+  },
+  "sensor.span_panel_primary_bath_outlets_breaker_rating": null,
+  "sensor.span_panel_primary_bath_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616687+00:00",
+      "last_valid_state": "37343.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "37343.3"
+  },
+  "sensor.span_panel_primary_bath_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Primary Bath Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_primary_bath_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616699+00:00",
+      "last_valid_state": "36796.4",
+      "state_class": "total",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "36796.4"
+  },
+  "sensor.span_panel_primary_bath_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Primary Bath Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_primary_bath_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary Bath Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.616675+00:00",
+      "last_valid_state": "546.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "546.9"
+  },
+  "sensor.span_panel_primary_bedroom_lights_outlets_breaker_rating": null,
+  "sensor.span_panel_primary_bedroom_lights_outlets_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617590+00:00",
+      "last_valid_state": "664.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "664.0"
+  },
+  "sensor.span_panel_primary_bedroom_lights_outlets_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_primary_bedroom_lights_outlets_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617602+00:00",
+      "last_valid_state": "158.39999999999998",
+      "state_class": "total",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "158.4"
+  },
+  "sensor.span_panel_primary_bedroom_lights_outlets_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 43,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_primary_bedroom_lights_outlets_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617579+00:00",
+      "last_valid_state": "505.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "505.6"
+  },
+  "sensor.span_panel_refrigerator_breaker_rating": null,
+  "sensor.span_panel_refrigerator_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Refrigerator Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617988+00:00",
+      "last_valid_state": "728.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [38]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "728.1"
+  },
+  "sensor.span_panel_refrigerator_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Refrigerator Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 38,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [38]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_refrigerator_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Refrigerator Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618001+00:00",
+      "last_valid_state": "170.60000000000002",
+      "state_class": "total",
+      "tabs": "tabs [38]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "170.6"
+  },
+  "sensor.span_panel_refrigerator_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Refrigerator Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 38,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [38]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_refrigerator_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Refrigerator Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617976+00:00",
+      "last_valid_state": "557.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [38]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "557.5"
+  },
+  "sensor.span_panel_security_system_breaker_rating": null,
+  "sensor.span_panel_security_system_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Security system Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617935+00:00",
+      "last_valid_state": "677.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [34]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "677.3"
+  },
+  "sensor.span_panel_security_system_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Security system Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 53,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [34]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_security_system_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Security system Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617947+00:00",
+      "last_valid_state": "148.29999999999995",
+      "state_class": "total",
+      "tabs": "tabs [34]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "148.3"
+  },
+  "sensor.span_panel_security_system_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Security system Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 53,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [34]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_security_system_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Security system Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617923+00:00",
+      "last_valid_state": "529.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [34]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "529.0"
+  },
+  "sensor.span_panel_site_power": {
+    "attributes": {
+      "amperage": 0.03,
+      "device_class": "power",
+      "friendly_name": "Span Panel Site Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "6.2"
+  },
+  "sensor.span_panel_smoke_co_detectors_breaker_rating": null,
+  "sensor.span_panel_smoke_co_detectors_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Smoke/CO Detectors Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617689+00:00",
+      "last_valid_state": "700.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "700.8"
+  },
+  "sensor.span_panel_smoke_co_detectors_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Smoke/CO Detectors Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 51,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_smoke_co_detectors_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Smoke/CO Detectors Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617700+00:00",
+      "last_valid_state": "151.0999999999999",
+      "state_class": "total",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "151.1"
+  },
+  "sensor.span_panel_smoke_co_detectors_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Smoke/CO Detectors Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 51,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_smoke_co_detectors_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Smoke/CO Detectors Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617678+00:00",
+      "last_valid_state": "549.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "549.7"
+  },
+  "sensor.span_panel_software_version": {
+    "attributes": {
+      "friendly_name": "Span Panel Software Version",
+      "panel_size": 48
+    },
+    "state": "spanos3/r202639/03"
+  },
+  "sensor.span_panel_sump_pump_breaker_rating": null,
+  "sensor.span_panel_sump_pump_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Sump Pump Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617835+00:00",
+      "last_valid_state": "721.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [30]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "721.4"
+  },
+  "sensor.span_panel_sump_pump_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Sump Pump Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 23,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [30]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_sump_pump_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Sump Pump Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617847+00:00",
+      "last_valid_state": "152.29999999999995",
+      "state_class": "total",
+      "tabs": "tabs [30]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "152.3"
+  },
+  "sensor.span_panel_sump_pump_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Sump Pump Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 23,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [30]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "-0.1"
+  },
+  "sensor.span_panel_sump_pump_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Sump Pump Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617824+00:00",
+      "last_valid_state": "569.1",
+      "state_class": "total_increasing",
+      "tabs": "tabs [30]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "569.1"
+  },
+  "sensor.span_panel_upstream_l1_current": null,
+  "sensor.span_panel_upstream_l2_current": null,
+  "sensor.span_panel_upstream_protection_rating": null,
+  "sensor.span_panel_utility_room_breaker_rating": null,
+  "sensor.span_panel_utility_room_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617090+00:00",
+      "last_valid_state": "678.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [33]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "678.9"
+  },
+  "sensor.span_panel_utility_room_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Utility Room Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [33]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_utility_room_dedicated_breaker_rating": null,
+  "sensor.span_panel_utility_room_dedicated_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Dedicated Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618087+00:00",
+      "last_valid_state": "662.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [36]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "662.7"
+  },
+  "sensor.span_panel_utility_room_dedicated_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel Utility Room Dedicated Current",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 32,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [36]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_utility_room_dedicated_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Dedicated Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618099+00:00",
+      "last_valid_state": "142.9000000000001",
+      "state_class": "total",
+      "tabs": "tabs [36]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "142.9"
+  },
+  "sensor.span_panel_utility_room_dedicated_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Utility Room Dedicated Power",
+      "is_sheddable": true,
+      "pcs_managed": true,
+      "pcs_priority": 32,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "OFF_GRID",
+      "state_class": "measurement",
+      "tabs": "tabs [36]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_utility_room_dedicated_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Dedicated Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.618076+00:00",
+      "last_valid_state": "519.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [36]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "519.8"
+  },
+  "sensor.span_panel_utility_room_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617102+00:00",
+      "last_valid_state": "156.19999999999993",
+      "state_class": "total",
+      "tabs": "tabs [33]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "156.2"
+  },
+  "sensor.span_panel_utility_room_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel Utility Room Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 37,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "NEVER",
+      "state_class": "measurement",
+      "tabs": "tabs [33]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_utility_room_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Utility Room Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.617078+00:00",
+      "last_valid_state": "522.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [33]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "522.7"
+  },
+  "sensor.span_panel_vendor_cloud": null,
+  "switch.span_panel_basement_lights_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement / Lights & Outlets Breaker",
+      "tabs": "tabs [31]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_basement_lights_outlets_breaker_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement / Lights & Outlets Breaker",
+      "tabs": "tabs [37]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_basement_outlets_exit_door_wall_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement Outlets exit door wall Breaker",
+      "tabs": "tabs [26]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_basement_outlets_french_door_wall_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Basement Outlets French Door Wall Breaker",
+      "tabs": "tabs [29]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bathroom_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Bathroom / Outlets Breaker",
+      "tabs": "tabs [39]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bed_2_shared_bath_lights_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Bed 2 & Shared Bath Lights & Outlets Breaker",
+      "tabs": "tabs [16]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bedroom_lights_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Lights Breaker",
+      "meter_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "relay_shared_with": [
+        "Bedroom / Outlets"
+      ],
+      "tabs": "tabs [44]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bedroom_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Outlets Breaker",
+      "tabs": "tabs [20]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bedroom_outlets_breaker_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Bedroom / Outlets Breaker",
+      "meter_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "relay_shared_with": [
+        "Bedroom / Lights"
+      ],
+      "tabs": "tabs [44]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_bidet_outlets_basement_main_floor_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Bidet Outlets Basement & Main Floor Breaker",
+      "tabs": "tabs [47]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_dining_room_lights_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Lights Breaker",
+      "meter_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "relay_shared_with": [
+        "Dining room / Outlets"
+      ],
+      "tabs": "tabs [48]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_dining_room_lights_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Lights & Outlets Breaker",
+      "tabs": "tabs [10]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_dining_room_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Dining room / Outlets Breaker",
+      "meter_shared_with": [
+        "Dining room / Lights"
+      ],
+      "relay_shared_with": [
+        "Dining room / Lights"
+      ],
+      "tabs": "tabs [48]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_dishwasher_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Dishwasher Breaker",
+      "tabs": "tabs [25]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_electric_double_oven_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric Double-Oven Breaker",
+      "tabs": "tabs [2:4]",
+      "voltage": 240.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_electric_infared_sauna_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric Infared Sauna Breaker",
+      "tabs": "tabs [43]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_electric_range_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Electric range Breaker",
+      "tabs": "tabs [9]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_family_room_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Family Room Breaker",
+      "tabs": "tabs [17]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_freezer_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Freezer Breaker",
+      "tabs": "tabs [40]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_furnace_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Furnace Breaker",
+      "tabs": "tabs [14]",
+      "voltage": 120.0
+    },
+    "state": "off"
+  },
+  "switch.span_panel_heat_pump_water_heater_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Heat Pump Water Heater Breaker",
+      "tabs": "tabs [5:7]",
+      "voltage": 240.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_hood_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Hood Breaker",
+      "tabs": "tabs [35]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_hvac_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel HVAC Breaker",
+      "tabs": "tabs [1:3]",
+      "voltage": 240.0
+    },
+    "state": "off"
+  },
+  "switch.span_panel_kitchen_fr_door_isle_alt_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen fr. door & Isle Alt. Outlets Breaker",
+      "tabs": "tabs [12]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_kitchen_lights_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Lights Breaker",
+      "tabs": "tabs [32]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_kitchen_lights_breaker_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Lights Breaker",
+      "tabs": "tabs [42]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_kitchen_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Outlets Breaker",
+      "tabs": "tabs [15]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_kitchen_outlets_breaker_2": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen / Outlets Breaker",
+      "tabs": "tabs [41]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_kitchen_sink_garbage_disposal_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Kitchen Sink Garbage Disposal Breaker",
+      "tabs": "tabs [23]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_laundry_room_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Laundry Room Breaker",
+      "tabs": "tabs [6:8]",
+      "voltage": 240.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_living_room_lights_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Lights Breaker",
+      "meter_shared_with": [
+        "Living room / Outlets"
+      ],
+      "relay_shared_with": [
+        "Living room / Outlets"
+      ],
+      "tabs": "tabs [46]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_living_room_lights_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Lights & Outlets Breaker",
+      "tabs": "tabs [28]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_living_room_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Living room / Outlets Breaker",
+      "meter_shared_with": [
+        "Living room / Lights"
+      ],
+      "relay_shared_with": [
+        "Living room / Lights"
+      ],
+      "tabs": "tabs [46]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_main_office_dedicated_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Main Office Dedicated Outlets Breaker",
+      "tabs": "tabs [45]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_main_office_fam_tv_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Main Office & Fam TV Breaker",
+      "tabs": "tabs [27]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_microwave_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Microwave Breaker",
+      "tabs": "tabs [11]",
+      "voltage": 120.0
+    },
+    "state": "off"
+  },
+  "switch.span_panel_primary_bath_closets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary Bath & Closets Breaker",
+      "tabs": "tabs [22]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_primary_bath_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary Bath Outlets Breaker",
+      "tabs": "tabs [13]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_primary_bedroom_lights_outlets_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Primary bedroom / Lights & Outlets Breaker",
+      "tabs": "tabs [18]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_refrigerator_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Refrigerator Breaker",
+      "tabs": "tabs [38]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_security_system_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Security system Breaker",
+      "tabs": "tabs [34]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_smoke_co_detectors_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Smoke/CO Detectors Breaker",
+      "tabs": "tabs [24]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_sump_pump_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Sump Pump Breaker",
+      "tabs": "tabs [30]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_utility_room_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Utility Room Breaker",
+      "tabs": "tabs [33]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_utility_room_dedicated_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel Utility Room Dedicated Breaker",
+      "tabs": "tabs [36]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  }
+}

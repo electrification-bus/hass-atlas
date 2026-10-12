@@ -35,6 +35,7 @@ from hass_atlas.registry import (
     fetch_entity_states,
     fetch_registries,
 )
+from hass_atlas.span_panel import exit_writer_unsupported, span_panel_only
 from hass_atlas.topology import _find_sub_entity, _state_value
 from rich.tree import Tree
 
@@ -235,6 +236,8 @@ async def _cascade(ctx: Context, check: bool) -> None:
 
     trees = build_span_trees(devices, entities)
     if not trees:
+        if span_panel_only(devices):
+            exit_writer_unsupported("cascade")
         print_warn("No SPAN panels found in HA")
         return
 

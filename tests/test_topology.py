@@ -686,8 +686,8 @@ def test_build_topology_aware_config_full(
     # Grid from powerwall
     grid_sources = [s for s in config["energy_sources"] if s["type"] == "grid"]
     assert len(grid_sources) == 1
-    assert any("powerwall_site_import" in f["stat_energy_from"]
-               for f in grid_sources[0]["flow_from"])
+    assert "powerwall_site_import" in grid_sources[0]["stat_energy_from"]
+    assert grid_sources[0]["cost_adjustment_day"] == 0.0
 
     # Battery from powerwall
     batt_sources = [s for s in config["energy_sources"] if s["type"] == "battery"]

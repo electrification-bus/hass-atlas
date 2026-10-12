@@ -12,7 +12,15 @@ from websockets import ClientConnection
 
 
 class HAClientError(Exception):
-    """Error from the HA WebSocket API."""
+    """Error from the HA WebSocket API.
+
+    ``code`` carries the error code HA returned for a failed command (for
+    example ``unauthorized``), or None for connection and protocol errors.
+    """
+
+    def __init__(self, message: str, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class HAClient:
@@ -29,6 +37,8 @@ class HAClient:
         self._token = token
         self._ws: ClientConnection | None = None
         self._msg_id = 0
+        # Home Assistant's version, from the auth_ok message.
+        self.ha_version: str | None = None
 
     @property
     def _ws_url(self) -> str:
@@ -63,6 +73,7 @@ class HAClient:
             if auth_result.get("type") != "auth_ok":
                 msg = auth_result.get("message", "Unknown auth error")
                 raise HAClientError(f"Auth failed: {msg}")
+            self.ha_version = auth_result.get("ha_version")
         except TimeoutError:
             await self._ws.close()
             raise HAClientError(
@@ -99,7 +110,8 @@ class HAClient:
                     if not response.get("success"):
                         error = response.get("error", {})
                         raise HAClientError(
-                            f"{msg_type} failed: {error.get('message', 'Unknown error')}"
+                            f"{msg_type} failed: {error.get('message', 'Unknown error')}",
+                            code=error.get("code"),
                         )
                     return response.get("result")
         except HAClientError:

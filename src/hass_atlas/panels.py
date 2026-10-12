@@ -8,6 +8,8 @@ import click
 
 from hass_atlas.context import Context, pass_ctx, run_async
 from hass_atlas.output import print_dry_run, print_error, print_info, print_ok
+from hass_atlas.registry import fetch_registries
+from hass_atlas.span_panel import exit_writer_unsupported, span_panel_only
 
 
 _SERIAL_RE = re.compile(r"^nt-\d{4}-[a-z0-9]+$")
@@ -51,6 +53,9 @@ async def _link_panels(ctx: Context, links: tuple[str, ...]) -> None:
         return
 
     async with ctx.client() as client:
+        devices, _, _ = await fetch_registries(client)
+        if span_panel_only(devices):
+            exit_writer_unsupported("link-panels")
         for child, parent in pairs:
             await client.send_command(
                 "call_service",

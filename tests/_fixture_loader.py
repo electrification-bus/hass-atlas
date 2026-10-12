@@ -49,6 +49,62 @@ _STATE_CLASS_BY_PROPERTY: dict[str, str] = {
 }
 
 
+# Properties span-hass creates disabled by default (``enabled_default=False``).
+_DISABLED_BY_DEFAULT: set[tuple[str, str]] = {
+    ("meter", "shared-with-device-ids"),
+    ("switch", "shared-with-device-ids"),
+}
+
+# span-hass 0.6.0b1 entity names (semantics.py) where they differ from the
+# title-cased property id; all three are diagnostic sensors.
+_SPAN_HASS_NAMES: dict[tuple[str, str], str] = {
+    ("connection", "feeds-role"): "Feeds Role",
+    ("meter", "shared-with-device-ids"): "Meter Shared With",
+    ("switch", "shared-with-device-ids"): "Relay Shared With",
+}
+
+# Panel ``power-flows`` properties span-hass negates into Home Assistant's frame.
+_NEGATED: set[tuple[str, str]] = {
+    ("power-flows", "pv"),
+    ("power-flows", "battery"),
+    ("power-flows", "grid"),
+}
+
+
+def _normalize_capture(data: dict[str, Any]) -> dict[str, Any]:
+    """Shape a capture (``parent`` in ``$description``, ``numeric_properties``) like nt-0000-*.
+
+    Adds ``metadata.serial`` (the root device id), ``is_root`` and ``parent_id``,
+    and merges ``numeric_properties`` into ``properties``.
+    """
+    devices = data["devices"]
+    if data.get("metadata", {}).get("serial"):
+        return data
+    root = next(
+        k for k, v in devices.items()
+        if v["description"]["type"] == "energy.ebus.device.distribution-enclosure"
+        and not v["description"].get("parent")
+    )
+    out: dict[str, Any] = {"metadata": {**data.get("metadata", {}), "serial": root}, "devices": {}}
+    for k, v in devices.items():
+        out["devices"][k] = {
+            **v,
+            "properties": {**v.get("properties", {}), **v.get("numeric_properties", {})},
+            "parent_id": v["description"].get("parent"),
+            "is_root": k == root,
+        }
+    return out
+
+
+def _is_off_panel_circuit(fdev: dict[str, Any]) -> bool:
+    """span-hass ``util.is_off_panel_circuit``: a circuit that declares no ``info/spaces``."""
+    desc = fdev["description"]
+    if desc["type"] != "energy.ebus.device.circuit":
+        return False
+    info = desc.get("nodes", {}).get("info", {})
+    return "spaces" not in info.get("properties", {})
+
+
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
 
@@ -74,7 +130,9 @@ def _display_name(panel_serial: str, homie_id: str, fdev: dict[str, Any]) -> str
         return f"{short} Lugs"
     if type_short == "circuit":
         name = fdev.get("properties", {}).get("info/name")
-        return name if name else homie_id[:8]
+        if not name and _is_off_panel_circuit(fdev):
+            return f"{short} Remote CT"
+        return name if name else f"Circuit {homie_id}"
     if type_short == "mid":
         return f"{short} Microgrid Interconnect Device"
     if type_short == "bess":
@@ -89,7 +147,15 @@ def _display_name(panel_serial: str, homie_id: str, fdev: dict[str, Any]) -> str
 def load_tree_v1(
     path: Path | str,
 ) -> tuple[list[HADevice], list[HAEntity], dict[str, dict[str, Any]]]:
-    """Load a tree-v1 fixture JSON and return HA-shaped records.
+    """Load a tree-v1 fixture JSON file and return HA-shaped records (see ``load_tree_data``)."""
+    return load_tree_data(json.loads(Path(path).read_text()))
+
+
+def load_tree_data(
+    raw: dict[str, Any],
+    prefix: str = "",
+) -> tuple[list[HADevice], list[HAEntity], dict[str, dict[str, Any]]]:
+    """Translate parsed tree-v1 fixture data into HA-shaped records.
 
     Returns ``(devices, entities, states)`` where:
 
@@ -99,8 +165,11 @@ def load_tree_v1(
       each device's published-properties dict.  unique_id format:
       ``{panel-serial}_{homie-id}_{capability}_{property}``.
     - ``states`` maps entity_id → ``{"state": <str>, "attributes": {}}``.
+
+    ``prefix`` is prepended to HA device ids and entity object ids, so several
+    captures whose node ids or circuit names repeat can be loaded together.
     """
-    data = json.loads(Path(path).read_text())
+    data = _normalize_capture(raw)
     panel_serial: str = data["metadata"]["serial"]
     fixture_devices: dict[str, dict[str, Any]] = data["devices"]
 
@@ -112,7 +181,7 @@ def load_tree_v1(
         else:
             ident = ("span_ebus", f"{panel_serial}_{homie_id}")
         ha_dev = HADevice(
-            id=f"dev-{homie_id}",
+            id=f"dev-{prefix}{homie_id}",
             name=_display_name(panel_serial, homie_id, fdev),
             model=_MODEL_BY_DEVICE_TYPE.get(fdev["description"]["type"]),
             identifiers=[ident],
@@ -131,7 +200,7 @@ def load_tree_v1(
     states: dict[str, dict[str, Any]] = {}
     for homie_id, fdev in fixture_devices.items():
         ha_dev = by_homie[homie_id]
-        name_slug = _slug(ha_dev.name or homie_id)
+        name_slug = prefix + _slug(ha_dev.name or homie_id)
         published = fdev.get("properties", {})
         # Enumerate every (capability, property) declared in the descriptor —
         # span-hass creates entities for these regardless of whether a value
@@ -157,12 +226,23 @@ def load_tree_v1(
                     device_id=ha_dev.id,
                     device_class=_DEVICE_CLASS_BY_PROPERTY.get(property_id),
                     state_class=_STATE_CLASS_BY_PROPERTY.get(property_id),
-                    original_name=property_id.replace("-", " ").title(),
+                    original_name=_SPAN_HASS_NAMES.get(
+                        (capability, property_id), property_id.replace("-", " ").title()
+                    ),
                     has_entity_name=True,
+                    entity_category=(
+                        "diagnostic" if (capability, property_id) in _SPAN_HASS_NAMES else None
+                    ),
+                    disabled_by=(
+                        "integration"
+                        if (capability, property_id) in _DISABLED_BY_DEFAULT else None
+                    ),
                 )
                 entities.append(ent)
                 ha_dev.entities.append(ent)
                 value = published.get(cap_prop)
+                if value is not None and (capability, property_id) in _NEGATED:
+                    value = str(-float(value))
                 states[entity_id] = {
                     "state": "unknown" if value is None else str(value),
                     "attributes": {},
@@ -174,6 +254,17 @@ def load_tree_v1(
 def load_abc12() -> tuple[list[HADevice], list[HAEntity], dict[str, dict[str, Any]]]:
     """Load the lead-panel fixture (16 devices: panel + lugs + BESS + MID + 11 circuits)."""
     return load_tree_v1(FIXTURES_DIR / "nt-0000-abc12.json")
+
+
+def load_capture(handle: str) -> tuple[list[HADevice], list[HAEntity], dict[str, dict[str, Any]]]:
+    """Load a masked r202639 capture: ``r202639-a`` to ``-e`` or ``main32_r202639``."""
+    return load_tree_v1(FIXTURES_DIR / f"{handle}-tree-v1.json")
+
+
+def capture_data(handle: str) -> dict[str, Any]:
+    """Parsed JSON of a masked r202639 capture, for a test to edit before ``load_tree_data``."""
+    data: dict[str, Any] = json.loads((FIXTURES_DIR / f"{handle}-tree-v1.json").read_text())
+    return data
 
 
 def load_def34() -> tuple[list[HADevice], list[HAEntity], dict[str, dict[str, Any]]]:

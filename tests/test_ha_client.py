@@ -59,6 +59,14 @@ async def test_connect_and_auth(auth_ok_ws: FakeWebSocket) -> None:
 
 
 @pytest.mark.asyncio
+async def test_ha_version_from_auth_ok(auth_ok_ws: FakeWebSocket) -> None:
+    with patch("hass_atlas.ha_client.websockets") as mock_ws:
+        mock_ws.connect = AsyncMock(return_value=auth_ok_ws)
+        async with HAClient("http://ha.local:8123", "test-token") as client:
+            assert client.ha_version == "2024.12.0"
+
+
+@pytest.mark.asyncio
 async def test_auth_failure(auth_fail_ws: FakeWebSocket) -> None:
     with patch("hass_atlas.ha_client.websockets") as mock_ws:
         mock_ws.connect = AsyncMock(return_value=auth_fail_ws)
