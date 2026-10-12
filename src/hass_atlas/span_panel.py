@@ -53,7 +53,8 @@ CIRCUIT_ROLE_HELP = (
     "State a circuit's role, [SERIAL:]CIRCUIT-ID=ROLE with ROLE one of "
     "grid, load, solar, battery, subpanel:<serial>, ignore. "
     f"SERIAL:{FEEDTHROUGH_ID}=subpanel:<serial> states a panel fed from SERIAL's "
-    "feed-through lugs. On span_ebus only a remote CT takes a role, and not subpanel. "
+    "feed-through lugs. On span_ebus a remote CT takes any role but subpanel, and a "
+    "breaker circuit takes only subpanel:<serial>. "
     "Repeatable."
 )
 
@@ -405,11 +406,11 @@ def resolve_ebus_circuit_roles(
     specs: tuple[str, ...] | list[str],
     trees: list[SpanDeviceTree],
 ) -> dict[tuple[str, str], CircuitRoleOverride]:
-    """Validate ``[<serial>:]<node-id>=<role>`` values for span_ebus remote CTs.
+    """Validate ``[<serial>:]<node-id>=<role>`` values for span_ebus circuits.
 
-    Returns ``{(serial, node_id): override}``.  On span_ebus only a remote CT
-    takes a role (grid, load, solar, battery, or ignore): panel feeds come
-    from the published connection data and ``link-panels``.
+    Returns ``{(serial, node_id): override}``.  On span_ebus a remote CT takes
+    grid, load, solar, battery, or ignore, and a breaker circuit takes only
+    ``subpanel:<serial>``, naming the span_ebus panel it feeds.
     """
     remote: dict[str, set[str]] = {
         t.serial: {n for ct in t.remote_cts if (n := _circuit_node_id(ct))}
@@ -426,13 +427,13 @@ def resolve_ebus_circuit_roles(
         if not m:
             raise CircuitRoleError(
                 f"Invalid --circuit-role '{spec}' (expected [<serial>:]<ct-id>="
-                "grid|load|solar|battery|ignore)"
+                "grid|load|solar|battery|ignore or [<serial>:]<circuit-id>=subpanel:<serial>)"
             )
         override = parse_role(m.group("role"))
         cid = m.group("cid")
-        if override.role == "subpanel" or cid == FEEDTHROUGH_ID:
+        if cid == FEEDTHROUGH_ID:
             raise CircuitRoleError(
-                f"--circuit-role '{spec}': span_ebus takes no subpanel role; use "
+                f"--circuit-role '{spec}': span_ebus has no {FEEDTHROUGH_ID} role; use "
                 "link-panels to state which panel feeds another"
             )
         if m.group("serial") is not None:
@@ -453,10 +454,25 @@ def resolve_ebus_circuit_roles(
                 f"{', '.join(owners)}; prefix it with the serial, e.g. {owners[0]}:{cid}={override}"
             )
         serial = owners[0]
-        if cid not in remote[serial]:
+        if override.role == "subpanel":
+            if cid in remote[serial]:
+                raise CircuitRoleError(
+                    f"--circuit-role '{spec}': {serial}:{cid} is a remote CT; on span_ebus "
+                    "only a breaker circuit takes subpanel"
+                )
+            sub = lower_serial.get((override.subpanel_serial or "").lower())
+            if sub is None:
+                raise CircuitRoleError(
+                    f"--circuit-role '{spec}': no span_ebus panel with serial "
+                    f"'{override.subpanel_serial}'"
+                )
+            if sub == serial:
+                raise CircuitRoleError(f"--circuit-role '{spec}': a panel cannot feed itself")
+            override.subpanel_serial = sub
+        elif cid not in remote[serial]:
             raise CircuitRoleError(
                 f"--circuit-role '{spec}': {serial}:{cid} is a breaker circuit; on span_ebus "
-                "only a remote CT takes a role"
+                "a breaker circuit takes only subpanel:<serial>"
             )
         key = (serial, cid)
         if key in result and str(result[key]) != str(override):
@@ -464,6 +480,7 @@ def resolve_ebus_circuit_roles(
                 f"--circuit-role gives {serial}:{cid} two roles: {result[key]} and {override}"
             )
         result[key] = override
+    _check_feeds(result)
     return result
 
 

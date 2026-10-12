@@ -8,17 +8,18 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 - **Read-only support for the [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`).** `audit`, `energy-topology` and `energy-audit` (without `--remap`) read each panel through the admin-only `span_panel/panel_topology` WebSocket command. The commands that write exit with a message when only `span_panel` is installed.
 - **Gaps report.** `audit`, `energy-topology` and `energy` list what hass-atlas could not determine (what a remote CT measures, which circuit feeds a battery or another panel, where the service entrance is) with the option value that states it. Suggested circuits are shown but never applied.
-- **`--circuit-role [<serial>:]<circuit-id>=<role>`** on `audit`, `energy`, `energy-topology` and `energy-audit`, with role `grid`, `load`, `solar`, `battery`, `subpanel:<serial>` or `ignore`. With `span_ebus` it applies to remote CTs only.
+- **`--circuit-role [<serial>:]<circuit-id>=<role>`** on `audit`, `energy`, `energy-topology` and `energy-audit`, with role `grid`, `load`, `solar`, `battery`, `subpanel:<serial>` or `ignore`. With `span_ebus` it applies to remote CTs, and `subpanel:<serial>` to breaker circuits.
+- **Feeds Role on `span_ebus` (`span-hass` 0.6.0b1).** A circuit whose Feeds Role is SOLAR is a solar source and not a consumer, STORAGE marks the battery feed circuit, SUBPANEL suggests the panel it feeds, and GENERATOR, MIXED, and a disabled Feeds Role are reported as gaps.
 
 ### Fixed
 
 - **Energy Dashboard saves on Home Assistant 2026.3 and later.** The grid is written in the unified format those releases require, and in the legacy format before 2026.3. Saves now include `cost_adjustment_day` and the legacy price keys, which every release requires. Readers accept both formats, and existing costs and sources hass-atlas does not own are kept.
 - `audit` and `energy-audit` no longer fail on a Home Assistant whose Energy Dashboard has never been saved.
-- **`span_ebus` on panel models other than MAIN 32:** a remote CT is no longer counted as a device consumer, circuits that share one meter are counted once, and plain `energy` finds solar and battery sources from their feed circuits, as `--topology` does.
+- **`span_ebus` on panel models other than MAIN 32:** a remote CT is no longer counted as a device consumer, circuits that share one meter are counted once, and plain `energy` finds solar and battery sources from their feed circuits, as `--topology` does. Battery and solar feed circuits are looked up on their own panel, so a node id that repeats across panels resolves to the right circuit.
 
 ### Changed
 
-- The README states the `span-hass` release targeted (v0.5.0) and warns that panel models other than MAIN 32, and the `span_panel` integration, are barely tested.
+- The README states the `span-hass` releases targeted (v0.5.0, and the v0.6.0b1 pre-release for panel models other than MAIN 32) and warns that panel models other than MAIN 32, and the `span_panel` integration, are barely tested.
 
 ## [0.1.0] - 2026-06-24
 

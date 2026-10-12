@@ -242,8 +242,9 @@ def _source_keys(sources: list[dict]) -> set[str]:
 def _warn_skipped_present(prefs: dict, topo: EnergyTopology) -> None:
     """Warn about entries the topology skips that the additive merge leaves in place."""
     present = extract_energy_entity_ids(prefs)
+    preferred = {a.entity_id for a in topo.role_assignments if a.preferred}
     skipped = sorted(
-        {a.entity_id for a in topo.role_assignments if not a.preferred} & present
+        ({a.entity_id for a in topo.role_assignments if not a.preferred} - preferred) & present
     )
     if skipped:
         print_warn(
@@ -267,9 +268,9 @@ def _build_topology(
     roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
 ) -> EnergyTopology:
     """Build complete energy topology from SPAN trees, registries, and entity states."""
-    topologies = extract_span_topology(trees, states)
+    topologies = extract_span_topology(trees, states, roles)
     integrations = discover_energy_integrations(devices, entities)
-    circuit_roles = classify_circuits(trees, topologies, states)
+    circuit_roles = classify_circuits(trees, topologies, states, roles)
     return build_energy_topology(
         trees, topologies, integrations, circuit_roles, states=states, roles=roles
     )

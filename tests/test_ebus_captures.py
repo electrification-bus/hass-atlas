@@ -152,7 +152,7 @@ def test_remote_ct_roles_direction(role: str, expected: dict[str, str]) -> None:
     ("spec", "message"),
     [
         ("circuit-17=grid", "is a breaker circuit"),
-        ("remote-ct-3=subpanel:xg-1155-18fkf", "takes no subpanel role"),
+        ("remote-ct-3=subpanel:xg-1155-18fkf", "only a breaker circuit takes subpanel"),
         ("remote-ct-9=grid", "no panel has circuit 'remote-ct-9'"),
         ("nt-0000-zzzzz:remote-ct-3=grid", "no span_ebus panel with serial"),
         ("remote-ct-3=meter", "Unknown circuit role"),

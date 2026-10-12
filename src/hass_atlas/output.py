@@ -207,7 +207,8 @@ def render_topology(
                 batt_label += f" model={panel.battery_model}"
             batt_branch = root.add(batt_label)
             if panel.battery_feed_circuit_name:
-                batt_branch.add(f"feed-circuit: {panel.battery_feed_circuit_name}")
+                via = " (Feeds Role STORAGE)" if panel.battery_by_role else ""
+                batt_branch.add(f"feed-circuit: {panel.battery_feed_circuit_name}{via}")
 
         # Solar info
         if panel.solar_position:
@@ -219,6 +220,8 @@ def render_topology(
             solar_branch = root.add(solar_label)
             if panel.solar_feed_circuit_name:
                 solar_branch.add(f"feed-circuit: {panel.solar_feed_circuit_name}")
+            for _cid, name in panel.solar_role_circuits:
+                solar_branch.add(f"feed-circuit: {escape(name)} (Feeds Role SOLAR)")
 
         for name, node_id in panel.remote_cts:
             root.add(f"[bold blue]Remote CT[/bold blue] {escape(name)} [dim]{escape(node_id)}[/dim]")
@@ -254,6 +257,7 @@ def render_topology(
                 "load": "",
                 "pv_feed": "[cyan]",
                 "bess_feed": "[yellow]",
+                "subpanel_feed": "[magenta]",
                 "ev_feed": "[green]",
                 "shared_meter_member": "[dim]",
             }.get(cr.role, "")

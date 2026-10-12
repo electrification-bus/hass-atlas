@@ -55,6 +55,16 @@ class SpanTopology:
     fed_by_device_type: str | None = None
     # (display name, node id) of each remote CT on the panel.
     remote_cts: list[tuple[str, str]] = field(default_factory=list)
+    # Breaker circuits' ``connection/feeds-role`` values (span-hass 0.6.0b1
+    # Feeds Role), by node id.  Panels that publish no Feeds Role leave it empty.
+    feeds_roles: dict[str, str] = field(default_factory=dict)
+    # Feeds Role entity ids that are disabled in Home Assistant.
+    feeds_role_disabled: list[str] = field(default_factory=list)
+    # (node id, display name) of circuits whose Feeds Role is SOLAR, other than
+    # a PV device's feed circuit.  Each is a solar source.
+    solar_role_circuits: list[tuple[str, str]] = field(default_factory=list)
+    # True when the battery feed circuit comes from Feeds Role STORAGE alone.
+    battery_by_role: bool = False
 
 
 @dataclass
@@ -233,9 +243,24 @@ def _ha_device_homie_id(device: HADevice | None) -> str | None:
     return None
 
 
+FEEDS_ROLE_SUFFIX = "_connection_feeds-role"
+
+
+def _subpanel_feeds(
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None,
+) -> dict[str, tuple[str, str]]:
+    """Map each panel fed by a ``subpanel`` ``--circuit-role`` to (serial, node id) of its feeder."""
+    return {
+        ov.subpanel_serial: key
+        for key, ov in (roles or {}).items()
+        if ov.role == "subpanel" and ov.subpanel_serial
+    }
+
+
 def extract_span_topology(
     trees: list[SpanDeviceTree],
     states: dict[str, dict[str, Any]],
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
 ) -> list[SpanTopology]:
     """Extract topology properties for each SPAN panel from entity states.
 
@@ -250,8 +275,16 @@ def extract_span_topology(
       capability; not detectable in v1.
     - **None** — DER exists in the tree but no connection signal yet
       (commissioning not done, or panel offline).
+
+    span-hass 0.6.0b1 adds a circuit's Feeds Role (``connection/feeds-role``),
+    which names what a circuit feeds when it is not an eBus device.  SOLAR
+    makes the circuit a solar source (IN_PANEL) whether or not a PV device
+    exists.  STORAGE makes it the battery feed circuit (IN_PANEL) when no
+    circuit's ``feeds-device-id`` names the BESS.  A panel fed by a
+    ``subpanel`` value in ``roles`` is not a lead panel.
     """
     topologies: list[SpanTopology] = []
+    fed_by_role = _subpanel_feeds(roles)
 
     for tree in trees:
         serial = tree.serial
@@ -259,7 +292,7 @@ def extract_span_topology(
             continue
 
         topo = SpanTopology(serial=serial)
-        topo.is_lead_panel = tree.panel.via_device_id is None
+        topo.is_lead_panel = tree.panel.via_device_id is None and serial not in fed_by_role
 
         # BESS identity (vendor/model/serial unique_id suffixes are stable in 0.2.0)
         bess = tree.battery
@@ -293,6 +326,32 @@ def extract_span_topology(
                 topo.solar_feed_circuit_id = cid
                 topo.solar_feed_circuit_name = circuit.display_name
 
+        # Feeds Role: what each circuit feeds when it is not an eBus device.
+        for circuit in tree.circuits:
+            cid = _circuit_node_id(circuit)
+            entity = _find_sub_entity(circuit, FEEDS_ROLE_SUFFIX)
+            if entity is None or cid is None:
+                continue
+            if entity.disabled_by:
+                topo.feeds_role_disabled.append(entity.entity_id)
+                continue
+            role = _state_value(states, entity)
+            if role:
+                topo.feeds_roles[cid] = role
+        for circuit in tree.circuits:
+            cid = _circuit_node_id(circuit)
+            role = topo.feeds_roles.get(cid or "")
+            if role == "SOLAR" and cid != topo.solar_feed_circuit_id:
+                topo.solar_role_circuits.append((cid or "", circuit.display_name))
+            elif (
+                role == "STORAGE" and topo.battery_feed_circuit_id is None
+                and topo.battery_position is None
+            ):
+                topo.battery_position = "IN_PANEL"
+                topo.battery_feed_circuit_id = cid
+                topo.battery_feed_circuit_name = circuit.display_name
+                topo.battery_by_role = True
+
         # Pass 2: upstream-lug's fed-by-device-id detects UPSTREAM DERs.  It
         # is empty when the panel does not say what feeds it.
         if tree.lugs_up:
@@ -308,6 +367,8 @@ def extract_span_topology(
                     topo.battery_position = "UPSTREAM"
                 elif pv_did and fed_by == pv_did and not topo.solar_position:
                     topo.solar_position = "UPSTREAM"
+        if topo.solar_role_circuits and not topo.solar_position:
+            topo.solar_position = "IN_PANEL"
 
         topo.remote_cts = [
             (ct.display_name, _circuit_node_id(ct) or ct.id) for ct in tree.remote_cts
@@ -502,12 +563,16 @@ def classify_circuits(
     trees: list[SpanDeviceTree],
     topologies: list[SpanTopology],
     states: dict[str, dict[str, Any]] | None = None,
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
 ) -> list[CircuitRole]:
-    """Classify each circuit as load, pv_feed, bess_feed, or shared_meter_member.
+    """Classify each circuit as load, pv_feed, bess_feed, subpanel_feed, or shared_meter_member.
 
     A shared-meter member other than the group's counted one is excluded from
-    device consumption, since its readings repeat the counted member's.
+    device consumption, since its readings repeat the counted member's.  A
+    circuit whose Feeds Role is SOLAR is a solar source and not a consumer.  A
+    circuit given ``subpanel:<serial>`` in ``roles`` feeds that panel.
     """
+    roles = roles or {}
     # Build lookup: serial → topology
     topo_by_serial: dict[str, SpanTopology] = {t.serial: t for t in topologies}
     shared_with: dict[str, HADevice] = {}  # non-counted member id → counted member
@@ -515,7 +580,7 @@ def classify_circuits(
         for member in group.members[1:]:
             shared_with[member.id] = group.counted
 
-    roles: list[CircuitRole] = []
+    roles_out: list[CircuitRole] = []
 
     for tree in trees:
         serial = tree.serial
@@ -523,8 +588,36 @@ def classify_circuits(
             continue
         topo = topo_by_serial.get(serial)
 
+        solar_role_ids = {cid for cid, _ in topo.solar_role_circuits} if topo else set()
         for circuit in tree.circuits:
             node_id = _circuit_node_id(circuit)
+            override = roles.get((serial, node_id or ""))
+
+            if override is not None and override.role == "subpanel":
+                roles_out.append(CircuitRole(
+                    circuit=circuit,
+                    role="subpanel_feed",
+                    skip_return_energy=True,
+                    skip_consumption=False,
+                    reason=(
+                        f"Feeds panel {override.subpanel_serial} (--circuit-role): its "
+                        "consumption is the parent of that panel's total"
+                    ),
+                ))
+                continue
+
+            if node_id in solar_role_ids:
+                roles_out.append(CircuitRole(
+                    circuit=circuit,
+                    role="pv_feed",
+                    skip_return_energy=False,  # return IS solar production
+                    skip_consumption=True,
+                    reason=(
+                        "Feeds Role SOLAR (IN_PANEL): imported-energy (Energy Returned) = "
+                        "solar production; not a consumer"
+                    ),
+                ))
+                continue
 
             # Check if this circuit is a PV feed
             if (
@@ -534,7 +627,7 @@ def classify_circuits(
                 and node_id == topo.solar_feed_circuit_id
             ):
                 if topo.solar_position == "IN_PANEL":
-                    roles.append(CircuitRole(
+                    roles_out.append(CircuitRole(
                         circuit=circuit,
                         role="pv_feed",
                         skip_return_energy=False,  # return IS solar production
@@ -545,7 +638,7 @@ def classify_circuits(
                         ),
                     ))
                 else:
-                    roles.append(CircuitRole(
+                    roles_out.append(CircuitRole(
                         circuit=circuit,
                         role="pv_feed",
                         skip_return_energy=True,  # dedicated integration handles PV
@@ -565,7 +658,7 @@ def classify_circuits(
                 and node_id == topo.battery_feed_circuit_id
             ):
                 if topo.battery_position == "IN_PANEL":
-                    roles.append(CircuitRole(
+                    roles_out.append(CircuitRole(
                         circuit=circuit,
                         role="bess_feed",
                         skip_return_energy=False,  # return IS battery discharge
@@ -576,7 +669,7 @@ def classify_circuits(
                         ),
                     ))
                 else:
-                    roles.append(CircuitRole(
+                    roles_out.append(CircuitRole(
                         circuit=circuit,
                         role="bess_feed",
                         skip_return_energy=True,  # dedicated integration handles BESS
@@ -590,7 +683,7 @@ def classify_circuits(
 
             if circuit.id in shared_with:
                 counted = shared_with[circuit.id]
-                roles.append(CircuitRole(
+                roles_out.append(CircuitRole(
                     circuit=circuit,
                     role="shared_meter_member",
                     skip_return_energy=True,
@@ -603,15 +696,21 @@ def classify_circuits(
                 continue
 
             # Pure load circuit
-            roles.append(CircuitRole(
+            feeds_role = topo.feeds_roles.get(node_id or "") if topo else None
+            reason = "Pure load circuit: return energy suppressed (CT noise)"
+            if feeds_role in ("SUBPANEL", "GENERATOR", "MIXED"):
+                reason = (
+                    f"Feeds Role {feeds_role}: counted as a load, return energy suppressed"
+                )
+            roles_out.append(CircuitRole(
                 circuit=circuit,
                 role="load",
                 skip_return_energy=True,  # CT noise — suppress
                 skip_consumption=False,
-                reason="Pure load circuit: return energy suppressed (CT noise)",
+                reason=reason,
             ))
 
-    return roles
+    return roles_out
 
 
 # ---------------------------------------------------------------------------
@@ -797,9 +896,16 @@ def _solar_rate_entity(
 def _find_circuit_by_node_id(
     trees: list[SpanDeviceTree],
     target_node_id: str,
+    serial: str | None = None,
 ) -> HADevice | None:
-    """Find a circuit device by its node_id across all trees."""
+    """Find a circuit device by its node_id, on panel ``serial`` when given.
+
+    Node ids such as ``circuit-5`` repeat across panels of models other than
+    MAIN 32, so a lookup for one panel's circuit passes its serial.
+    """
     for tree in trees:
+        if serial is not None and tree.serial != serial:
+            continue
         for circuit in tree.circuits:
             if _circuit_node_id(circuit) == target_node_id:
                 return circuit
@@ -816,14 +922,18 @@ def build_energy_topology(
 ) -> EnergyTopology:
     """Build complete energy topology with role assignments and overlap detection.
 
-    ``roles`` holds ``--circuit-role`` values for remote CTs, keyed by
-    ``(serial, node id)``.  A remote CT meters in the enclosure frame, like the
+    ``roles`` holds ``--circuit-role`` values, keyed by ``(serial, node id)``:
+    any role but subpanel for a remote CT, and ``subpanel:<serial>`` for a
+    breaker circuit.  A remote CT meters in the enclosure frame, like the
     upstream lugs: ``imported-energy`` is the flow toward the panel (grid
     import, solar production, battery discharge, or a load's consumption) and
     ``exported-energy`` the flow away from it (grid export, battery charge).
+    A panel fed by a ``subpanel`` circuit is not a grid source: its upstream
+    lugs are a consumer under that circuit.
     """
     states = states or {}
     roles = roles or {}
+    fed_by_role = _subpanel_feeds(roles)
     assignments: list[EnergyRole] = []
     warnings: list[str] = []
     gaps: list[Gap] = []
@@ -939,6 +1049,21 @@ def build_energy_topology(
         for tree in trees:
             imported = _find_upstream_energy(tree, "imported-energy")
             exported = _find_upstream_energy(tree, "exported-energy")
+            if tree.serial in fed_by_role:
+                feeder_serial, feeder_cid = fed_by_role[tree.serial]
+                for role, entity in (("grid_import", imported), ("grid_export", exported)):
+                    if entity:
+                        assignments.append(EnergyRole(
+                            role=role,
+                            entity_id=entity.entity_id,
+                            platform="span_ebus",
+                            preferred=False,
+                            reason=(
+                                f"Fed by circuit {feeder_cid} on {feeder_serial} "
+                                "(--circuit-role): not a grid connection"
+                            ),
+                        ))
+                continue
             tree_topo = topo_by_serial.get(tree.serial or "")
             if (
                 tree_topo and tree_topo.battery_position == "UPSTREAM"
@@ -1005,7 +1130,7 @@ def build_energy_topology(
     for topo in topologies:
         if topo.battery_position == "IN_PANEL" and topo.battery_feed_circuit_id:
             # Use SPAN circuit for battery
-            circuit = _find_circuit_by_node_id(trees, topo.battery_feed_circuit_id)
+            circuit = _find_circuit_by_node_id(trees, topo.battery_feed_circuit_id, topo.serial)
             if circuit:
                 discharge = _find_circuit_entity(circuit, "imported-energy")
                 charge = _find_circuit_entity(circuit, "exported-energy")
@@ -1015,7 +1140,17 @@ def build_energy_topology(
                 bess_tree = serial_to_tree.get(topo.serial)
                 if bess_tree and bess_tree.battery:
                     batt_power = _find_circuit_entity(bess_tree.battery, "active-power")
-                if not batt_power:
+                if not batt_power and topo.battery_by_role:
+                    # span-hass negates a STORAGE circuit's power into the
+                    # consumption frame (positive while charging), the
+                    # opposite of the battery stat_rate frame.
+                    warnings.append(
+                        f"Battery on {topo.serial} (Feeds Role STORAGE circuit "
+                        f"{topo.battery_feed_circuit_id}) has no BESS power sensor for "
+                        "stat_rate, so the Energy Dashboard 'Now' tab will not show live "
+                        "battery power."
+                    )
+                elif not batt_power:
                     batt_power = _find_circuit_entity(circuit, "active-power")
                 batt_rate = batt_power.entity_id if batt_power else None
                 if discharge:
@@ -1075,7 +1210,7 @@ def build_energy_topology(
     for topo in topologies:
         if topo.solar_position == "IN_PANEL" and topo.solar_feed_circuit_id:
             # Use SPAN circuit for solar
-            circuit = _find_circuit_by_node_id(trees, topo.solar_feed_circuit_id)
+            circuit = _find_circuit_by_node_id(trees, topo.solar_feed_circuit_id, topo.serial)
             if circuit:
                 solar_entity = _find_circuit_entity(circuit, "imported-energy")
                 if solar_entity:
@@ -1119,9 +1254,10 @@ def build_energy_topology(
             break
 
     # If no PV integration and PV is UPSTREAM, check SPAN solar device
+    role_solar_serials = {t.serial for t in topologies if t.solar_role_circuits}
     if not any(a.role == "solar" and a.preferred for a in assignments):
         for tree in trees:
-            if tree.solar:
+            if tree.solar and tree.serial not in role_solar_serials:
                 solar_entity = _find_circuit_entity(tree.solar, "imported-energy")
                 if solar_entity:
                     # Positive production power only (see _solar_rate_entity):
@@ -1141,6 +1277,33 @@ def build_energy_topology(
                         rate_entity_id=rate_eid,
                     ))
                     break
+
+    # --- Circuits whose Feeds Role is SOLAR ---
+    # Each is a solar source on any panel.  span-hass publishes such a
+    # circuit's active-power positive while generating (pv_sign_aware), and
+    # its imported-energy ("Energy Returned") is the production.
+    for topo in topologies:
+        for cid, _name in topo.solar_role_circuits:
+            circuit = _find_circuit_by_node_id(trees, cid, topo.serial)
+            if circuit is None:
+                continue
+            solar_entity = _find_circuit_entity(circuit, "imported-energy")
+            if solar_entity is None:
+                continue
+            rate_eid, rate_warning = _solar_rate_entity(circuit, None)
+            if rate_warning:
+                warnings.append(rate_warning)
+            assignments.append(EnergyRole(
+                role="solar",
+                entity_id=solar_entity.entity_id,
+                platform="span_ebus",
+                preferred=True,
+                reason=(
+                    f"Feeds Role SOLAR on {topo.serial}:{cid}: circuit imported-energy = "
+                    "solar production"
+                ),
+                rate_entity_id=rate_eid,
+            ))
 
     # --- Device consumption (with Sankey hierarchy) ---
     # Sub-panel upstream energy entities are added as device_consumption so that
@@ -1175,7 +1338,14 @@ def build_energy_topology(
         if upstream and upstream.entity_id not in preferred_grid_eids:
             # Follow via_device_id to find direct parent panel's upstream entity
             parent_eid = None
-            if tree.panel.via_device_id:
+            if serial in fed_by_role:
+                feeder_serial, feeder_cid = fed_by_role[serial]
+                feeder = _find_circuit_by_node_id(trees, feeder_cid, feeder_serial)
+                feeder_energy = (
+                    _find_circuit_entity(feeder, "exported-energy") if feeder else None
+                )
+                parent_eid = feeder_energy.entity_id if feeder_energy else None
+            elif tree.panel.via_device_id:
                 parent_serial = device_id_to_serial.get(tree.panel.via_device_id)
                 if parent_serial:
                     parent_eid = panel_parent_eids.get(parent_serial)
@@ -1202,7 +1372,17 @@ def build_energy_topology(
         for circuit in tree.circuits:
             cr = circuit_role_map.get(circuit.id)
             consumption = _find_circuit_entity(circuit, "exported-energy")
-            if consumption and cr and cr.role == "shared_meter_member":
+            if consumption and cr and cr.role == "pv_feed" and cr.skip_consumption:
+                # Feeds Role SOLAR: skipped so energy --topology removes an
+                # entry added earlier.
+                assignments.append(EnergyRole(
+                    role="device_consumption",
+                    entity_id=consumption.entity_id,
+                    platform="span_ebus",
+                    preferred=False,
+                    reason=cr.reason,
+                ))
+            elif consumption and cr and cr.role == "shared_meter_member":
                 # Skipped so energy --topology removes an entry added earlier.
                 assignments.append(EnergyRole(
                     role="device_consumption",
@@ -1408,5 +1588,173 @@ def _ebus_gaps(
                 hint=f"If it measures the service: --circuit-role {serial}:<ct-id>=grid.",
             ))
         gaps += [_remote_ct_gap(tree, ct, states) for ct in unclassified]
+        if topo:
+            gaps += _feeds_role_gaps(tree, topo, trees, topo_by_serial, roles)
     gaps += [_shared_meter_gap(g) for g in find_shared_meter_groups(trees, states)]
+    return gaps
+
+
+def _unfed_panels(
+    trees: list[SpanDeviceTree],
+    topo_by_serial: dict[str, SpanTopology],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+) -> list[str]:
+    """Serials of panels with no known feeder: no subpanel role, panel link, or lugs fed-by."""
+    fed_by_role = _subpanel_feeds(roles)
+    panel_ids = {t.panel.id for t in trees}
+    result = []
+    for tree in trees:
+        serial = tree.serial
+        topo = topo_by_serial.get(serial or "")
+        if (
+            serial and serial not in fed_by_role
+            and tree.panel.via_device_id not in panel_ids
+            and not (topo and topo.fed_by_device_id)
+        ):
+            result.append(serial)
+    return result
+
+
+def _subpanel_target(
+    tree: SpanDeviceTree,
+    trees: list[SpanDeviceTree],
+    topo_by_serial: dict[str, SpanTopology],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+) -> tuple[list[str], str | None]:
+    """Panels a SUBPANEL circuit on ``tree`` may feed, and the one to suggest.
+
+    A candidate has no subpanel role naming it and is either unfed or linked
+    under ``tree``. The one panel linked under ``tree`` is suggested, else the
+    one candidate.
+    """
+    serial = tree.serial or ""
+    fed_by_role = _subpanel_feeds(roles)
+    upstream = _feeders_of(serial, trees, roles)
+    linked = [
+        t.serial for t in trees
+        if t.serial and t.serial != serial and t.serial not in fed_by_role
+        and t.serial not in upstream and t.panel.via_device_id == tree.panel.id
+        and not (topo_by_serial.get(t.serial) and topo_by_serial[t.serial].fed_by_device_id)
+    ]
+    unfed = [
+        s for s in _unfed_panels(trees, topo_by_serial, roles)
+        if s != serial and s not in upstream and s not in linked
+    ]
+    candidates = linked + unfed
+    if len(linked) == 1:
+        return candidates, linked[0]
+    if not linked and len(unfed) == 1:
+        return candidates, unfed[0]
+    return candidates, None
+
+
+def _has_unlinked_subpanel(
+    serial: str,
+    topo_by_serial: dict[str, SpanTopology],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+) -> bool:
+    topo = topo_by_serial.get(serial)
+    return bool(topo) and any(
+        role == "SUBPANEL" and (serial, cid) not in roles
+        for cid, role in (topo.feeds_roles if topo else {}).items()
+    )
+
+
+def _feeders_of(
+    serial: str,
+    trees: list[SpanDeviceTree],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+) -> set[str]:
+    """Serials of the panels upstream of ``serial``, by subpanel role or panel link."""
+    fed_by_role = _subpanel_feeds(roles)
+    serial_by_panel_id = {t.panel.id: t.serial for t in trees if t.serial}
+    tree_by_serial = {t.serial: t for t in trees if t.serial}
+    seen: set[str] = set()
+    cur: str | None = serial
+    while cur is not None and cur not in seen:
+        seen.add(cur)
+        if cur in fed_by_role:
+            cur = fed_by_role[cur][0]
+        else:
+            tree = tree_by_serial.get(cur)
+            cur = serial_by_panel_id.get(tree.panel.via_device_id or "") if tree else None
+    return seen - {serial}
+
+
+def _feeds_role_gaps(
+    tree: SpanDeviceTree,
+    topo: SpanTopology,
+    trees: list[SpanDeviceTree],
+    topo_by_serial: dict[str, SpanTopology],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+) -> list[Gap]:
+    """Gaps from circuits' Feeds Role on one span_ebus panel."""
+    serial = topo.serial
+    gaps: list[Gap] = []
+    names = {_circuit_node_id(c): c.display_name for c in tree.circuits}
+    if topo.feeds_role_disabled:
+        shown = ", ".join(topo.feeds_role_disabled[:3])
+        more = len(topo.feeds_role_disabled) - 3
+        if more > 0:
+            shown += f" and {more} more"
+        gaps.append(Gap(
+            kind="feeds_role_disabled",
+            serial=serial,
+            circuit_id=None,
+            message=(
+                f"Panel {serial} publishes each circuit's Feeds Role, but "
+                f"{len(topo.feeds_role_disabled)} Feeds Role sensor(s) are disabled in Home "
+                "Assistant, so hass-atlas cannot tell which of those circuits feed solar, a "
+                "battery, or another panel."
+            ),
+            hint=f"Enable the Feeds Role sensors in Home Assistant ({shown}).",
+        ))
+    for cid, role in topo.feeds_roles.items():
+        name = names.get(cid, cid)
+        if role == "SUBPANEL" and (serial, cid) not in roles:
+            candidates, target = _subpanel_target(tree, trees, topo_by_serial, roles)
+            if not candidates:
+                continue
+            if target and _has_unlinked_subpanel(target, topo_by_serial, roles):
+                # Two panels each suggested as the other's feeder: at most one is.
+                tree_by_serial = {t.serial: t for t in trees if t.serial}
+                _, back = _subpanel_target(tree_by_serial[target], trees, topo_by_serial, roles)
+                if back == serial:
+                    target = None
+            suggestions = [f"--circuit-role {serial}:{cid}=subpanel:{target}"] if target else []
+            gaps.append(Gap(
+                kind="subpanel_circuit_unlinked",
+                serial=serial,
+                circuit_id=cid,
+                message=(
+                    f"{name} ({cid}) on {serial} has Feeds Role SUBPANEL, but which panel it "
+                    "feeds is unknown. It is counted as a consumer, and if the panel it feeds "
+                    "is in Home Assistant, that panel's flow is counted again as grid."
+                ),
+                hint=f"--circuit-role {serial}:{cid}=subpanel:<serial>",
+                suggestions=suggestions,
+            ))
+        elif role in ("GENERATOR", "MIXED"):
+            what = "a generator" if role == "GENERATOR" else "a mix of loads and sources"
+            gaps.append(Gap(
+                kind="feeds_role_unhandled",
+                serial=serial,
+                circuit_id=cid,
+                message=(
+                    f"{name} ({cid}) on {serial} has Feeds Role {role} ({what}); hass-atlas "
+                    "counts it as a load and leaves out its return energy."
+                ),
+            ))
+        elif role == "STORAGE" and cid != topo.battery_feed_circuit_id:
+            feed = topo.battery_feed_circuit_id
+            gaps.append(Gap(
+                kind="feeds_role_unhandled",
+                serial=serial,
+                circuit_id=cid,
+                message=(
+                    f"{name} ({cid}) on {serial} has Feeds Role STORAGE, but the battery "
+                    f"feed circuit is {names.get(feed, feed)} ({feed}); hass-atlas counts it "
+                    "as a load and leaves out its return energy."
+                ),
+            ))
     return gaps

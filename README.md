@@ -10,7 +10,7 @@ A command-line tool for auditing and configuring Home Assistant energy dashboard
 >
 > This software is provided as is, without warranty of any kind (see [License](#license)).
 
-**Compatibility:** Targets [`span-hass` v0.5.0](https://github.com/electrification-bus/span-hass/releases/tag/v0.5.0), its latest release, which supports MAIN 32 panels only. For panels still on `span-hass` 0.1.x, pin hass-atlas to the pre-`SHT-br5` commit on `main`.
+**Compatibility:** Targets [`span-hass` v0.5.0](https://github.com/electrification-bus/span-hass/releases/tag/v0.5.0) (latest release, MAIN 32 only) and [`span-hass` v0.6.0b1](https://github.com/electrification-bus/span-hass/releases/tag/v0.6.0b1) (pre-release, beta support for other panel models). For panels still on `span-hass` 0.1.x, pin hass-atlas to the pre-`SHT-br5` commit on `main`.
 
 > **CAUTION: This is a power tool.**
 >
@@ -156,10 +156,13 @@ Grid sources are written in the format the Home Assistant version accepts: one s
 
 `audit`, `energy-topology`, and `energy` report a **Gaps** list:
 
-- **Remote CTs.** A circuit device with no breaker space is a meter outside the panel. It is left out of device consumption and area assignment until its role is stated with `--circuit-role [<serial>:]<ct-id>=grid|load|solar|battery|ignore`. Its imported energy is the flow toward the panel (grid import, solar production, battery discharge, or a load's consumption) and its exported energy the flow away. The gap compares its power with the panel's Grid Power and the upstream lugs, and suggests `grid` when they match. Only a remote CT takes a role on span_ebus.
+- **Remote CTs.** A circuit device with no breaker space is a meter outside the panel. It is left out of device consumption and area assignment until its role is stated with `--circuit-role [<serial>:]<ct-id>=grid|load|solar|battery|ignore`. Its imported energy is the flow toward the panel (grid import, solar production, battery discharge, or a load's consumption) and its exported energy the flow away. The gap compares its power with the panel's Grid Power and the upstream lugs, and suggests `grid` when they match. On span_ebus a remote CT takes any role but `subpanel`, and a breaker circuit takes only `subpanel:<serial>`.
 - **Shared meters.** Circuits that report one meter are counted once, under the lowest circuit id. The group comes from the Meter Shared With sensor when it is enabled (span-hass disables it by default), else from a shared breaker space with the same readings, else from identical readings.
 - **Service entrance unknown.** The upstream lugs, used as the grid, do not say what feeds them.
 - **Battery upstream without an integration.** The upstream lugs are fed by the battery and no vendor battery integration is installed, so grid figures include battery flow and no battery source can be configured.
+- **Subpanel circuit unlinked.** A circuit's Feeds Role is SUBPANEL, no `--circuit-role <serial>:<circuit-id>=subpanel:<serial>` names the panel it feeds, and another span_ebus panel could be that panel: one that no subpanel role names and that either has no known feeder or is linked under this panel with `link-panels`. A single panel linked under this panel is suggested; otherwise a single candidate is. Two panels suggested as each other's feeder get no suggestion. With the role stated, the fed panel's upstream lugs are a consumer under that circuit instead of a second grid source; `link-panels` alone leaves them a grid source.
+- **Feeds Role not handled.** A circuit's Feeds Role is GENERATOR or MIXED, or STORAGE on a circuit other than the battery's feed circuit. It is counted as a load.
+- **Feeds Role disabled.** The panel publishes Feeds Role, but its sensors are disabled in Home Assistant.
 
 ### `energy-topology` — Display-Only Topology Report
 
@@ -280,7 +283,7 @@ Home Assistant's Energy Dashboard requires manual configuration. When you have m
 
 SPAN panels expose rich metadata about connected sub-systems: battery vendor and model, solar inverter product, their physical position relative to the panel (UPSTREAM, IN_PANEL, DOWNSTREAM), and which circuit feeds each sub-device. hass-atlas reads this metadata and cross-references it with other HA integrations to make the right configuration choices.
 
-On `span-hass` 0.2.x, position is derived from the `connection` capability — each circuit's `connection/feeds-device-id` and each upstream lug's `connection/fed-by-device-id` are matched against the BESS / PV Homie device-ids. When commissioning data hasn't been published yet for a given DER, hass-atlas reports `position=None` and degrades gracefully (preferring SPAN upstream lugs as the grid source) rather than guessing wrong. See `CHANGELOG.md` §Known issues for the SPAN-side publish gaps that affect this.
+On `span-hass` 0.2.x, position is derived from the `connection` capability — each circuit's `connection/feeds-device-id` and each upstream lug's `connection/fed-by-device-id` are matched against the BESS / PV Homie device-ids. On `span-hass` 0.6.0b1, a circuit's Feeds Role (`connection/feeds-role`) also counts: a SOLAR circuit is a solar source and not a consumer, its "Energy Returned" (`imported-energy`) the production and its Power the stat_rate, and a STORAGE circuit is the battery feed when no circuit's `feeds-device-id` names the BESS. When commissioning data hasn't been published yet for a given DER, hass-atlas reports `position=None` and degrades gracefully (preferring SPAN upstream lugs as the grid source) rather than guessing wrong. See `CHANGELOG.md` §Known issues for the SPAN-side publish gaps that affect this.
 
 ### Position-Dependent Rules
 
