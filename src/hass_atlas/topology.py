@@ -7,10 +7,14 @@ configuration that avoids double-counting and suppresses CT-noise false positive
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
+from hass_atlas.models import Gap, HADevice, HAEntity, SpanDeviceTree
+
+if TYPE_CHECKING:
+    from hass_atlas.span_panel import CircuitRoleOverride
 
 # ---------------------------------------------------------------------------
 # Vendor → HA integration platform mapping
@@ -46,6 +50,11 @@ class SpanTopology:
     solar_feed_circuit_name: str | None = None
     solar_feed_circuit_id: str | None = None
     is_lead_panel: bool = False
+    # Upstream lugs ``connection/fed-by-device-id`` and ``-type``, when published.
+    fed_by_device_id: str | None = None
+    fed_by_device_type: str | None = None
+    # (display name, node id) of each remote CT on the panel.
+    remote_cts: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -65,7 +74,7 @@ class CircuitRole:
     """A circuit's role in the energy system."""
 
     circuit: HADevice
-    role: str  # "load", "pv_feed", "bess_feed", "ev_feed"
+    role: str  # "load", "pv_feed", "bess_feed", "ev_feed", "shared_meter_member"
     skip_return_energy: bool  # True = exclude imported-energy from ED
     skip_consumption: bool  # True = exclude exported-energy from device_consumption
     reason: str
@@ -82,6 +91,9 @@ class EnergyRole:
     reason: str
     parent_entity_id: str | None = None  # For included_in_stat hierarchy
     rate_entity_id: str | None = None  # Power sensor for stat_rate (Now tab)
+    # Grid import and export assignments with the same key form one grid
+    # connection; None groups them by platform.
+    grid_connection: str | None = None
 
 
 @dataclass
@@ -93,6 +105,7 @@ class EnergyTopology:
     circuit_roles: list[CircuitRole]
     role_assignments: list[EnergyRole]
     warnings: list[str]
+    gaps: list[Gap] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -103,20 +116,22 @@ class EnergyTopology:
 def discover_energy_integrations(
     devices: list[HADevice],
     entities: list[HAEntity],
+    exclude_platform: str = "span_ebus",
 ) -> list[EnergyIntegration]:
     """Find all HA integrations that provide energy entities.
 
     Scans ALL entities for device_class=energy + state_class=total_increasing
-    and groups them by platform.
+    and groups them by platform.  ``exclude_platform`` is the SPAN integration
+    whose entities the caller handles separately.
     """
     # Index devices by id
     device_by_id: dict[str, HADevice] = {d.id: d for d in devices}
 
-    # Find energy entities (exclude span_ebus — we handle that separately)
+    # Find energy entities (exclude the SPAN integration: handled separately)
     energy_entities: list[HAEntity] = [
         e
         for e in entities
-        if e.platform != "span_ebus"
+        if e.platform != exclude_platform
         and e.device_class == "energy"
         and e.state_class == "total_increasing"
         and not e.disabled_by
@@ -133,7 +148,7 @@ def discover_energy_integrations(
     power_by_platform: dict[str, list[HAEntity]] = {}
     for entity in entities:
         if (
-            entity.platform != "span_ebus"
+            entity.platform != exclude_platform
             and entity.device_class == "power"
             and entity.state_class == "measurement"
             and not entity.disabled_by
@@ -230,8 +245,7 @@ def extract_span_topology(
     - **IN_PANEL** — some circuit's ``connection/feeds-device-id`` equals the
       DER's Homie device-id.  That circuit IS the feed circuit.
     - **UPSTREAM** — the panel's upstream-lug ``connection/fed-by-device-id``
-      equals the DER's Homie device-id.  (SPAN does not publish lug
-      connection data today; this branch fires only when present.)
+      equals the DER's Homie device-id.
     - **DOWNSTREAM** — SPAN does not publish the downstream-lug connection
       capability; not detectable in v1.
     - **None** — DER exists in the tree but no connection signal yet
@@ -279,11 +293,15 @@ def extract_span_topology(
                 topo.solar_feed_circuit_id = cid
                 topo.solar_feed_circuit_name = circuit.display_name
 
-        # Pass 2: upstream-lug's fed-by-device-id detects UPSTREAM DERs.
-        # Today SPAN does not publish this; the branch is forward-compatible.
+        # Pass 2: upstream-lug's fed-by-device-id detects UPSTREAM DERs.  It
+        # is empty when the panel does not say what feeds it.
         if tree.lugs_up:
             fed_by = _state_value(
                 states, _find_sub_entity(tree.lugs_up, "_connection_fed-by-device-id")
+            )
+            topo.fed_by_device_id = fed_by
+            topo.fed_by_device_type = _state_value(
+                states, _find_sub_entity(tree.lugs_up, "_connection_fed-by-device-type")
             )
             if fed_by:
                 if bess_did and fed_by == bess_did and not topo.battery_position:
@@ -291,6 +309,9 @@ def extract_span_topology(
                 elif pv_did and fed_by == pv_did and not topo.solar_position:
                     topo.solar_position = "UPSTREAM"
 
+        topo.remote_cts = [
+            (ct.display_name, _circuit_node_id(ct) or ct.id) for ct in tree.remote_cts
+        ]
         topologies.append(topo)
 
     return topologies
@@ -316,13 +337,183 @@ def _circuit_node_id(circuit: HADevice) -> str | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Shared meters: several circuits reporting one meter's readings
+# ---------------------------------------------------------------------------
+
+SHARED_WITH_SUFFIX = "_meter_shared-with-device-ids"
+
+
+@dataclass
+class SharedMeterGroup:
+    """Circuits on one panel that report the same meter."""
+
+    serial: str
+    members: list[HADevice]  # sorted by node id
+    method: str  # "shared_with", "spaces", or "readings"
+    detail: str | None = None  # the shared breaker space, for method "spaces"
+
+    @property
+    def counted(self) -> HADevice:
+        """The member whose readings are counted: the lowest node id."""
+        return self.members[0]
+
+
+def _natural_key(text: str) -> list[Any]:
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", text)]
+
+
+def _node_key(device: HADevice) -> list[Any]:
+    return _natural_key(_circuit_node_id(device) or device.id)
+
+
+def _float_state(states: dict[str, dict[str, Any]], entity: HAEntity | None) -> float | None:
+    value = _state_value(states, entity)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _energy_readings(
+    circuit: HADevice, states: dict[str, dict[str, Any]]
+) -> tuple[float, float] | None:
+    imported = _float_state(states, _find_circuit_entity(circuit, "imported-energy"))
+    exported = _float_state(states, _find_circuit_entity(circuit, "exported-energy"))
+    if imported is None or exported is None:
+        return None
+    return imported, exported
+
+
+def _spaces_value(circuit: HADevice, states: dict[str, dict[str, Any]]) -> str | None:
+    entity = _find_circuit_entity(circuit, "_info_spaces")
+    value = _state_value(states, entity)
+    if value is None:
+        return None
+    parts = [p.strip() for p in value.split(",") if p.strip()]
+    return ",".join(sorted(parts, key=_natural_key))
+
+
+def _shared_with_ids(value: str) -> set[str]:
+    return {p.strip().strip("[]\"' ") for p in value.split(",")} - {""}
+
+
+def find_shared_meter_groups(
+    trees: list[SpanDeviceTree],
+    states: dict[str, dict[str, Any]] | None,
+) -> list[SharedMeterGroup]:
+    """Find circuits on each panel that share one meter.
+
+    span-hass publishes ``meter/shared-with-device-ids`` as a sensor that is
+    disabled by default.  When any circuit on a panel has it enabled, its
+    values define the groups.  Otherwise circuits in the same breaker space
+    (``info/spaces``) with the same energy readings form a group, and when the
+    panel publishes no spaces, circuits with identical, nonzero imported and
+    exported energy readings do.
+    """
+    states = states or {}
+    groups: list[SharedMeterGroup] = []
+    for tree in trees:
+        serial = tree.serial
+        if not serial:
+            continue
+        by_node = {n: c for c in tree.circuits if (n := _circuit_node_id(c))}
+        enabled = {
+            n: e for n, c in by_node.items()
+            if (e := _find_sub_entity(c, SHARED_WITH_SUFFIX)) and not e.disabled_by
+        }
+        keyed: dict[str, list[str]] = {}
+        method = "shared_with"
+        details: dict[str, str] = {}
+        if enabled:
+            parent: dict[str, str] = {n: n for n in by_node}
+
+            def find(n: str) -> str:
+                while parent[n] != n:
+                    parent[n] = parent[parent[n]]
+                    n = parent[n]
+                return n
+
+            for n, entity in enabled.items():
+                for other in _shared_with_ids(_state_value(states, entity) or ""):
+                    if other in by_node:
+                        parent[find(other)] = find(n)
+            for n in by_node:
+                keyed.setdefault(find(n), []).append(n)
+        else:
+            spaces = {n: v for n, c in by_node.items() if (v := _spaces_value(c, states))}
+            if spaces:
+                method = "spaces"
+                for n, value in spaces.items():
+                    key = f"{value}|{_energy_readings(by_node[n], states)}"
+                    keyed.setdefault(key, []).append(n)
+                    details[key] = value
+            else:
+                method = "readings"
+                for n, c in by_node.items():
+                    readings = _energy_readings(c, states)
+                    if readings is not None and readings != (0.0, 0.0):
+                        keyed.setdefault(str(readings), []).append(n)
+        for key, nodes in keyed.items():
+            if len(nodes) < 2:
+                continue
+            members = sorted((by_node[n] for n in nodes), key=_node_key)
+            groups.append(SharedMeterGroup(serial, members, method, details.get(key)))
+    return groups
+
+
+def _shared_meter_gap(group: SharedMeterGroup) -> Gap:
+    counted = group.counted
+    names = ", ".join(
+        f"{m.display_name} ({_circuit_node_id(m)})" for m in group.members
+    )
+    how = {
+        "shared_with": "per their Meter Shared With sensors",
+        "spaces": f"same breaker space {group.detail} and same energy readings",
+        "readings": "identical imported and exported energy readings",
+    }[group.method]
+    message = (
+        f"Circuits {names} on {group.serial} share one meter ({how}), so their readings are "
+        f"one counter; only {counted.display_name} ({_circuit_node_id(counted)}) is counted."
+    )
+    hint = None
+    if group.method != "shared_with":
+        disabled = [
+            e.entity_id for m in group.members
+            if (e := _find_sub_entity(m, SHARED_WITH_SUFFIX))
+        ]
+        if disabled:
+            hint = (
+                "Enable the Meter Shared With sensor in Home Assistant "
+                f"({', '.join(disabled)}) so hass-atlas reads the group from the panel."
+            )
+    return Gap(
+        kind="shared_meter",
+        serial=group.serial,
+        circuit_id=_circuit_node_id(counted),
+        message=message,
+        hint=hint,
+    )
+
+
 def classify_circuits(
     trees: list[SpanDeviceTree],
     topologies: list[SpanTopology],
+    states: dict[str, dict[str, Any]] | None = None,
 ) -> list[CircuitRole]:
-    """Classify each circuit as load, pv_feed, bess_feed, or ev_feed."""
+    """Classify each circuit as load, pv_feed, bess_feed, or shared_meter_member.
+
+    A shared-meter member other than the group's counted one is excluded from
+    device consumption, since its readings repeat the counted member's.
+    """
     # Build lookup: serial → topology
     topo_by_serial: dict[str, SpanTopology] = {t.serial: t for t in topologies}
+    shared_with: dict[str, HADevice] = {}  # non-counted member id → counted member
+    for group in find_shared_meter_groups(trees, states):
+        for member in group.members[1:]:
+            shared_with[member.id] = group.counted
 
     roles: list[CircuitRole] = []
 
@@ -395,6 +586,20 @@ def classify_circuits(
                             f"battery metered by dedicated integration"
                         ),
                     ))
+                continue
+
+            if circuit.id in shared_with:
+                counted = shared_with[circuit.id]
+                roles.append(CircuitRole(
+                    circuit=circuit,
+                    role="shared_meter_member",
+                    skip_return_energy=True,
+                    skip_consumption=True,
+                    reason=(
+                        f"Shares a meter with {counted.display_name}: counted once, "
+                        "under that circuit"
+                    ),
+                ))
                 continue
 
             # Pure load circuit
@@ -606,10 +811,31 @@ def build_energy_topology(
     topologies: list[SpanTopology],
     integrations: list[EnergyIntegration],
     circuit_roles: list[CircuitRole],
+    states: dict[str, dict[str, Any]] | None = None,
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
 ) -> EnergyTopology:
-    """Build complete energy topology with role assignments and overlap detection."""
+    """Build complete energy topology with role assignments and overlap detection.
+
+    ``roles`` holds ``--circuit-role`` values for remote CTs, keyed by
+    ``(serial, node id)``.  A remote CT meters in the enclosure frame, like the
+    upstream lugs: ``imported-energy`` is the flow toward the panel (grid
+    import, solar production, battery discharge, or a load's consumption) and
+    ``exported-energy`` the flow away from it (grid export, battery charge).
+    """
+    states = states or {}
+    roles = roles or {}
     assignments: list[EnergyRole] = []
     warnings: list[str] = []
+    gaps: list[Gap] = []
+    topo_by_serial = {t.serial: t for t in topologies}
+
+    # Remote CTs with a stated role, by role.
+    ct_roles: dict[str, list[tuple[SpanDeviceTree, HADevice]]] = {}
+    for tree in trees:
+        for ct in tree.remote_cts:
+            override = roles.get((tree.serial or "", _circuit_node_id(ct) or ""))
+            if override is not None:
+                ct_roles.setdefault(override.role, []).append((tree, ct))
 
     # Check if ALL panels see BESS UPSTREAM
     all_bess_upstream = (
@@ -630,7 +856,32 @@ def build_energy_topology(
     pv_integration = _find_platform_for_vendor(pv_vendor, integrations)
 
     # --- Grid source ---
-    if all_bess_upstream and bess_integration:
+    if ct_roles.get("grid"):
+        for tree, ct in ct_roles["grid"]:
+            node = _circuit_node_id(ct)
+            power = _find_circuit_entity(ct, "active-power")
+            for role, suffix in (("grid_import", "imported-energy"), ("grid_export", "exported-energy")):
+                if entity := _find_circuit_entity(ct, suffix):
+                    assignments.append(EnergyRole(
+                        role=role,
+                        entity_id=entity.entity_id,
+                        platform="span_ebus",
+                        preferred=True,
+                        reason=f"Remote CT {node} given role grid: {suffix}",
+                        rate_entity_id=power.entity_id if power else None,
+                        grid_connection=f"{tree.serial}:{node}",
+                    ))
+        for tree in trees:
+            for role, suffix in (("grid_import", "imported-energy"), ("grid_export", "exported-energy")):
+                if entity := _find_upstream_energy(tree, suffix):
+                    assignments.append(EnergyRole(
+                        role=role,
+                        entity_id=entity.entity_id,
+                        platform="span_ebus",
+                        preferred=False,
+                        reason="A remote CT given role grid meters the grid",
+                    ))
+    elif all_bess_upstream and bess_integration:
         # SPAN upstream energy is post-battery, not true grid → use battery integration
         grid_import = _find_entity_on_integration(bess_integration, "import")
         grid_export = _find_entity_on_integration(bess_integration, "export")
@@ -688,13 +939,25 @@ def build_energy_topology(
         for tree in trees:
             imported = _find_upstream_energy(tree, "imported-energy")
             exported = _find_upstream_energy(tree, "exported-energy")
+            tree_topo = topo_by_serial.get(tree.serial or "")
+            if (
+                tree_topo and tree_topo.battery_position == "UPSTREAM"
+                and not bess_integration
+            ):
+                reason = (
+                    "SPAN upstream metering: the battery is UPSTREAM and has no vendor "
+                    "integration, so this includes battery flow"
+                )
+            else:
+                reason = "SPAN upstream metering — no UPSTREAM BESS or no matching integration"
             if imported:
                 assignments.append(EnergyRole(
                     role="grid_import",
                     entity_id=imported.entity_id,
                     platform="span_ebus",
                     preferred=True,
-                    reason="SPAN upstream metering — no UPSTREAM BESS or no matching integration",
+                    reason=reason,
+                    grid_connection=tree.serial,
                 ))
             if exported:
                 assignments.append(EnergyRole(
@@ -702,8 +965,38 @@ def build_energy_topology(
                     entity_id=exported.entity_id,
                     platform="span_ebus",
                     preferred=True,
-                    reason="SPAN upstream metering — no UPSTREAM BESS or no matching integration",
+                    reason=reason,
+                    grid_connection=tree.serial,
                 ))
+
+    # --- Remote CTs given role battery or solar ---
+    for tree, ct in ct_roles.get("battery", []):
+        node = _circuit_node_id(ct)
+        power = _find_circuit_entity(ct, "active-power")
+        for role, suffix in (
+            ("battery_discharge", "imported-energy"), ("battery_charge", "exported-energy")
+        ):
+            if entity := _find_circuit_entity(ct, suffix):
+                assignments.append(EnergyRole(
+                    role=role,
+                    entity_id=entity.entity_id,
+                    platform="span_ebus",
+                    preferred=True,
+                    reason=f"Remote CT {node} given role battery: {suffix}",
+                    rate_entity_id=power.entity_id if power else None,
+                ))
+    for tree, ct in ct_roles.get("solar", []):
+        node = _circuit_node_id(ct)
+        power = _find_circuit_entity(ct, "active-power")
+        if entity := _find_circuit_entity(ct, "imported-energy"):
+            assignments.append(EnergyRole(
+                role="solar",
+                entity_id=entity.entity_id,
+                platform="span_ebus",
+                preferred=True,
+                reason=f"Remote CT {node} given role solar: imported-energy = solar production",
+                rate_entity_id=power.entity_id if power else None,
+            ))
 
     # --- Battery source ---
     serial_to_tree: dict[str, SpanDeviceTree] = {
@@ -909,7 +1202,16 @@ def build_energy_topology(
         for circuit in tree.circuits:
             cr = circuit_role_map.get(circuit.id)
             consumption = _find_circuit_entity(circuit, "exported-energy")
-            if consumption and (not cr or not cr.skip_consumption):
+            if consumption and cr and cr.role == "shared_meter_member":
+                # Skipped so energy --topology removes an entry added earlier.
+                assignments.append(EnergyRole(
+                    role="device_consumption",
+                    entity_id=consumption.entity_id,
+                    platform="span_ebus",
+                    preferred=False,
+                    reason=cr.reason,
+                ))
+            elif consumption and (not cr or not cr.skip_consumption):
                 power = _find_circuit_entity(circuit, "active-power")
                 assignments.append(EnergyRole(
                     role="device_consumption",
@@ -920,11 +1222,191 @@ def build_energy_topology(
                     parent_entity_id=parent_eid,
                     rate_entity_id=power.entity_id if power else None,
                 ))
+    for tree, ct in ct_roles.get("load", []):
+        consumption = _find_circuit_entity(ct, "imported-energy")
+        if consumption:
+            power = _find_circuit_entity(ct, "active-power")
+            assignments.append(EnergyRole(
+                role="device_consumption",
+                entity_id=consumption.entity_id,
+                platform="span_ebus",
+                preferred=True,
+                reason=f"Remote CT {_circuit_node_id(ct)} given role load: imported-energy",
+                parent_entity_id=panel_parent_eids.get(tree.serial) if tree.serial else None,
+                rate_entity_id=power.entity_id if power else None,
+            ))
 
+    gaps += _ebus_gaps(
+        trees, topologies, assignments, states, roles, bess_vendor, bess_integration
+    )
     return EnergyTopology(
         panels=topologies,
         integrations=integrations,
         circuit_roles=circuit_roles,
         role_assignments=assignments,
         warnings=warnings,
+        gaps=gaps,
     )
+
+
+# ---------------------------------------------------------------------------
+# Gaps: what the span_ebus path could not determine
+# ---------------------------------------------------------------------------
+
+EBUS_ROLE_SYNTAX = "grid|load|solar|battery|ignore"
+
+
+def integration_hint(vendor: str | None, kind: str) -> str:
+    """Name the vendor's Home Assistant integration for a gap hint."""
+    if not vendor:
+        return f"add the {kind} vendor's integration"
+    platforms = sorted({
+        platform
+        for key, names in VENDOR_PLATFORM_MAP.items()
+        if key in vendor.lower()
+        for platform in names
+    })
+    if platforms:
+        return f"add the {vendor} integration ({' or '.join(platforms)})"
+    return f"add the {vendor} {kind} integration"
+
+
+def _fmt_state(states: dict[str, dict[str, Any]], entity: HAEntity | None) -> str:
+    value = _float_state(states, entity)
+    if value is None or entity is None:
+        return "unknown"
+    unit = (states.get(entity.entity_id, {}).get("attributes") or {}).get(
+        "unit_of_measurement", ""
+    )
+    return f"{value:g} {unit}".rstrip()
+
+
+def _remote_ct_gap(
+    tree: SpanDeviceTree, ct: HADevice, states: dict[str, dict[str, Any]]
+) -> Gap:
+    serial = tree.serial or ""
+    node = _circuit_node_id(ct) or ct.id
+    power = _find_circuit_entity(ct, "active-power")
+    references = [
+        ("panel Grid Power", _find_sub_entity(tree.panel, "_power-flows_grid")),
+        ("upstream lugs Power", _find_upstream_energy(tree, "active-power")),
+    ]
+    readings = "; ".join(
+        f"{label} {_fmt_state(states, ref)}" for label, ref in references if ref is not None
+    )
+    message = (
+        f"{ct.display_name} ({node}) on {serial} is a meter outside the panel; hass-atlas "
+        f"cannot tell what it measures, so it is not counted. Power {_fmt_state(states, power)}"
+        + (f" ({readings})" if readings else "")
+        + f"; imported {_fmt_state(states, _find_circuit_entity(ct, 'imported-energy'))}, "
+        f"exported {_fmt_state(states, _find_circuit_entity(ct, 'exported-energy'))}."
+    )
+    suggestions: list[str] = []
+    ct_power = _float_state(states, power)
+    for label, ref in references:
+        value = _float_state(states, ref)
+        if ct_power is None or value is None:
+            continue
+        if ct_power != 0.0 and abs(ct_power) == abs(value):
+            suggestions.append(
+                f"Its power equals the {label} in magnitude; it is likely the service "
+                f"(grid) CT: --circuit-role {serial}:{node}=grid"
+            )
+        elif abs(value) >= 50.0 and abs(abs(ct_power) - abs(value)) <= 0.05 * abs(value):
+            suggestions.append(
+                f"Its power is within 5% of the {label}; it may be the service (grid) CT: "
+                f"--circuit-role {serial}:{node}=grid"
+            )
+        if suggestions:
+            break
+    return Gap(
+        kind="unclassified_remote_ct",
+        serial=serial,
+        circuit_id=node,
+        message=message,
+        hint=f"--circuit-role {serial}:{node}={EBUS_ROLE_SYNTAX}",
+        suggestions=suggestions,
+    )
+
+
+def _ebus_gaps(
+    trees: list[SpanDeviceTree],
+    topologies: list[SpanTopology],
+    assignments: list[EnergyRole],
+    states: dict[str, dict[str, Any]],
+    roles: dict[tuple[str, str], CircuitRoleOverride],
+    bess_vendor: str | None,
+    bess_integration: EnergyIntegration | None,
+) -> list[Gap]:
+    gaps: list[Gap] = []
+    topo_by_serial = {t.serial: t for t in topologies}
+    grid_eids = {
+        a.entity_id for a in assignments if a.role == "grid_import" and a.preferred
+    }
+    for tree in trees:
+        serial = tree.serial
+        if not serial:
+            continue
+        topo = topo_by_serial.get(serial)
+        lugs_import = _find_upstream_energy(tree, "imported-energy")
+        lugs_are_grid = lugs_import is not None and lugs_import.entity_id in grid_eids
+        unclassified = [
+            ct for ct in tree.remote_cts
+            if (serial, _circuit_node_id(ct) or "") not in roles
+        ]
+        if lugs_are_grid and topo and not topo.fed_by_device_id:
+            gaps.append(Gap(
+                kind="service_entrance_unknown",
+                serial=serial,
+                circuit_id=None,
+                message=(
+                    f"hass-atlas does not know where the service entrance is for panel "
+                    f"{serial}: the panel's upstream lugs do not say what feeds them. Grid "
+                    "import and export come from these lugs, which is correct only if nothing "
+                    "(a battery, another panel) sits between them and the utility. Please "
+                    "confirm, or tell hass-atlas what feeds this panel."
+                ),
+                hint=(
+                    f"If a remote CT measures the service: --circuit-role {serial}:<ct-id>=grid. "
+                    "If a battery sits upstream, add its vendor integration."
+                ),
+            ))
+        if (
+            lugs_are_grid and topo and topo.battery_position == "UPSTREAM"
+            and bess_integration is None
+        ):
+            vendor = topo.battery_vendor or bess_vendor
+            gaps.append(Gap(
+                kind="battery_upstream_no_integration",
+                serial=serial,
+                circuit_id=None,
+                message=(
+                    f"Panel {serial}'s upstream lugs are fed by its battery, and no vendor "
+                    "battery integration was found. Grid import and export come from these "
+                    "lugs, which meter the flow after the battery: battery discharge is counted "
+                    "as grid import and charging as grid export, and no battery source can be "
+                    "configured."
+                ),
+                hint=(
+                    "To meter the grid ahead of the battery and the battery itself, "
+                    f"{integration_hint(vendor, 'battery')}."
+                ),
+            ))
+        if lugs_are_grid and unclassified:
+            names = ", ".join(
+                f"{ct.display_name} ({_circuit_node_id(ct)})" for ct in unclassified
+            )
+            gaps.append(Gap(
+                kind="remote_ct_with_lugs_grid",
+                serial=serial,
+                circuit_id=None,
+                message=(
+                    f"Panel {serial} has a remote CT ({names}) and grid import and export come "
+                    "from its upstream lugs. If the remote CT measures the service, the lugs "
+                    "leave out what it sees beyond the panel."
+                ),
+                hint=f"If it measures the service: --circuit-role {serial}:<ct-id>=grid.",
+            ))
+        gaps += [_remote_ct_gap(tree, ct, states) for ct in unclassified]
+    gaps += [_shared_meter_gap(g) for g in find_shared_meter_groups(trees, states)]
+    return gaps

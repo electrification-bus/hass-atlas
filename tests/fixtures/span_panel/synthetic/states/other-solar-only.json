@@ -1,0 +1,2006 @@
+{
+  "binary_sensor.span_panel_door_state": {
+    "attributes": {
+      "device_class": "tamper",
+      "friendly_name": "Span Panel Door State"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_ethernet_link": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Ethernet Link"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_grid_islandable": {
+    "attributes": {
+      "device_class": "power",
+      "friendly_name": "Span Panel Grid Islandable"
+    },
+    "state": "off"
+  },
+  "binary_sensor.span_panel_panel_status": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Panel Status"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_pcs_active": {
+    "attributes": {
+      "device_class": "running",
+      "friendly_name": "Span Panel PCS Active"
+    },
+    "state": "on"
+  },
+  "binary_sensor.span_panel_wi_fi_link": {
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Span Panel Wi-Fi Link"
+    },
+    "state": "off"
+  },
+  "select.span_panel_breaker_10_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-10 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [18]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_11_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-11 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [19]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_12_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-12 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [20]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_13_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-13 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [21]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_14_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-14 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [22]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_15_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-15 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [23]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_16_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-16 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [24]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_1_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-1 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [9]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_2_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-2 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [10]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_3_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-3 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [11]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_4_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-4 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [12]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_5_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-5 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [13]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_6_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-6 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [14]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_7_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-7 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [15]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_8_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-8 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [16]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "select.span_panel_breaker_9_circuit_priority": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-9 Circuit Priority",
+      "options": [
+        "never",
+        "soc_threshold",
+        "off_grid"
+      ],
+      "tabs": "tabs [17]",
+      "voltage": 120.0
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_binding_constraint": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Binding Constraint",
+      "options": [
+        "fsr",
+        "doe",
+        "voltage",
+        "off_grid",
+        "requested",
+        "operator",
+        "none",
+        "unknown"
+      ]
+    },
+    "state": "fsr"
+  },
+  "sensor.span_panel_breaker_10_breaker_rating": null,
+  "sensor.span_panel_breaker_10_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-10 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880241+00:00",
+      "last_valid_state": "503.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "503.9"
+  },
+  "sensor.span_panel_breaker_10_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-10 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_10_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-10 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880253+00:00",
+      "last_valid_state": "117.39999999999998",
+      "state_class": "total",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "117.4"
+  },
+  "sensor.span_panel_breaker_10_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-10 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_breaker_10_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-10 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880229+00:00",
+      "last_valid_state": "386.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [18]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "386.5"
+  },
+  "sensor.span_panel_breaker_11_breaker_rating": null,
+  "sensor.span_panel_breaker_11_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-11 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880298+00:00",
+      "last_valid_state": "9727.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [19]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "9727.3"
+  },
+  "sensor.span_panel_breaker_11_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-11 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [19]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_11_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-11 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880313+00:00",
+      "last_valid_state": "9649.4",
+      "state_class": "total",
+      "tabs": "tabs [19]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "9649.4"
+  },
+  "sensor.span_panel_breaker_11_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-11 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [19]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "1.1"
+  },
+  "sensor.span_panel_breaker_11_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-11 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880284+00:00",
+      "last_valid_state": "77.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [19]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "77.9"
+  },
+  "sensor.span_panel_breaker_12_breaker_rating": null,
+  "sensor.span_panel_breaker_12_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-12 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880354+00:00",
+      "last_valid_state": "516.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "516.8"
+  },
+  "sensor.span_panel_breaker_12_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-12 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_12_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-12 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880371+00:00",
+      "last_valid_state": "110.49999999999994",
+      "state_class": "total",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "110.5"
+  },
+  "sensor.span_panel_breaker_12_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-12 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_breaker_12_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-12 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880342+00:00",
+      "last_valid_state": "406.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [20]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "406.3"
+  },
+  "sensor.span_panel_breaker_13_breaker_rating": null,
+  "sensor.span_panel_breaker_13_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-13 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880409+00:00",
+      "last_valid_state": "511.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "511.9"
+  },
+  "sensor.span_panel_breaker_13_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-13 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [21]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_13_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-13 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880430+00:00",
+      "last_valid_state": "125.5",
+      "state_class": "total",
+      "tabs": "tabs [21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "125.5"
+  },
+  "sensor.span_panel_breaker_13_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-13 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [21]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_13_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-13 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880398+00:00",
+      "last_valid_state": "386.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [21]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "386.4"
+  },
+  "sensor.span_panel_breaker_14_breaker_rating": null,
+  "sensor.span_panel_breaker_14_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-14 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880475+00:00",
+      "last_valid_state": "524.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "524.6"
+  },
+  "sensor.span_panel_breaker_14_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-14 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_14_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-14 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880488+00:00",
+      "last_valid_state": "124.90000000000003",
+      "state_class": "total",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "124.9"
+  },
+  "sensor.span_panel_breaker_14_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-14 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_14_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-14 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880464+00:00",
+      "last_valid_state": "399.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [22]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "399.7"
+  },
+  "sensor.span_panel_breaker_15_breaker_rating": null,
+  "sensor.span_panel_breaker_15_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-15 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880526+00:00",
+      "last_valid_state": "515.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "515.4"
+  },
+  "sensor.span_panel_breaker_15_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-15 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_15_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-15 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880540+00:00",
+      "last_valid_state": "107.19999999999999",
+      "state_class": "total",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "107.2"
+  },
+  "sensor.span_panel_breaker_15_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-15 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_15_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-15 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880514+00:00",
+      "last_valid_state": "408.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [23]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "408.2"
+  },
+  "sensor.span_panel_breaker_16_breaker_rating": null,
+  "sensor.span_panel_breaker_16_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-16 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880593+00:00",
+      "last_valid_state": "508.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "508.6"
+  },
+  "sensor.span_panel_breaker_16_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-16 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "16.0"
+  },
+  "sensor.span_panel_breaker_16_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-16 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880606+00:00",
+      "last_valid_state": "2839608.9",
+      "state_class": "total",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "2839608.9"
+  },
+  "sensor.span_panel_breaker_16_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-16 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "1920.0"
+  },
+  "sensor.span_panel_breaker_16_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-16 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880574+00:00",
+      "last_valid_state": "2840117.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [24]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "2840117.5"
+  },
+  "sensor.span_panel_breaker_1_breaker_rating": null,
+  "sensor.span_panel_breaker_1_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-1 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879749+00:00",
+      "last_valid_state": "509.8",
+      "state_class": "total_increasing",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "509.8"
+  },
+  "sensor.span_panel_breaker_1_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-1 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_1_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-1 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879765+00:00",
+      "last_valid_state": "111.80000000000001",
+      "state_class": "total",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "111.8"
+  },
+  "sensor.span_panel_breaker_1_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-1 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_1_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-1 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879733+00:00",
+      "last_valid_state": "398.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [9]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "398.0"
+  },
+  "sensor.span_panel_breaker_2_breaker_rating": null,
+  "sensor.span_panel_breaker_2_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-2 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879810+00:00",
+      "last_valid_state": "526.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "526.3"
+  },
+  "sensor.span_panel_breaker_2_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-2 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_2_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-2 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879824+00:00",
+      "last_valid_state": "133.89999999999998",
+      "state_class": "total",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "133.9"
+  },
+  "sensor.span_panel_breaker_2_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-2 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_2_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-2 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879797+00:00",
+      "last_valid_state": "392.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [10]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "392.4"
+  },
+  "sensor.span_panel_breaker_3_breaker_rating": null,
+  "sensor.span_panel_breaker_3_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-3 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879866+00:00",
+      "last_valid_state": "509.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "509.3"
+  },
+  "sensor.span_panel_breaker_3_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-3 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_3_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-3 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879886+00:00",
+      "last_valid_state": "106.60000000000002",
+      "state_class": "total",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "106.6"
+  },
+  "sensor.span_panel_breaker_3_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-3 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_3_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-3 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879854+00:00",
+      "last_valid_state": "402.7",
+      "state_class": "total_increasing",
+      "tabs": "tabs [11]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "402.7"
+  },
+  "sensor.span_panel_breaker_4_breaker_rating": null,
+  "sensor.span_panel_breaker_4_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-4 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879931+00:00",
+      "last_valid_state": "1544.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "1544.4"
+  },
+  "sensor.span_panel_breaker_4_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-4 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_4_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-4 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879944+00:00",
+      "last_valid_state": "1442.8000000000002",
+      "state_class": "total",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "1442.8"
+  },
+  "sensor.span_panel_breaker_4_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-4 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_breaker_4_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-4 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879919+00:00",
+      "last_valid_state": "101.6",
+      "state_class": "total_increasing",
+      "tabs": "tabs [12]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "101.6"
+  },
+  "sensor.span_panel_breaker_5_breaker_rating": null,
+  "sensor.span_panel_breaker_5_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-5 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879985+00:00",
+      "last_valid_state": "527.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "527.9"
+  },
+  "sensor.span_panel_breaker_5_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-5 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_5_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-5 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879998+00:00",
+      "last_valid_state": "127.59999999999997",
+      "state_class": "total",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "127.6"
+  },
+  "sensor.span_panel_breaker_5_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-5 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_5_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-5 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879972+00:00",
+      "last_valid_state": "400.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [13]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "400.3"
+  },
+  "sensor.span_panel_breaker_6_breaker_rating": null,
+  "sensor.span_panel_breaker_6_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-6 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880038+00:00",
+      "last_valid_state": "43718.5",
+      "state_class": "total_increasing",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "43718.5"
+  },
+  "sensor.span_panel_breaker_6_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-6 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_6_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-6 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880051+00:00",
+      "last_valid_state": "43423.2",
+      "state_class": "total",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "43423.2"
+  },
+  "sensor.span_panel_breaker_6_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-6 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_breaker_6_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-6 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880026+00:00",
+      "last_valid_state": "295.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [14]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "295.3"
+  },
+  "sensor.span_panel_breaker_7_breaker_rating": null,
+  "sensor.span_panel_breaker_7_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-7 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880090+00:00",
+      "last_valid_state": "521.4",
+      "state_class": "total_increasing",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "521.4"
+  },
+  "sensor.span_panel_breaker_7_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-7 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_7_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-7 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880102+00:00",
+      "last_valid_state": "102.09999999999997",
+      "state_class": "total",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "102.1"
+  },
+  "sensor.span_panel_breaker_7_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-7 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_7_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-7 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880078+00:00",
+      "last_valid_state": "419.3",
+      "state_class": "total_increasing",
+      "tabs": "tabs [15]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "419.3"
+  },
+  "sensor.span_panel_breaker_8_breaker_rating": null,
+  "sensor.span_panel_breaker_8_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-8 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880139+00:00",
+      "last_valid_state": "519.0",
+      "state_class": "total_increasing",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "519.0"
+  },
+  "sensor.span_panel_breaker_8_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-8 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_8_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-8 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880151+00:00",
+      "last_valid_state": "100.80000000000001",
+      "state_class": "total",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "100.8"
+  },
+  "sensor.span_panel_breaker_8_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-8 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_breaker_8_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-8 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880128+00:00",
+      "last_valid_state": "418.2",
+      "state_class": "total_increasing",
+      "tabs": "tabs [16]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "418.2"
+  },
+  "sensor.span_panel_breaker_9_breaker_rating": null,
+  "sensor.span_panel_breaker_9_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-9 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880188+00:00",
+      "last_valid_state": "7413.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "7413.9"
+  },
+  "sensor.span_panel_breaker_9_current": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "current",
+      "friendly_name": "Span Panel breaker-9 Current",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "A",
+      "voltage": 120.0
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_breaker_9_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-9 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880201+00:00",
+      "last_valid_state": "7339.0",
+      "state_class": "total",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "7339.0"
+  },
+  "sensor.span_panel_breaker_9_power": {
+    "attributes": {
+      "always_on": false,
+      "device_class": "power",
+      "friendly_name": "Span Panel breaker-9 Power",
+      "is_sheddable": false,
+      "pcs_managed": true,
+      "pcs_priority": 232,
+      "protection_functions": [
+        "OVERCURRENT"
+      ],
+      "relay_requester": "NONE",
+      "relay_state": "CLOSED",
+      "shed_priority": "UNKNOWN",
+      "state_class": "measurement",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "W",
+      "voltage": 120.0
+    },
+    "state": "0.9"
+  },
+  "sensor.span_panel_breaker_9_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel breaker-9 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880177+00:00",
+      "last_valid_state": "74.9",
+      "state_class": "total_increasing",
+      "tabs": "tabs [17]",
+      "unit_of_measurement": "Wh",
+      "voltage": 120.0
+    },
+    "state": "74.9"
+  },
+  "sensor.span_panel_busbar_current": {
+    "attributes": {
+      "device_class": "current",
+      "friendly_name": "Span Panel Busbar Current",
+      "state_class": "measurement",
+      "unit_of_measurement": "A"
+    },
+    "state": "0.1"
+  },
+  "sensor.span_panel_current_power": {
+    "attributes": {
+      "amperage": 0.05,
+      "device_class": "power",
+      "friendly_name": "Span Panel Current Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "11.5"
+  },
+  "sensor.span_panel_current_run_config": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Current Run Config",
+      "options": [
+        "panel_backup",
+        "panel_off_grid",
+        "panel_on_grid",
+        "unknown"
+      ]
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_downstream_l1_current": null,
+  "sensor.span_panel_downstream_l2_current": null,
+  "sensor.span_panel_dsm_grid_state": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel DSM Grid State",
+      "options": [
+        "dsm_off_grid",
+        "dsm_on_grid",
+        "unknown"
+      ]
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_dsm_state": null,
+  "sensor.span_panel_feed_through_consumed_energy": null,
+  "sensor.span_panel_feed_through_net_energy": null,
+  "sensor.span_panel_feed_through_power": null,
+  "sensor.span_panel_feed_through_produced_energy": null,
+  "sensor.span_panel_frequency": {
+    "attributes": {
+      "device_class": "frequency",
+      "friendly_name": "Span Panel Frequency",
+      "state_class": "measurement",
+      "unit_of_measurement": "Hz"
+    },
+    "state": "60.04"
+  },
+  "sensor.span_panel_grid_forming_entity": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Grid Forming Entity",
+      "options": [
+        "battery",
+        "generator",
+        "grid",
+        "none",
+        "pv",
+        "unknown"
+      ]
+    },
+    "state": "grid"
+  },
+  "sensor.span_panel_grid_power": {
+    "attributes": {
+      "amperage": 0.0,
+      "device_class": "power",
+      "friendly_name": "Span Panel Grid Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "0.2"
+  },
+  "sensor.span_panel_import_limit": {
+    "attributes": {
+      "device_class": "current",
+      "feed_import_limit": 100.0,
+      "feed_import_limit_active": true,
+      "feed_import_limit_enablement": "ENABLED",
+      "friendly_name": "Span Panel Import Limit",
+      "off_grid_import_limit_active": false,
+      "off_grid_import_limit_enablement": "UNCONFIGURED",
+      "operator_import_limit_active": false,
+      "operator_import_limit_enablement": "UNCONFIGURED",
+      "pcs_enabled": true,
+      "requested_import_limit": 200.0,
+      "requested_import_limit_active": false,
+      "requested_import_limit_enablement": "UNCONFIGURED",
+      "state_class": "measurement",
+      "unit_of_measurement": "A"
+    },
+    "state": "100.0"
+  },
+  "sensor.span_panel_l1_voltage": null,
+  "sensor.span_panel_l2_voltage": null,
+  "sensor.span_panel_main_breaker_rating": null,
+  "sensor.span_panel_main_meter_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Meter Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879689+00:00",
+      "last_valid_state": "153921.7",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh",
+      "voltage": 240
+    },
+    "state": "153921.7"
+  },
+  "sensor.span_panel_main_meter_net_energy": null,
+  "sensor.span_panel_main_meter_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Main Meter Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.879671+00:00",
+      "last_valid_state": "0.0",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh",
+      "voltage": 240
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_main_relay_state": {
+    "attributes": {
+      "device_class": "enum",
+      "friendly_name": "Span Panel Main Relay State",
+      "options": [
+        "closed",
+        "open",
+        "unknown"
+      ]
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_remote_ct_3_consumed_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Remote CT 3 Consumed Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880652+00:00",
+      "last_valid_state": "2202.2",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh"
+    },
+    "state": "2202.2"
+  },
+  "sensor.span_panel_remote_ct_3_current": {
+    "attributes": {
+      "device_class": "current",
+      "friendly_name": "Span Panel Remote CT 3 Current",
+      "state_class": "measurement",
+      "unit_of_measurement": "A"
+    },
+    "state": "0.0"
+  },
+  "sensor.span_panel_remote_ct_3_net_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Remote CT 3 Net Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880666+00:00",
+      "last_valid_state": "1516.9999999999998",
+      "state_class": "total",
+      "unit_of_measurement": "Wh"
+    },
+    "state": "1517.0"
+  },
+  "sensor.span_panel_remote_ct_3_power": {
+    "attributes": {
+      "device_class": "power",
+      "friendly_name": "Span Panel Remote CT 3 Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W"
+    },
+    "state": "0.2"
+  },
+  "sensor.span_panel_remote_ct_3_produced_energy": {
+    "attributes": {
+      "device_class": "energy",
+      "friendly_name": "Span Panel Remote CT 3 Produced Energy",
+      "grace_period_remaining": "14",
+      "last_valid_changed": "2026-10-10T00:35:24.880637+00:00",
+      "last_valid_state": "685.2",
+      "state_class": "total_increasing",
+      "unit_of_measurement": "Wh"
+    },
+    "state": "685.2"
+  },
+  "sensor.span_panel_site_power": {
+    "attributes": {
+      "amperage": -0.04,
+      "device_class": "power",
+      "friendly_name": "Span Panel Site Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "-8.8"
+  },
+  "sensor.span_panel_software_version": {
+    "attributes": {
+      "friendly_name": "Span Panel Software Version",
+      "panel_size": 16
+    },
+    "state": "spanos3/r202639/03"
+  },
+  "sensor.span_panel_solar_pv_nameplate_capacity": null,
+  "sensor.span_panel_solar_pv_power": {
+    "attributes": {
+      "amperage": null,
+      "device_class": "power",
+      "friendly_name": "Span Panel Solar PV Power",
+      "state_class": "measurement",
+      "unit_of_measurement": "W",
+      "voltage": 240
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_solar_pv_product": {
+    "attributes": {
+      "friendly_name": "Span Panel Solar PV Product"
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_solar_pv_vendor": {
+    "attributes": {
+      "friendly_name": "Span Panel Solar PV Vendor"
+    },
+    "state": "unknown"
+  },
+  "sensor.span_panel_upstream_l1_current": null,
+  "sensor.span_panel_upstream_l2_current": null,
+  "sensor.span_panel_upstream_protection_rating": null,
+  "sensor.span_panel_vendor_cloud": null,
+  "switch.span_panel_breaker_10_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-10 Breaker",
+      "tabs": "tabs [18]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_11_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-11 Breaker",
+      "tabs": "tabs [19]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_12_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-12 Breaker",
+      "tabs": "tabs [20]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_13_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-13 Breaker",
+      "tabs": "tabs [21]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_14_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-14 Breaker",
+      "tabs": "tabs [22]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_15_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-15 Breaker",
+      "tabs": "tabs [23]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_16_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-16 Breaker",
+      "tabs": "tabs [24]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_1_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-1 Breaker",
+      "tabs": "tabs [9]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_2_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-2 Breaker",
+      "tabs": "tabs [10]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_3_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-3 Breaker",
+      "tabs": "tabs [11]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_4_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-4 Breaker",
+      "tabs": "tabs [12]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_5_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-5 Breaker",
+      "tabs": "tabs [13]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_6_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-6 Breaker",
+      "tabs": "tabs [14]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_7_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-7 Breaker",
+      "tabs": "tabs [15]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_8_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-8 Breaker",
+      "tabs": "tabs [16]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  },
+  "switch.span_panel_breaker_9_breaker": {
+    "attributes": {
+      "friendly_name": "Span Panel breaker-9 Breaker",
+      "tabs": "tabs [17]",
+      "voltage": 120.0
+    },
+    "state": "on"
+  }
+}

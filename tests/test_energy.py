@@ -20,28 +20,23 @@ from tests.conftest import make_panel_tree_with_lugs
 
 
 def test_build_energy_config_grid_and_circuits(span_tree: SpanDeviceTree) -> None:
-    """Non-topology path emits grid (from lugs_up) + one consumption entry per circuit.
+    """Grid (from lugs_up) + one consumption entry per circuit, as energy --topology.
 
-    In span-hass 0.2.0 the BESS device only exposes ``info`` and ``soc``
-    capabilities, and the PV device only exposes ``info`` — neither has the
-    ``meter`` capability the legacy ``build_energy_config`` looks for.
-    The non-topology path therefore proposes grid + circuit consumption only;
-    solar / battery sources are surfaced by the ``--topology`` path instead,
-    which routes them to the dedicated DER integration (Powerwall, Enphase).
+    With no entity states, no circuit is known to feed a battery or PV system,
+    so no solar or battery source is proposed.
     """
     config = build_energy_config([span_tree])
     sources = config["energy_sources"]
     consumption = config["device_consumption"]
 
-    # Grid source — single, from tree.lugs_up
+    # Grid source: single unified connection, from tree.lugs_up
     grid = next(s for s in sources if s["type"] == "grid")
-    assert len(grid["flow_from"]) == 1
-    grid_import_eid = grid["flow_from"][0]["stat_energy_from"]
+    grid_import_eid = grid["stat_energy_from"]
     assert "lugs" in grid_import_eid and "imported_energy" in grid_import_eid
 
-    assert len(grid["flow_to"]) == 1
-    grid_export_eid = grid["flow_to"][0]["stat_energy_to"]
+    grid_export_eid = grid["stat_energy_to"]
     assert "lugs" in grid_export_eid and "exported_energy" in grid_export_eid
+    assert grid["cost_adjustment_day"] == 0.0
 
     # No solar / battery in the non-topology path (see docstring).
     assert all(s["type"] != "solar" for s in sources)

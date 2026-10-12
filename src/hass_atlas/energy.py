@@ -9,6 +9,21 @@ from typing import Any
 import click
 
 from hass_atlas.context import Context, pass_ctx, run_async
+from hass_atlas.energy_prefs import (
+    UNIFIED,
+    GridConnection,
+    build_grid_sources,
+    convert_sources,
+    grid_connections,
+    grid_export_ids,
+    grid_format,
+    grid_import_ids,
+    is_grid,
+    merge_grid_sources,
+    power_config_ids,
+    source_energy_ids,
+    source_rate_ids,
+)
 from hass_atlas.models import HADevice, HAEntity, SpanDeviceTree
 from hass_atlas.output import (
     console,
@@ -16,6 +31,7 @@ from hass_atlas.output import (
     print_info,
     print_ok,
     print_warn,
+    render_gaps,
     render_topology,
 )
 from hass_atlas.registry import (
@@ -24,9 +40,21 @@ from hass_atlas.registry import (
     fetch_energy_prefs,
     fetch_entity_states,
     fetch_registries,
-    fetch_span_trees,
+)
+from hass_atlas.span_panel import (
+    CIRCUIT_ROLE_HELP,
+    CircuitRoleOverride,
+    SpanPanelAdminRequired,
+    build_energy_topology_span_panel,
+    exit_writer_unsupported,
+    fetch_panel_topologies,
+    find_misplaced_consumers,
+    resolve_circuit_roles,
+    resolve_ebus_circuit_roles,
+    span_panel_only,
 )
 from hass_atlas.topology import (
+    EnergyRole,
     EnergyTopology,
     build_energy_topology,
     classify_circuits,
@@ -38,29 +66,47 @@ from hass_atlas.topology import (
 @click.command()
 @click.option("--topology", is_flag=True, default=False,
               help="Use topology-aware configuration (detects overlaps with other integrations)")
+@click.option(
+    "--circuit-role", "circuit_role", multiple=True, metavar="[SERIAL:]CIRCUIT=ROLE",
+    help=CIRCUIT_ROLE_HELP,
+)
 @pass_ctx
-def energy(ctx: Context, topology: bool) -> None:
+def energy(ctx: Context, topology: bool, circuit_role: tuple[str, ...]) -> None:
     """Auto-configure the Energy Dashboard for SPAN devices."""
     if topology:
-        run_async(_energy_topology_config(ctx))
+        run_async(_energy_topology_config(ctx, circuit_role))
     else:
-        run_async(_energy(ctx))
+        run_async(_energy(ctx, circuit_role))
 
 
-async def _energy(ctx: Context) -> None:
+async def _energy(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
+    """Add the topology's preferred assignments to the dashboard, never removing any."""
     async with ctx.client() as client:
-        trees = await fetch_span_trees(client)
+        devices, entities, _ = await fetch_registries(client)
+        states = await fetch_entity_states(client)
         current_prefs = await fetch_energy_prefs(client)
+        ha_version = getattr(client, "ha_version", None)
+
+    enrich_entities_from_states(entities, states)
+    trees = build_span_trees(devices, entities)
 
     if not trees:
+        if span_panel_only(devices):
+            exit_writer_unsupported("energy")
         print_warn("No SPAN devices found")
         return
 
-    proposed = build_energy_config(trees)
-    merged = merge_prefs(current_prefs, proposed)
+    roles = resolve_ebus_circuit_roles(circuit_role, trees)
+    topo = _build_topology(trees, devices, entities, states, roles)
+    fmt = grid_format(ha_version, current_prefs)
+    proposed = build_topology_aware_config(topo, fmt)
+    merged = merge_prefs(current_prefs, proposed, fmt)
 
-    # Show diff
-    _show_diff(current_prefs, merged)
+    _show_topology_diff(current_prefs, merged)
+    _warn_skipped_present(merged, topo)
+    for warning in topo.warnings:
+        print_warn(warning)
+    render_gaps(topo.gaps)
 
     if ctx.dry_run:
         print_dry_run("Would save energy dashboard config (use without --dry-run to apply)")
@@ -72,12 +118,13 @@ async def _energy(ctx: Context) -> None:
     print_ok("Energy dashboard config saved")
 
 
-async def _energy_topology_config(ctx: Context) -> None:
+async def _energy_topology_config(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
     """Topology-aware energy dashboard configuration."""
     async with ctx.client() as client:
         devices, entities, areas = await fetch_registries(client)
         states = await fetch_entity_states(client)
         current_prefs = await fetch_energy_prefs(client)
+        ha_version = getattr(client, "ha_version", None)
 
     # Enrich entities with device_class/state_class from states
     # (entity registry doesn't include these — they're runtime properties)
@@ -85,13 +132,17 @@ async def _energy_topology_config(ctx: Context) -> None:
     trees = build_span_trees(devices, entities)
 
     if not trees:
+        if span_panel_only(devices):
+            exit_writer_unsupported("energy --topology")
         print_warn("No SPAN devices found")
         return
 
-    topo = _build_topology(trees, devices, entities, states)
+    roles = resolve_ebus_circuit_roles(circuit_role, trees)
+    topo = _build_topology(trees, devices, entities, states, roles)
     render_topology(topo)
+    render_gaps(topo.gaps)
 
-    cleaned = apply_topology_prefs(current_prefs, topo)
+    cleaned = apply_topology_prefs(current_prefs, topo, grid_format(ha_version, current_prefs))
 
     _show_topology_diff(current_prefs, cleaned)
 
@@ -105,98 +156,58 @@ async def _energy_topology_config(ctx: Context) -> None:
     print_ok("Topology-aware energy dashboard config saved")
 
 
-def _find_entity_by_property(device: HADevice, property_suffix: str) -> HAEntity | None:
-    """Find an entity on a device whose unique_id ends with a given property name.
+def build_energy_config(
+    trees: list[SpanDeviceTree],
+    states: dict[str, Any] | None = None,
+    devices: list[HADevice] | None = None,
+    entities: list[HAEntity] | None = None,
+    fmt: str = UNIFIED,
+) -> dict:
+    """Build proposed energy dashboard config from SPAN device trees.
 
-    Matches by unique_id suffix alone without requiring device_class/state_class.
-    The span_ebus integration does not set these in the entity registry.
+    Uses the same topology assignments as ``energy --topology``.
     """
-    for entity in device.entities:
-        if not entity.disabled_by and entity.unique_id.endswith(property_suffix):
-            return entity
-    return None
+    topo = _build_topology(trees, devices or [], entities or [], states or {})
+    return build_topology_aware_config(topo, fmt)
 
 
-def build_energy_config(trees: list[SpanDeviceTree]) -> dict:
-    """Build proposed energy dashboard config from SPAN device trees."""
-    energy_sources: list[dict] = []
-    device_consumption: list[dict] = []
+def merge_prefs(current: dict, proposed: dict, fmt: str | None = None) -> dict:
+    """Merge proposed config into current, only adding missing entries.
 
-    for tree in trees:
-        # Grid — upstream-lug energy entities live on tree.lugs_up in 0.2.0.
-        imported = (
-            _find_entity_by_property(tree.lugs_up, "imported-energy")
-            if tree.lugs_up
-            else None
-        )
-        exported = (
-            _find_entity_by_property(tree.lugs_up, "exported-energy")
-            if tree.lugs_up
-            else None
-        )
-
-        if imported or exported:
-            grid_source: dict = {"type": "grid", "flow_from": [], "flow_to": []}
-            if imported:
-                grid_source["flow_from"].append({
-                    "stat_energy_from": imported.entity_id,
-                })
-            if exported:
-                grid_source["flow_to"].append({
-                    "stat_energy_to": exported.entity_id,
-                })
-            energy_sources.append(grid_source)
-
-        # Solar PV
-        if tree.solar:
-            solar_energy = _find_entity_by_property(tree.solar, "imported-energy")
-            if solar_energy:
-                energy_sources.append({
-                    "type": "solar",
-                    "stat_energy_from": solar_energy.entity_id,
-                })
-
-        # Battery
-        if tree.battery:
-            discharge = _find_entity_by_property(tree.battery, "imported-energy")
-            charge = _find_entity_by_property(tree.battery, "exported-energy")
-            if discharge or charge:
-                batt_source: dict = {"type": "battery"}
-                if discharge:
-                    batt_source["stat_energy_from"] = discharge.entity_id
-                if charge:
-                    batt_source["stat_energy_to"] = charge.entity_id
-                energy_sources.append(batt_source)
-
-        # Circuit consumption — SPAN convention (panel perspective):
-        # "exported-energy" = energy delivered TO circuit = consumption
-        # "imported-energy" = backfeed FROM circuit (generation)
-        for circuit in tree.circuits:
-            circuit_energy = _find_entity_by_property(circuit, "exported-energy")
-            if circuit_energy:
-                device_consumption.append({
-                    "stat_consumption": circuit_energy.entity_id,
-                })
-
-    return {
-        "energy_sources": energy_sources,
-        "device_consumption": device_consumption,
-    }
-
-
-def merge_prefs(current: dict, proposed: dict) -> dict:
-    """Merge proposed config into current, only adding missing entries."""
+    Grid sources are written in ``fmt`` (by default, the format ``current``
+    uses); a proposed grid statistic already present is not added again.
+    """
+    fmt = fmt or grid_format(None, current)
     merged = copy.deepcopy(current)
 
+    existing_sources = convert_sources(merged.get("energy_sources", []) or [], fmt)
+    proposed_sources = proposed.get("energy_sources", []) or []
+    wanted_grid = [c for s in proposed_sources for c in grid_connections(s)]
+    grid_block = merge_grid_sources(
+        [s for s in existing_sources if is_grid(s)], wanted_grid, set(), fmt
+    )
+
     # Merge energy_sources — add sources not already present (by type + entity_id)
-    existing_sources = merged.get("energy_sources", [])
-    existing_source_keys = _source_keys(existing_sources)
-    for source in proposed.get("energy_sources", []):
+    sources: list[dict] = []
+    grid_placed = False
+    for source in existing_sources:
+        if is_grid(source):
+            if not grid_placed:
+                sources.extend(grid_block)
+                grid_placed = True
+            continue
+        sources.append(source)
+    if not grid_placed:
+        sources[:0] = grid_block
+    existing_source_keys = _source_keys(sources)
+    for source in proposed_sources:
+        if is_grid(source):
+            continue
         key = _source_key(source)
         if key not in existing_source_keys:
-            existing_sources.append(source)
+            sources.append(source)
             existing_source_keys.add(key)
-    merged["energy_sources"] = existing_sources
+    merged["energy_sources"] = sources
 
     # Merge device_consumption — add entries not already present
     existing_consumption = merged.get("device_consumption", [])
@@ -214,8 +225,8 @@ def _source_key(source: dict) -> str:
     """Generate a dedup key for an energy source."""
     stype = source.get("type", "")
     if stype == "grid":
-        from_ids = sorted(f.get("stat_energy_from", "") for f in source.get("flow_from", []))
-        to_ids = sorted(f.get("stat_energy_to", "") for f in source.get("flow_to", []))
+        from_ids = sorted(grid_import_ids(source))
+        to_ids = sorted(grid_export_ids(source))
         return f"grid:{','.join(from_ids)}:{','.join(to_ids)}"
     elif stype == "solar":
         return f"solar:{source.get('stat_energy_from', '')}"
@@ -228,54 +239,19 @@ def _source_keys(sources: list[dict]) -> set[str]:
     return {_source_key(s) for s in sources}
 
 
-def _show_diff(current: dict, merged: dict) -> None:
-    """Show what would change."""
-    current_sources = current.get("energy_sources", [])
-    merged_sources = merged.get("energy_sources", [])
-    new_sources = len(merged_sources) - len(current_sources)
-
-    current_consumption = current.get("device_consumption", [])
-    merged_consumption = merged.get("device_consumption", [])
-    new_consumption = len(merged_consumption) - len(current_consumption)
-
-    console.rule("[bold]Energy Dashboard Changes[/bold]")
-
-    if new_sources == 0 and new_consumption == 0:
-        print_ok("No changes needed — energy dashboard is up to date")
-        return
-
-    if new_sources > 0:
-        print_info(f"Adding {new_sources} energy source(s):")
-        existing_keys = _source_keys(current_sources)
-        for source in merged_sources:
-            if _source_key(source) not in existing_keys:
-                _print_source(source)
-
-    if new_consumption > 0:
-        existing_stats = {d.get("stat_consumption") for d in current_consumption}
-        new_entries = [
-            e for e in merged_consumption if e.get("stat_consumption") not in existing_stats
-        ]
-        print_info(f"Adding {new_consumption} circuit consumption sensor(s):")
-        for entry in new_entries:
-            console.print(f"  - {entry.get('stat_consumption')}")
-
-
-def _print_source(source: dict) -> None:
-    """Pretty-print an energy source."""
-    stype = source.get("type", "unknown")
-    if stype == "grid":
-        for flow in source.get("flow_from", []):
-            console.print(f"  - Grid import: {flow.get('stat_energy_from')}")
-        for flow in source.get("flow_to", []):
-            console.print(f"  - Grid export: {flow.get('stat_energy_to')}")
-    elif stype == "solar":
-        console.print(f"  - Solar: {source.get('stat_energy_from')}")
-    elif stype == "battery":
-        if f := source.get("stat_energy_from"):
-            console.print(f"  - Battery discharge: {f}")
-        if t := source.get("stat_energy_to"):
-            console.print(f"  - Battery charge: {t}")
+def _warn_skipped_present(prefs: dict, topo: EnergyTopology) -> None:
+    """Warn about entries the topology skips that the additive merge leaves in place."""
+    present = extract_energy_entity_ids(prefs)
+    skipped = sorted(
+        {a.entity_id for a in topo.role_assignments if not a.preferred} & present
+    )
+    if skipped:
+        print_warn(
+            f"{len(skipped)} dashboard reference(s) that energy --topology would remove are "
+            "kept (plain energy only adds):"
+        )
+        for eid in skipped:
+            console.print(f"  - {eid}")
 
 
 # ---------------------------------------------------------------------------
@@ -288,32 +264,71 @@ def _build_topology(
     devices: list[HADevice],
     entities: list[HAEntity],
     states: dict[str, Any],
+    roles: dict[tuple[str, str], CircuitRoleOverride] | None = None,
 ) -> EnergyTopology:
     """Build complete energy topology from SPAN trees, registries, and entity states."""
     topologies = extract_span_topology(trees, states)
     integrations = discover_energy_integrations(devices, entities)
-    circuit_roles = classify_circuits(trees, topologies)
-    return build_energy_topology(trees, topologies, integrations, circuit_roles)
+    circuit_roles = classify_circuits(trees, topologies, states)
+    return build_energy_topology(
+        trees, topologies, integrations, circuit_roles, states=states, roles=roles
+    )
 
 
-def build_topology_aware_config(topo: EnergyTopology) -> dict:
-    """Convert topology role assignments to Energy Dashboard config dict."""
+def _grid_connections(assignments: list[EnergyRole]) -> list[GridConnection]:
+    """Pair preferred grid import and export assignments into grid connections.
+
+    Assignments with the same ``grid_connection`` key (else the same platform)
+    pair by order; each connection takes the first power sensor not already
+    used by another, since HA rejects a power sensor shared by two grid sources.
+    """
+    order: list[str] = []
+    imports: dict[str, list[EnergyRole]] = {}
+    exports: dict[str, list[EnergyRole]] = {}
+    for a in assignments:
+        if not a.preferred or a.role not in ("grid_import", "grid_export"):
+            continue
+        key = a.grid_connection or a.platform
+        if key not in imports:
+            order.append(key)
+            imports[key], exports[key] = [], []
+        (imports if a.role == "grid_import" else exports)[key].append(a)
+    connections: list[GridConnection] = []
+    used_rates: set[str] = set()
+    for key in order:
+        imp, exp = imports[key], exports[key]
+        for i in range(max(len(imp), len(exp))):
+            members = [x[i] for x in (imp, exp) if i < len(x)]
+            rate = next(
+                (m.rate_entity_id for m in members
+                 if m.rate_entity_id and m.rate_entity_id not in used_rates),
+                None,
+            )
+            if rate:
+                used_rates.add(rate)
+            connections.append(GridConnection(
+                stat_energy_from=imp[i].entity_id if i < len(imp) else None,
+                stat_energy_to=exp[i].entity_id if i < len(exp) else None,
+                stat_rate=rate,
+            ))
+    return connections
+
+
+def build_topology_aware_config(topo: EnergyTopology, fmt: str = UNIFIED) -> dict:
+    """Convert topology role assignments to Energy Dashboard config dict.
+
+    Grid sources are written in ``fmt``: ``UNIFIED`` (one source per grid
+    connection, HA 2026.3 and later) or ``LEGACY`` (one ``flow_from`` /
+    ``flow_to`` source).
+    """
     energy_sources: list[dict] = []
     device_consumption: list[dict] = []
 
     # Collect preferred role assignments
     preferred = [a for a in topo.role_assignments if a.preferred]
 
-    # Grid — aggregate import/export into one grid source
-    grid_imports = [a for a in preferred if a.role == "grid_import"]
-    grid_exports = [a for a in preferred if a.role == "grid_export"]
-    if grid_imports or grid_exports:
-        grid_source: dict = {"type": "grid", "flow_from": [], "flow_to": []}
-        for a in grid_imports:
-            grid_source["flow_from"].append({"stat_energy_from": a.entity_id})
-        for a in grid_exports:
-            grid_source["flow_to"].append({"stat_energy_to": a.entity_id})
-        energy_sources.append(grid_source)
+    # Grid
+    energy_sources.extend(build_grid_sources(_grid_connections(preferred), fmt))
 
     # Solar
     solar_assignments = [a for a in preferred if a.role == "solar"]
@@ -360,16 +375,19 @@ def build_topology_aware_config(topo: EnergyTopology) -> dict:
     }
 
 
-def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
+def apply_topology_prefs(
+    current: dict, topo: EnergyTopology, fmt: str | None = None
+) -> dict:
     """Apply topology decisions to current prefs: add wanted, remove unwanted.
 
     Unlike ``merge_prefs`` (additive-only), this replaces the SPAN-managed
     portion of the config while preserving non-SPAN entries the user configured.
 
-    HA's ``energy/save_prefs`` rejects source objects missing optional fields
-    (stat_cost, cost_adjustment_day, etc.), so existing source objects are
-    preserved when their entity_ids match a preferred assignment.
+    Existing source objects are preserved when their entity_ids match a
+    preferred assignment, so their cost fields survive.  Grid sources are
+    written in ``fmt`` (by default, the format ``current`` uses).
     """
+    fmt = fmt or grid_format(None, current)
     result = copy.deepcopy(current)
 
     # Build sets from topology decisions
@@ -424,12 +442,19 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
     result["device_consumption"] = keep_consumption
 
     # --- Energy sources: filter + preserve existing objects ---
-    existing_sources = result.get("energy_sources", [])
-    keep_sources = []
+    existing_sources = convert_sources(result.get("energy_sources", []) or [], fmt)
+    keep_sources: list[dict] = []
     matched_preferred_eids: set[str] = set()
+    grid_block = merge_grid_sources(
+        [s for s in existing_sources if is_grid(s)],
+        _grid_connections(preferred),
+        skipped_eids,
+        fmt,
+    )
+    grid_placed = False
 
     # Build proposed config to get updated stat_rate values
-    proposed = build_topology_aware_config(topo)
+    proposed = build_topology_aware_config(topo, fmt)
     # Map source key → proposed stat_rate for updating existing sources
     proposed_source_rates: dict[str, str | None] = {}
     for source in proposed.get("energy_sources", []):
@@ -437,6 +462,11 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
         proposed_source_rates[key] = source.get("stat_rate")
 
     for source in existing_sources:
+        if is_grid(source):
+            if not grid_placed:
+                keep_sources.extend(grid_block)
+                grid_placed = True
+            continue
         source_eids = _extract_source_entity_ids(source)
         # If ANY entity in this source is in the skipped set, remove the source
         if source_eids & skipped_eids:
@@ -456,8 +486,13 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
         # Source has entities not in wanted or skipped — user-configured, keep
         keep_sources.append(source)
 
+    if not grid_placed:
+        keep_sources.extend(grid_block)
+
     # Add new sources for preferred entities not already matched
     for source in proposed.get("energy_sources", []):
+        if is_grid(source):
+            continue
         source_eids = _extract_source_entity_ids(source)
         if not (source_eids <= matched_preferred_eids):
             keep_sources.append(source)
@@ -468,19 +503,8 @@ def apply_topology_prefs(current: dict, topo: EnergyTopology) -> dict:
 
 
 def _extract_source_entity_ids(source: dict) -> set[str]:
-    """Extract all entity_ids from an energy source dict."""
-    eids: set[str] = set()
-    for flow in source.get("flow_from", []):
-        if eid := flow.get("stat_energy_from"):
-            eids.add(eid)
-    for flow in source.get("flow_to", []):
-        if eid := flow.get("stat_energy_to"):
-            eids.add(eid)
-    if eid := source.get("stat_energy_from"):
-        eids.add(eid)
-    if eid := source.get("stat_energy_to"):
-        eids.add(eid)
-    return eids
+    """Extract the energy entity_ids of an energy source, in either grid format."""
+    return source_energy_ids(source)
 
 
 def _show_topology_diff(current: dict, cleaned: dict) -> None:
@@ -580,28 +604,51 @@ def _show_topology_diff(current: dict, cleaned: dict) -> None:
 
 
 @click.command("energy-topology")
+@click.option(
+    "--circuit-role", "circuit_role", multiple=True, metavar="[SERIAL:]CIRCUIT=ROLE",
+    help=CIRCUIT_ROLE_HELP,
+)
 @pass_ctx
-def energy_topology(ctx: Context) -> None:
+def energy_topology(ctx: Context, circuit_role: tuple[str, ...]) -> None:
     """Show energy system topology and recommendations."""
-    run_async(_energy_topology_show(ctx))
+    run_async(_energy_topology_show(ctx, circuit_role))
 
 
-async def _energy_topology_show(ctx: Context) -> None:
+async def _energy_topology_show(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
     """Display-only topology view."""
     async with ctx.client() as client:
         devices, entities, areas = await fetch_registries(client)
         states = await fetch_entity_states(client)
+        panels = None
+        if span_panel_only(devices):
+            panels = await fetch_panel_topologies(client, devices, entities)
 
     # Enrich entities with device_class/state_class from states
     enrich_entities_from_states(entities, states)
+
+    if panels is not None:
+        if not panels:
+            print_warn("No span_panel panels found")
+            return
+        roles = resolve_circuit_roles(circuit_role, panels)
+        integrations = discover_energy_integrations(
+            devices, entities, exclude_platform="span_panel"
+        )
+        sp_topo, gaps = build_energy_topology_span_panel(panels, states, integrations, roles)
+        render_topology(sp_topo, span_panels=panels, states=states)
+        render_gaps(gaps)
+        return
+
     trees = build_span_trees(devices, entities)
 
     if not trees:
         print_warn("No SPAN devices found")
         return
 
-    topo = _build_topology(trees, devices, entities, states)
+    roles = resolve_ebus_circuit_roles(circuit_role, trees)
+    topo = _build_topology(trees, devices, entities, states, roles)
     render_topology(topo)
+    render_gaps(topo.gaps)
 
 
 # ---------------------------------------------------------------------------
@@ -612,21 +659,15 @@ async def _energy_topology_show(ctx: Context) -> None:
 def extract_energy_entity_ids(prefs: dict[str, Any]) -> set[str]:
     """Extract all entity_ids referenced in energy dashboard config.
 
-    Covers source ``stat_energy_from`` / ``stat_energy_to`` / ``stat_rate``
-    (and their ``flow_from`` / ``flow_to`` variants) and device_consumption
-    ``stat_consumption`` / ``included_in_stat`` / ``stat_rate``.
+    Covers source ``stat_energy_from`` / ``stat_energy_to`` / ``stat_rate`` /
+    ``power_config`` (and the legacy grid ``flow_from`` / ``flow_to`` / ``power``
+    variants) and device_consumption ``stat_consumption`` / ``included_in_stat`` /
+    ``stat_rate``.
     """
     ids: set[str] = set()
     for source in prefs.get("energy_sources", []):
-        for flow in source.get("flow_from", []):
-            if stat := flow.get("stat_energy_from"):
-                ids.add(stat)
-        for flow in source.get("flow_to", []):
-            if stat := flow.get("stat_energy_to"):
-                ids.add(stat)
-        for k in ("stat_energy_from", "stat_energy_to", "stat_rate"):
-            if stat := source.get(k):
-                ids.add(stat)
+        ids |= source_energy_ids(source)
+        ids.update(source_rate_ids(source))
     for device in prefs.get("device_consumption", []):
         for k in ("stat_consumption", "included_in_stat", "stat_rate"):
             if stat := device.get(k):
@@ -641,26 +682,29 @@ def find_stale_references(
     """Find energy dashboard references pointing to non-existent entities.
 
     Returns a dict mapping section name to list of stale entity_ids.  Covers
-    ``stat_energy_from`` / ``stat_energy_to`` on sources, ``stat_consumption``
-    / ``included_in_stat`` / ``stat_rate`` on device_consumption entries, and
-    ``stat_rate`` on sources.
+    ``stat_energy_from`` / ``stat_energy_to`` on sources (grid sources in either
+    format), ``stat_consumption`` / ``included_in_stat`` / ``stat_rate`` on
+    device_consumption entries, and power sensors on sources.
     """
     stale: dict[str, list[str]] = {}
 
     for source in prefs.get("energy_sources", []):
         stype = source.get("type", "unknown")
-        for flow in source.get("flow_from", []):
-            if (stat := flow.get("stat_energy_from")) and stat not in all_entity_ids:
-                stale.setdefault(f"{stype} (grid import)", []).append(stat)
-        for flow in source.get("flow_to", []):
-            if (stat := flow.get("stat_energy_to")) and stat not in all_entity_ids:
-                stale.setdefault(f"{stype} (grid export)", []).append(stat)
-        if (stat := source.get("stat_energy_from")) and stat not in all_entity_ids:
-            stale.setdefault(stype, []).append(stat)
-        if (stat := source.get("stat_energy_to")) and stat not in all_entity_ids:
-            stale.setdefault(stype, []).append(stat)
-        if (stat := source.get("stat_rate")) and stat not in all_entity_ids:
-            stale.setdefault(f"{stype} (stat_rate)", []).append(stat)
+        if stype == "grid":
+            for stat in grid_import_ids(source):
+                if stat not in all_entity_ids:
+                    stale.setdefault(f"{stype} (grid import)", []).append(stat)
+            for stat in grid_export_ids(source):
+                if stat not in all_entity_ids:
+                    stale.setdefault(f"{stype} (grid export)", []).append(stat)
+        else:
+            if (stat := source.get("stat_energy_from")) and stat not in all_entity_ids:
+                stale.setdefault(stype, []).append(stat)
+            if (stat := source.get("stat_energy_to")) and stat not in all_entity_ids:
+                stale.setdefault(stype, []).append(stat)
+        for stat in source_rate_ids(source):
+            if stat not in all_entity_ids:
+                stale.setdefault(f"{stype} (stat_rate)", []).append(stat)
 
     for device in prefs.get("device_consumption", []):
         if (stat := device.get("stat_consumption")) and stat not in all_entity_ids:
@@ -768,6 +812,13 @@ def apply_remap_to_prefs(prefs: dict[str, Any], remap: dict[str, str]) -> dict[s
         for k in ("stat_energy_from", "stat_energy_to", "stat_rate"):
             if (e := source.get(k)) and e in remap:
                 source[k] = remap[e]
+        for holder in [source, *source.get("power", [])]:
+            if "stat_rate" in holder and holder["stat_rate"] in remap:
+                holder["stat_rate"] = remap[holder["stat_rate"]]
+            config = holder.get("power_config") or {}
+            for k, e in list(config.items()):
+                if e in remap:
+                    config[k] = remap[e]
     for device in cleaned.get("device_consumption", []):
         for k in ("stat_consumption", "included_in_stat", "stat_rate"):
             if (e := device.get(k)) and e in remap:
@@ -798,6 +849,7 @@ def remove_stale_references(
     # Clean energy_sources
     clean_sources = []
     for source in cleaned.get("energy_sources", []):
+        legacy_grid = "flow_from" in source or "flow_to" in source
         # Filter flow lists (only if originally present)
         if "flow_from" in source:
             source["flow_from"] = [
@@ -813,23 +865,52 @@ def remove_stale_references(
             ]
             if not source["flow_to"]:
                 del source["flow_to"]
-        # Remove solar/battery sources whose primary stat is stale
-        if source.get("stat_energy_from") in stale_ids:
-            source.pop("stat_energy_from", None)
-        if source.get("stat_energy_to") in stale_ids:
-            source.pop("stat_energy_to", None)
-        # Stat_rate refs are advisory — clear instead of drop the source
+        if "power" in source:
+            source["power"] = [
+                p for p in source["power"]
+                if p.get("stat_rate") not in stale_ids
+                and not set(power_config_ids(p.get("power_config"))) & stale_ids
+            ]
+            if not source["power"]:
+                del source["power"]
+        # Remove solar/battery sources whose primary stat is stale; a unified
+        # grid source keeps the key with no statistic.
+        for k in ("stat_energy_from", "stat_energy_to"):
+            if source.get(k) in stale_ids:
+                if source.get("type") == "grid":
+                    source[k] = None
+                else:
+                    source.pop(k, None)
+        # Power sensors are advisory: clear instead of drop the source.  HA
+        # derives stat_rate from power_config, so both go together.
+        if set(power_config_ids(source.get("power_config"))) & stale_ids:
+            source.pop("power_config", None)
+            source.pop("stat_rate", None)
         if source.get("stat_rate") in stale_ids:
             source.pop("stat_rate", None)
         # Drop sources that have lost all entity references
-        has_refs = (
-            source.get("flow_from")
-            or source.get("flow_to")
-            or source.get("stat_energy_from")
-            or source.get("stat_energy_to")
-            or source.get("stat_cost")
-            or source.get("stat_compensation")
-        )
+        if source.get("type") == "grid" and legacy_grid:
+            if not source.get("flow_from") and not source.get("flow_to"):
+                if not source.get("power"):
+                    continue
+                # A legacy grid source requires both lists, even when empty.
+            source.setdefault("flow_from", [])
+            source.setdefault("flow_to", [])
+            has_refs = True
+        elif source.get("type") == "grid":
+            has_refs = bool(
+                source.get("stat_energy_from")
+                or source.get("stat_energy_to")
+                or source.get("stat_rate")
+                or source.get("power_config")
+            )
+        else:
+            has_refs = bool(
+                source.get("stat_energy_from")
+                or source.get("stat_energy_to")
+                or source.get("stat_cost")
+                or source.get("stat_compensation")
+            )
         if has_refs:
             clean_sources.append(source)
     cleaned["energy_sources"] = clean_sources
@@ -857,22 +938,52 @@ def remove_stale_references(
     help="Rewrite stale references to live equivalents where possible "
     "(falls back to dropping refs with no match — implies --prune semantics for unmatchable refs)",
 )
+@click.option(
+    "--circuit-role", "circuit_role", multiple=True, metavar="[SERIAL:]CIRCUIT=ROLE",
+    help=CIRCUIT_ROLE_HELP,
+)
 @pass_ctx
-def energy_audit(ctx: Context, prune: bool, remap: bool) -> None:
+def energy_audit(
+    ctx: Context, prune: bool, remap: bool, circuit_role: tuple[str, ...]
+) -> None:
     """Find (and optionally fix) stale entity references in the Energy Dashboard."""
-    run_async(_energy_audit(ctx, prune, remap))
+    run_async(_energy_audit(ctx, prune, remap, circuit_role))
 
 
-async def _energy_audit(ctx: Context, prune: bool, remap: bool) -> None:
+async def _energy_audit(
+    ctx: Context, prune: bool, remap: bool, circuit_role: tuple[str, ...] = ()
+) -> None:
     async with ctx.client() as client:
         prefs = await fetch_energy_prefs(client)
         devices, entities, _ = await fetch_registries(client)
+        panels = None
+        is_span_panel = span_panel_only(devices)
+        if is_span_panel:
+            if remap:
+                exit_writer_unsupported("energy-audit --remap")
+            try:
+                panels = await fetch_panel_topologies(client, devices, entities)
+            except SpanPanelAdminRequired as exc:
+                # Stale-reference detection and --prune do not need the payload.
+                print_warn(f"Skipping the span_panel misplaced-consumer check: {exc}")
     all_entity_ids = {e.entity_id for e in entities}
 
     ed_refs = extract_energy_entity_ids(prefs)
     stale = find_stale_references(prefs, all_entity_ids)
 
     print_info(f"Energy dashboard references {len(ed_refs)} entity ID(s)")
+
+    if panels is not None:
+        roles = resolve_circuit_roles(circuit_role, panels)
+        misplaced = find_misplaced_consumers(panels, prefs, roles)
+        if misplaced:
+            print_warn(f"{len(misplaced)} span_panel circuit(s) misplaced as device consumers:")
+            render_gaps(misplaced)
+            console.print()
+        else:
+            print_ok("No span_panel circuit is misplaced as a device consumer")
+    elif circuit_role and not is_span_panel:
+        print_warn("--circuit-role applies to energy-audit only on span_panel panels; ignored")
 
     if not stale:
         print_ok("No stale references — all energy dashboard entities exist")

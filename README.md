@@ -2,7 +2,15 @@
 
 A command-line tool for auditing and configuring Home Assistant energy dashboards, area assignments, and device topology. Designed as a companion to [span-hass](https://github.com/electrification-bus/span-hass) (the `span_ebus` HA integration for SPAN smart panels), but works across all energy integrations — Tesla Powerwall, Enphase, SolarEdge, and more.
 
-**Compatibility:** Targets `span-hass` 0.2.x (the parent/child Homie 5 tree-data-model line). For panels still on `span-hass` 0.1.x, pin hass-atlas to the pre-`SHT-br5` commit on `main`.
+> **WARNING: barely tested outside MAIN 32 and `span_ebus`. Use at your own risk.**
+>
+> - **Panel models other than MAIN 32** (MAIN_16, MLO_24, MAIN_40, MLO_48): hass-atlas has never been run against a real panel of these models, with either integration. Its handling of them is tested only against recorded panel data and edited copies of it.
+> - **The [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`):** support is new and read-only. It has been run against one live panel, a MAIN 32, once; everything else is tested against recorded data. The commands that write to Home Assistant refuse to run with it.
+> - The energy assignments hass-atlas proposes for these setups may be wrong. Check every one before relying on it, and keep a backup of Home Assistant before changing anything.
+>
+> This software is provided as is, without warranty of any kind (see [License](#license)).
+
+**Compatibility:** Targets [`span-hass` v0.5.0](https://github.com/electrification-bus/span-hass/releases/tag/v0.5.0), its latest release, which supports MAIN 32 panels only. For panels still on `span-hass` 0.1.x, pin hass-atlas to the pre-`SHT-br5` commit on `main`.
 
 > **CAUTION: This is a power tool.**
 >
@@ -118,16 +126,19 @@ Displays the SPAN device tree and reports misconfigurations:
 - **Missing areas** — circuits with no area assigned
 - **Energy gaps** — enabled energy sensors not in the Energy Dashboard
 - **Disabled entities** — energy-relevant entities that are disabled
+- **Gaps**: what hass-atlas could not determine (see [Gaps on span_ebus](#gaps-on-span_ebus))
+
+Remote CTs are listed apart from the circuits.
 
 Output formats: `tree` (default, Rich-formatted hierarchy), `table`, or `json`.
 
 ### `energy` — Auto-Configure the Energy Dashboard
 
 ```bash
-hass-atlas energy [--topology]
+hass-atlas energy [--topology] [--circuit-role [SERIAL:]CT-ID=ROLE ...]
 ```
 
-**Without `--topology`:** Adds missing SPAN energy entities to the dashboard. Additive-only — never removes existing entries.
+**Without `--topology`:** Adds the same assignments `--topology` proposes, but additive-only: never removes existing entries. It lists the existing entries `--topology` would remove.
 
 **With `--topology`:** The main feature. Reads physical topology from SPAN entity states, detects other energy integrations, and builds an intelligent configuration:
 
@@ -139,10 +150,21 @@ hass-atlas energy [--topology]
 
 Use `--dry-run` to preview changes before applying.
 
+Grid sources are written in the format the Home Assistant version accepts: one source per grid connection (`stat_energy_from` / `stat_energy_to`) from 2026.3, a single `flow_from` / `flow_to` source before it. An existing grid source keeps its cost settings.
+
+### Gaps on span_ebus
+
+`audit`, `energy-topology`, and `energy` report a **Gaps** list:
+
+- **Remote CTs.** A circuit device with no breaker space is a meter outside the panel. It is left out of device consumption and area assignment until its role is stated with `--circuit-role [<serial>:]<ct-id>=grid|load|solar|battery|ignore`. Its imported energy is the flow toward the panel (grid import, solar production, battery discharge, or a load's consumption) and its exported energy the flow away. The gap compares its power with the panel's Grid Power and the upstream lugs, and suggests `grid` when they match. Only a remote CT takes a role on span_ebus.
+- **Shared meters.** Circuits that report one meter are counted once, under the lowest circuit id. The group comes from the Meter Shared With sensor when it is enabled (span-hass disables it by default), else from a shared breaker space with the same readings, else from identical readings.
+- **Service entrance unknown.** The upstream lugs, used as the grid, do not say what feeds them.
+- **Battery upstream without an integration.** The upstream lugs are fed by the battery and no vendor battery integration is installed, so grid figures include battery flow and no battery source can be configured.
+
 ### `energy-topology` — Display-Only Topology Report
 
 ```bash
-hass-atlas energy-topology
+hass-atlas energy-topology [--circuit-role [SERIAL:]CT-ID=ROLE ...]
 ```
 
 Shows the full energy system analysis without modifying anything:
@@ -232,6 +254,21 @@ hass-atlas link-panels \
   nt-2024-d3e4f:nt-2024-a1b2c \
   nt-2024-g5h6j:nt-2024-d3e4f
 ```
+
+## span_panel Integration (Read-Only)
+
+When Home Assistant has the [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`) and not `span_ebus`, `audit`, `energy-topology`, and `energy-audit` (without `--remap`) read each panel through the `span_panel/panel_topology` WebSocket command. That command is admin-only, so the token must belong to a Home Assistant administrator. The other commands that write (`energy`, `areas`, `normalize`, `link-panels`, `cascade`, `energy-audit --remap`) exit with a message that span_panel support is not yet available.
+
+hass-atlas maps the grid to each panel's main meter, solar to generation circuits, and device consumption to each circuit's consumed energy, counting a shared meter once and leaving out remote CTs. Every read-only command reports a **Gaps** list naming what it could not determine, such as what a remote CT measures, which circuit feeds the battery, or which circuit feeds another panel, with suggested circuits where readings allow. Suggestions are never applied. State a circuit's role with the repeatable `--circuit-role` option:
+
+```bash
+hass-atlas energy-topology \
+  --circuit-role xg-1155-18fkf:remote-ct-3=grid \
+  --circuit-role circuit-7=battery \
+  --circuit-role xg-7814-15i6h:circuit-3=subpanel:xg-1334-066e8
+```
+
+The value is `[<serial>:]<circuit-id>=<role>`, with role `grid`, `load`, `solar`, `battery`, `subpanel:<serial>`, or `ignore`. The serial prefix is required only when the circuit id exists on more than one panel. A panel fed from another panel's feed-through lugs is stated as `<lead-serial>:feedthrough=subpanel:<serial>`. `audit --format json` includes the gaps.
 
 ## How Topology-Aware Configuration Works
 
@@ -338,6 +375,7 @@ src/hass_atlas/
   areas.py        — Area assignment planning + execution
   normalize.py    — Entity ID normalization
   panels.py       — Sub-panel linking
+  span_panel.py   - Read-only span_panel backend: panel_topology, roles, gaps
   output.py       — Rich-based formatters (tree, table, topology)
 ```
 

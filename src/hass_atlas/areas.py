@@ -9,7 +9,8 @@ import click
 from hass_atlas.context import Context, pass_ctx, run_async
 from hass_atlas.models import HAArea
 from hass_atlas.output import print_dry_run, print_info, print_ok, print_warn
-from hass_atlas.registry import fetch_areas, fetch_span_trees
+from hass_atlas.registry import build_span_trees, fetch_areas, fetch_registries
+from hass_atlas.span_panel import exit_writer_unsupported, span_panel_only
 
 
 @click.command()
@@ -40,10 +41,13 @@ async def _areas(ctx: Context, mapping_file: str | None, create_missing: bool) -
         print_info(f"Loaded mapping with {len(name_to_area)} entries")
 
     async with ctx.client() as client:
-        trees = await fetch_span_trees(client)
+        devices, entities, _ = await fetch_registries(client)
+        trees = build_span_trees(devices, entities)
         existing_areas = await fetch_areas(client)
 
         if not trees:
+            if span_panel_only(devices):
+                exit_writer_unsupported("areas")
             print_warn("No SPAN devices found")
             return
 

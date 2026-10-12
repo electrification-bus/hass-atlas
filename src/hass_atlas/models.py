@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -62,7 +63,8 @@ class SpanDeviceTree:
           │     └── mid         (grandchild — synthesized per BESS)
           ├── solar
           ├── ev_charger
-          └── circuits[]
+          ├── circuits[]
+          └── remote_cts[]      (Circuit-model meters outside the panel)
 
     Site metering is no longer a separate device — its entities now live on
     the panel root as the ``power-flows`` capability.
@@ -70,6 +72,7 @@ class SpanDeviceTree:
 
     panel: HADevice
     circuits: list[HADevice] = field(default_factory=list)
+    remote_cts: list[HADevice] = field(default_factory=list)
     battery: HADevice | None = None
     mid: HADevice | None = None
     solar: HADevice | None = None
@@ -87,7 +90,7 @@ class SpanDeviceTree:
 
     @property
     def all_child_devices(self) -> list[HADevice]:
-        """All non-circuit sub-devices."""
+        """All non-circuit sub-devices, including remote CTs."""
         return [
             d
             for d in [
@@ -99,4 +102,19 @@ class SpanDeviceTree:
                 self.ev_charger,
             ]
             if d
-        ]
+        ] + list(self.remote_cts)
+
+
+@dataclass
+class Gap:
+    """Something hass-atlas could not determine, and how the user can state it."""
+
+    kind: str
+    serial: str | None
+    circuit_id: str | None
+    message: str
+    hint: str | None = None
+    suggestions: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
