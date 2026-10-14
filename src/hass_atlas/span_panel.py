@@ -202,7 +202,7 @@ def exit_writer_unsupported(command: str) -> None:
 
     print_error(
         f"span_panel support for '{command}' is not yet available. "
-        "hass-atlas supports span_panel read-only: audit, energy-topology, "
+        "hass-atlas supports span_panel in audit, energy, energy-topology, "
         "and energy-audit (without --remap)."
     )
     raise SystemExit(1)

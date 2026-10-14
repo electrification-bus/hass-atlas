@@ -4,8 +4,8 @@ A command-line tool for auditing and configuring Home Assistant energy dashboard
 
 > **WARNING: barely tested outside MAIN 32 and `span_ebus`. Use at your own risk.**
 >
-> - **Panel models other than MAIN 32** (MAIN_16, MLO_24, MAIN_40, MLO_48): hass-atlas has never been run against a real panel of these models, with either integration. Its handling of them is tested only against recorded panel data and edited copies of it.
-> - **The [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`):** support is new and read-only. It has been run against one live panel, a MAIN 32, once; everything else is tested against recorded data. The commands that write to Home Assistant refuse to run with it.
+> - **Panel models other than MAIN 32** (MAIN_16, MLO_24, MAIN_40, MLO_48): hass-atlas's handling of these models is tested only against recorded panel data and edited copies of it.
+> - **The [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`):** support is new. `energy` has saved the Energy Dashboard for one live panel, a MAIN 32, in a test Home Assistant; everything else is tested against recorded data. The other commands that write to Home Assistant refuse to run with it.
 > - The energy assignments hass-atlas proposes for these setups may be wrong. Check every one before relying on it, and keep a backup of Home Assistant before changing anything.
 >
 > This software is provided as is, without warranty of any kind (see [License](#license)).
@@ -258,11 +258,11 @@ hass-atlas link-panels \
   nt-2024-g5h6j:nt-2024-d3e4f
 ```
 
-## span_panel Integration (Read-Only)
+## span_panel Integration
 
-When Home Assistant has the [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`) and not `span_ebus`, `audit`, `energy-topology`, and `energy-audit` (without `--remap`) read each panel through the `span_panel/panel_topology` WebSocket command. That command is admin-only, so the token must belong to a Home Assistant administrator. The other commands that write (`energy`, `areas`, `normalize`, `link-panels`, `cascade`, `energy-audit --remap`) exit with a message that span_panel support is not yet available.
+When Home Assistant has the [SpanPanel/span](https://github.com/SpanPanel/span) integration (`span_panel`) and not `span_ebus`, `audit`, `energy`, `energy-topology`, and `energy-audit` (without `--remap`) read each panel through the `span_panel/panel_topology` WebSocket command. That command is admin-only, so the token must belong to a Home Assistant administrator. The other commands that write (`areas`, `normalize`, `link-panels`, `cascade`, `energy-audit --remap`) exit with a message that span_panel support is not yet available.
 
-hass-atlas maps the grid to each panel's main meter, solar to generation circuits, and device consumption to each circuit's consumed energy, counting a shared meter once and leaving out remote CTs. Every read-only command reports a **Gaps** list naming what it could not determine, such as what a remote CT measures, which circuit feeds the battery, or which circuit feeds another panel, with suggested circuits where readings allow. Suggestions are never applied. State a circuit's role with the repeatable `--circuit-role` option:
+hass-atlas maps the grid to each panel's main meter, solar to generation circuits, and device consumption to each circuit's consumed energy, counting a shared meter once and leaving out remote CTs. `audit`, `energy`, and `energy-topology` report a **Gaps** list naming what hass-atlas could not determine, such as what a remote CT measures, which circuit feeds the battery, or which circuit feeds another panel, with suggested circuits where readings allow. Suggestions are never applied. State a circuit's role with the repeatable `--circuit-role` option:
 
 ```bash
 hass-atlas energy-topology \
@@ -272,6 +272,8 @@ hass-atlas energy-topology \
 ```
 
 The value is `[<serial>:]<circuit-id>=<role>`, with role `grid`, `load`, `solar`, `battery`, `subpanel:<serial>`, or `ignore`. The serial prefix is required only when the circuit id exists on more than one panel. A panel fed from another panel's feed-through lugs is stated as `<lead-serial>:feedthrough=subpanel:<serial>`. `audit --format json` includes the gaps.
+
+`energy` saves what `energy-topology` shows, including the default it uses for each open gap: for example, a grid taken from a panel's main meter when the service entrance is unknown, or a grid source per panel when the feed between panels is unknown. Run `hass-atlas --dry-run energy --topology` first, answer the gaps with `--circuit-role`, and save only when the proposed changes are right.
 
 ## How Topology-Aware Configuration Works
 
@@ -378,7 +380,7 @@ src/hass_atlas/
   areas.py        — Area assignment planning + execution
   normalize.py    — Entity ID normalization
   panels.py       — Sub-panel linking
-  span_panel.py   - Read-only span_panel backend: panel_topology, roles, gaps
+  span_panel.py   - span_panel backend: panel_topology, roles, gaps
   output.py       — Rich-based formatters (tree, table, topology)
 ```
 

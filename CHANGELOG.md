@@ -4,6 +4,14 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **`energy` and `energy --topology` on `span_panel`.** Both save the Energy Dashboard from the `span_panel/panel_topology` assignments that `energy-topology` shows, with the same Gaps list and `--circuit-role` option. Each open gap is saved as its default (for example, the grid from a panel's main meter), so run with `--dry-run` first.
+
+### Fixed
+
+- A battery with only a charge or only a discharge energy sensor is no longer written as a battery source, which Home Assistant rejects; a warning names the sensor that was found.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added
