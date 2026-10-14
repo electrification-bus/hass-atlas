@@ -9,6 +9,7 @@ import pytest
 from hass_atlas.energy import (
     apply_remap_to_prefs,
     apply_topology_prefs,
+    battery_warnings,
     build_topology_aware_config,
     extract_energy_entity_ids,
     find_stale_references,
@@ -374,3 +375,22 @@ def test_apply_remap_unified() -> None:
     assert grid["stat_energy_from"] == "sensor.new_imp"
     assert grid["power_config"] == {"stat_rate_inverted": "sensor.new_power"}
     assert UNIFIED_PREFS["energy_sources"][0]["stat_energy_from"] == IMP
+
+
+@pytest.mark.parametrize("role", ["battery_discharge", "battery_charge"])
+def test_one_sided_battery_is_not_written(role: str) -> None:
+    topo = EnergyTopology([], [], [], [EnergyRole(role, "sensor.batt", "span_panel", True, "")], [])
+    config = build_topology_aware_config(topo)
+    assert not [s for s in config["energy_sources"] if s["type"] == "battery"]
+    (warning,) = battery_warnings(topo)
+    assert "sensor.batt" in warning
+
+
+def test_two_sided_battery_is_written() -> None:
+    topo = EnergyTopology([], [], [], [
+        EnergyRole("battery_discharge", "sensor.out", "span_panel", True, ""),
+        EnergyRole("battery_charge", "sensor.in", "span_panel", True, ""),
+    ], [])
+    (battery,) = build_topology_aware_config(topo)["energy_sources"]
+    assert battery == {"type": "battery", "stat_energy_from": "sensor.out", "stat_energy_to": "sensor.in"}
+    assert battery_warnings(topo) == []

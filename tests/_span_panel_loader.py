@@ -172,6 +172,7 @@ class FakeClient:
         self.extra_entities = extra_entities or []
         self.topology_error = topology_error
         self.sent: list[tuple[str, dict[str, Any]]] = []
+        self.saved: dict[str, Any] | None = None
 
     async def __aenter__(self) -> FakeClient:
         return self
@@ -193,6 +194,9 @@ class FakeClient:
             ]
         if msg_type == "energy/get_prefs":
             return self.prefs
+        if msg_type == "energy/save_prefs":
+            self.saved = kwargs
+            return None
         if msg_type == "span_panel/panel_topology":
             if self.topology_error:
                 raise self.topology_error

@@ -45,6 +45,7 @@ from hass_atlas.span_panel import (
     CIRCUIT_ROLE_HELP,
     CircuitRoleOverride,
     SpanPanelAdminRequired,
+    PanelTopology,
     build_energy_topology_span_panel,
     exit_writer_unsupported,
     fetch_panel_topologies,
@@ -79,32 +80,62 @@ def energy(ctx: Context, topology: bool, circuit_role: tuple[str, ...]) -> None:
         run_async(_energy(ctx, circuit_role))
 
 
-async def _energy(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
-    """Add the topology's preferred assignments to the dashboard, never removing any."""
+async def _load_topology(
+    ctx: Context, circuit_role: tuple[str, ...]
+) -> tuple[EnergyTopology, dict, str | None, list[PanelTopology] | None, dict] | None:
+    """Read Home Assistant and build the topology from span_ebus or span_panel.
+
+    Returns ``(topology, current prefs, HA version, span_panel panels or None,
+    states)``, or None when no SPAN panel is found.
+    """
     async with ctx.client() as client:
         devices, entities, _ = await fetch_registries(client)
         states = await fetch_entity_states(client)
         current_prefs = await fetch_energy_prefs(client)
         ha_version = getattr(client, "ha_version", None)
-
-    enrich_entities_from_states(entities, states)
-    trees = build_span_trees(devices, entities)
-
-    if not trees:
+        panels = None
         if span_panel_only(devices):
-            exit_writer_unsupported("energy")
-        print_warn("No SPAN devices found")
-        return
+            panels = await fetch_panel_topologies(client, devices, entities)
 
+    # Enrich entities with device_class/state_class from states
+    # (entity registry doesn't include these — they're runtime properties)
+    enrich_entities_from_states(entities, states)
+
+    if panels is not None:
+        if not panels:
+            print_warn("No span_panel panels found")
+            return None
+        sp_roles = resolve_circuit_roles(circuit_role, panels)
+        integrations = discover_energy_integrations(
+            devices, entities, exclude_platform="span_panel"
+        )
+        topo, gaps = build_energy_topology_span_panel(panels, states, integrations, sp_roles)
+        topo.gaps = gaps
+        return topo, current_prefs, ha_version, panels, states
+
+    trees = build_span_trees(devices, entities)
+    if not trees:
+        print_warn("No SPAN devices found")
+        return None
     roles = resolve_ebus_circuit_roles(circuit_role, trees)
     topo = _build_topology(trees, devices, entities, states, roles)
+    return topo, current_prefs, ha_version, None, states
+
+
+async def _energy(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
+    """Add the topology's preferred assignments to the dashboard, never removing any."""
+    loaded = await _load_topology(ctx, circuit_role)
+    if loaded is None:
+        return
+    topo, current_prefs, ha_version, _, _ = loaded
+
     fmt = grid_format(ha_version, current_prefs)
     proposed = build_topology_aware_config(topo, fmt)
     merged = merge_prefs(current_prefs, proposed, fmt)
 
     _show_topology_diff(current_prefs, merged)
     _warn_skipped_present(merged, topo)
-    for warning in topo.warnings:
+    for warning in topo.warnings + battery_warnings(topo):
         print_warn(warning)
     render_gaps(topo.gaps)
 
@@ -120,26 +151,14 @@ async def _energy(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
 
 async def _energy_topology_config(ctx: Context, circuit_role: tuple[str, ...] = ()) -> None:
     """Topology-aware energy dashboard configuration."""
-    async with ctx.client() as client:
-        devices, entities, areas = await fetch_registries(client)
-        states = await fetch_entity_states(client)
-        current_prefs = await fetch_energy_prefs(client)
-        ha_version = getattr(client, "ha_version", None)
-
-    # Enrich entities with device_class/state_class from states
-    # (entity registry doesn't include these — they're runtime properties)
-    enrich_entities_from_states(entities, states)
-    trees = build_span_trees(devices, entities)
-
-    if not trees:
-        if span_panel_only(devices):
-            exit_writer_unsupported("energy --topology")
-        print_warn("No SPAN devices found")
+    loaded = await _load_topology(ctx, circuit_role)
+    if loaded is None:
         return
+    topo, current_prefs, ha_version, panels, states = loaded
 
-    roles = resolve_ebus_circuit_roles(circuit_role, trees)
-    topo = _build_topology(trees, devices, entities, states, roles)
-    render_topology(topo)
+    render_topology(topo, span_panels=panels, states=states)
+    for warning in battery_warnings(topo):
+        print_warn(warning)
     render_gaps(topo.gaps)
 
     cleaned = apply_topology_prefs(current_prefs, topo, grid_format(ha_version, current_prefs))
@@ -342,15 +361,16 @@ def build_topology_aware_config(topo: EnergyTopology, fmt: str = UNIFIED) -> dic
             solar_source["stat_rate"] = a.rate_entity_id
         energy_sources.append(solar_source)
 
-    # Battery — aggregate charge/discharge into one battery source
+    # Battery: aggregate charge/discharge into one battery source.  HA
+    # requires both sides; battery_warnings() reports a one-sided battery.
     batt_discharge = [a for a in preferred if a.role == "battery_discharge"]
     batt_charge = [a for a in preferred if a.role == "battery_charge"]
-    if batt_discharge or batt_charge:
-        batt_source: dict = {"type": "battery"}
-        if batt_discharge:
-            batt_source["stat_energy_from"] = batt_discharge[0].entity_id
-        if batt_charge:
-            batt_source["stat_energy_to"] = batt_charge[0].entity_id
+    if batt_discharge and batt_charge:
+        batt_source: dict = {
+            "type": "battery",
+            "stat_energy_from": batt_discharge[0].entity_id,
+            "stat_energy_to": batt_charge[0].entity_id,
+        }
         # Use discharge power sensor for battery stat_rate (positive=discharge, negative=charge)
         batt_rate = next(
             (a.rate_entity_id for a in (batt_discharge + batt_charge) if a.rate_entity_id),
@@ -374,6 +394,20 @@ def build_topology_aware_config(topo: EnergyTopology, fmt: str = UNIFIED) -> dic
         "energy_sources": energy_sources,
         "device_consumption": device_consumption,
     }
+
+
+def battery_warnings(topo: EnergyTopology) -> list[str]:
+    """Warn when the battery has only a charge or only a discharge sensor."""
+    preferred = [a for a in topo.role_assignments if a.preferred]
+    discharge = [a.entity_id for a in preferred if a.role == "battery_discharge"]
+    charge = [a.entity_id for a in preferred if a.role == "battery_charge"]
+    if bool(discharge) == bool(charge):
+        return []
+    found, missing = ("discharge", "charge") if discharge else ("charge", "discharge")
+    return [
+        f"Battery {found} energy {(discharge or charge)[0]} has no matching {missing} "
+        "sensor; Home Assistant requires both, so no battery source is written."
+    ]
 
 
 def apply_topology_prefs(

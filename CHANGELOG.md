@@ -4,6 +4,16 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-14
+
+### Added
+
+- **`energy` and `energy --topology` on `span_panel`.** Both save the Energy Dashboard from the `span_panel/panel_topology` assignments that `energy-topology` shows, with the same Gaps list and `--circuit-role` option. Each open gap is saved as its default (for example, the grid from a panel's main meter), so run with `--dry-run` first.
+
+### Fixed
+
+- A battery with only a charge or only a discharge energy sensor is no longer written as a battery source, which Home Assistant rejects; a warning names the sensor that was found.
+
 ## [0.2.0] - 2026-10-12
 
 ### Added
@@ -59,6 +69,7 @@ The 0.1.0 line is the initial alpha; this is the first tagged release.
 - **Multi-panel UPSTREAM (sub-panel fed by a parent SPAN panel)** is not derivable from the wire today — SPAN does not yet write `connection/fed-by-device-id = <parent-panel>` on the sub-panel's upstream lugs. Use `link-panels` to express the relationship in HA's device registry directly; hass-atlas's Sankey hierarchy honors that linkage.
 - **Several scenario tests are marked `xfail` pending rewrite against the tree-v1 fixtures.** The test infrastructure is correct (103 tests pass against the new fixtures); 19 specific scenario tests still assert on flat-model entity layouts (Kitchen / Garage circuits, `sensor.span_site_imported_energy`, retired `bess/feed`-style entities) and need per-test migration. Tracked locally in beads as SHT-0fz.
 
-[Unreleased]: https://github.com/electrification-bus/hass-atlas/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/electrification-bus/hass-atlas/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.3.0
 [0.2.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.2.0
 [0.1.0]: https://github.com/electrification-bus/hass-atlas/releases/tag/v0.1.0

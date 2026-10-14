@@ -1,4 +1,4 @@
-"""Tests for read-only span_panel support."""
+"""Tests for span_panel support."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
+from tests._ha_energy_schema import required_key_errors, validate_with_ha
 from tests._span_panel_loader import (
     STEMS,
     SYNTHETIC_DIR,
@@ -562,8 +563,6 @@ def test_cli_admin_required_message(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize(
     ("args", "command"),
     [
-        (["energy"], "energy"),
-        (["energy", "--topology"], "energy --topology"),
         (["areas"], "areas"),
         (["normalize"], "normalize"),
         (["cascade"], "cascade"),
@@ -1071,3 +1070,78 @@ def test_synthetic_subpanel_role() -> None:
     members = {c.id: c for c in lead.circuits}
     assert members["circuit-52"].entities["consumed_energy"] in consumers
     assert members["circuit-53"].entities["consumed_energy"] not in consumers
+
+
+# ---------------------------------------------------------------------------
+# energy: saves
+# ---------------------------------------------------------------------------
+
+ALL_FIXTURES = [(load_fixture, s) for s in STEMS] + [(load_synthetic, s) for s in SYNTHETIC_STEMS]
+
+
+@pytest.mark.parametrize("args", [["energy"], ["energy", "--topology"]])
+@pytest.mark.parametrize(("load", "stem"), ALL_FIXTURES)
+def test_cli_energy_saves_valid_prefs(
+    load: Any, stem: str, args: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeClient([load(stem)])
+    result = _run(fake, *args, monkeypatch=monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert fake.saved is not None
+    assert required_key_errors(fake.saved, legacy=False) == []
+    consumers = [d["stat_consumption"] for d in fake.saved["device_consumption"]]
+    assert len(consumers) == len(set(consumers))
+    sources = {e for s in fake.saved["energy_sources"] for e in _source_eids(s)}
+    assert not sources & set(consumers)
+
+
+def _source_eids(source: dict[str, Any]) -> set[str]:
+    return {source[k] for k in ("stat_energy_from", "stat_energy_to") if source.get(k)}
+
+
+def test_cli_energy_dry_run_does_not_save(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeClient([load_fixture("main32_r202639")])
+    result = _run(fake, "--dry-run", "energy", monkeypatch=monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert fake.saved is None
+    assert not any(t == "energy/save_prefs" for t, _ in fake.sent)
+
+
+def test_cli_energy_keeps_user_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    user_source = {"type": "gas", "stat_energy_from": "sensor.gas_meter"}
+    user_consumer = {"stat_consumption": "sensor.fridge_plug_energy"}
+    fake = FakeClient(
+        [load_fixture("main32_r202639")],
+        prefs={"energy_sources": [user_source], "device_consumption": [user_consumer]},
+    )
+    result = _run(fake, "energy", "--topology", monkeypatch=monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert fake.saved is not None
+    assert user_source in fake.saved["energy_sources"]
+    assert user_consumer in fake.saved["device_consumption"]
+
+
+def test_cli_energy_applies_circuit_role(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeClient([load_fixture("r202639-b")])
+    result = _run(
+        fake, "energy", "--topology", "--circuit-role", "remote-ct-3=grid",
+        monkeypatch=monkeypatch,
+    )
+    assert result.exit_code == 0, result.output
+    assert fake.saved is not None
+    (grid,) = [s for s in fake.saved["energy_sources"] if s["type"] == "grid"]
+    assert grid["stat_energy_from"] == "sensor.span_panel_remote_ct_3_consumed_energy"
+
+
+def test_saved_prefs_pass_ha_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    saved = []
+    for load, stem in ALL_FIXTURES:
+        fake = FakeClient([load(stem)])
+        result = _run(fake, "energy", "--topology", monkeypatch=monkeypatch)
+        assert result.exit_code == 0, result.output
+        saved.append(fake.saved)
+    checked = validate_with_ha(saved)
+    if checked is None:
+        pytest.skip("no Home Assistant install to validate against")
+    _, errors = checked
+    assert errors == [None] * len(saved)
