@@ -15,6 +15,12 @@ skipped, and an entity already at its temporary id moves back. The stage is
 read again after the renames, so the other writes find the entities' new
 ids. An entity change is checked against the registry ``id`` it was planned
 for, so it is never written to another entity that took its entity_id.
+
+The energy stage re-reads the prefs and skips, as a conflict, each list it
+writes that changed in HA since the plan. It plans the other lists again with
+the entity_ids earlier stages left, so an entry follows a rename that did not
+run, sends them in one ``energy/save_prefs`` and compares what HA then holds
+with what was sent, through the known normalizations.
 """
 
 from __future__ import annotations
@@ -23,8 +29,19 @@ from collections.abc import Callable
 from itertools import groupby
 from typing import Any
 
+from hass_atlas.atlas.domains import energy
 from hass_atlas.atlas.domains.base import Client, RegistryDomain, Row
-from hass_atlas.atlas.plan import Change, Plan, Section, change_lines, fmt, registry, resolve_refs
+from hass_atlas.atlas.energy_stage import plan_energy
+from hass_atlas.atlas.plan import (
+    Change,
+    Plan,
+    Section,
+    change_lines,
+    energy_list,
+    fmt,
+    registry,
+    resolve_refs,
+)
 from hass_atlas.atlas.planner import comparable, normalize_name, stage_fields
 from hass_atlas.atlas.refs import ENTITY_IDS
 from hass_atlas.atlas.snapshot import Journal
@@ -296,6 +313,87 @@ class Executor:
                 diffs.append(f"{where}: {name}: expected {fmt(want)}, HA has {fmt(have)}")
         return diffs
 
+    async def _read_energy(self) -> Row:
+        rows = await energy.ENERGY.fetch(self.client)
+        return rows[0] if rows else {}
+
+    async def _run_energy(self, section: Section) -> tuple[bool, list[str]]:
+        """Write the energy stage; return whether the write failed and the verify diffs."""
+        stage = section.energy
+        assert stage is not None
+        now = await self._read_energy()
+        conflicts = {
+            name: f"{name} changed in HA since the plan"
+            for name in stage.lists
+            if energy.canonical(now, name) != energy.canonical(stage.before, name)
+        }
+        fresh, again = plan_energy(
+            stage.doc,
+            now,
+            mode=stage.mode,
+            fmt=stage.fmt,
+            resolve=lambda entity_id: self.plan.ids.resolve(ENTITY_IDS, entity_id),
+            version=stage.version,
+            held=stage.held,
+        )
+        changes = []
+        for name in energy.LISTS:
+            if name in stage.lists and name not in conflicts:
+                changes += [c for c in fresh if energy_list(c) == name]
+                continue
+            # A conflicting list, or one the plan does not write, keeps the plan's changes.
+            for change in (c for c in section.changes if energy_list(c) == name):
+                if change.writes and name in conflicts:
+                    change.status, change.reason = "conflict", conflicts[name]
+                changes.append(change)
+        section.changes = changes
+        payload = {
+            name: again.payload[name]
+            for name in stage.lists
+            if name in again.payload and name not in conflicts
+        }
+        writes = [
+            c
+            for c in section.changes
+            if c.writes and c.status != "conflict" and energy_list(c) in payload
+        ]
+        failed = False
+        if payload:
+            record = Change(stage=section.stage, domain=section.domain, key="prefs", op="save")
+            before = {name: now.get(name) or [] for name in payload}
+            try:
+                await self._send(record, "save", "energy/save_prefs", payload, before=before)
+            except HAConnectionLost as exc:
+                for change in writes:
+                    change.status, change.reason = "unknown", str(exc)
+                    self._echo(change)
+                raise
+            except HAClientError as exc:
+                for change in writes:
+                    change.status, change.reason = "failed", str(exc)
+                failed = True
+            else:
+                for change in writes:
+                    change.status = "done"
+        for change in section.changes:
+            if change.writes:
+                self._echo(change)
+        if failed or not payload:
+            return failed, []
+        after = await self._read_energy()
+        diffs = []
+        for name in payload:
+            want = energy.canonical({name: again.wanted[name]}, name)
+            have = energy.canonical(after, name)
+            for index in range(max(len(want), len(have))):
+                wanted = want[index] if index < len(want) else None
+                held = have[index] if index < len(have) else None
+                if wanted != held:
+                    diffs.append(
+                        f"energy {name} item {index}: expected {fmt(wanted)}, HA has {fmt(held)}"
+                    )
+        return False, diffs
+
     async def run(self) -> int:
         """Run every stage; return 1 on a failed write or verify, 3 if items were skipped.
 
@@ -309,6 +407,17 @@ class Executor:
                 continue
             names = list(dict.fromkeys(s.domain for s in stage))
             self.echo(f"Stage {number}  {', '.join(s.title for s in stage)}")
+            if names == [energy.ENERGY.name]:
+                failed, diffs = await self._run_energy(stage[0])
+                if diffs:
+                    self.echo(f"Verify failed after stage {number}; stopping:")
+                    for diff in diffs:
+                        self.echo(f"  {diff}")
+                    return 1
+                if failed:
+                    self.echo(f"The write failed in stage {number}.")
+                    return 1
+                continue
             live = await self._read(names)
             failed = False
             renames = [c for c in writes if c.op == "rename"]

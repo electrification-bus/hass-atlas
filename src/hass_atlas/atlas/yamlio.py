@@ -11,8 +11,8 @@ from typing import Any
 
 import yaml
 
-from hass_atlas.atlas import DOMAINS, FORMAT, MANIFEST
-from hass_atlas.atlas.domains.base import Domain, FlowDict, FlowList, Row
+from hass_atlas.atlas import DOMAINS, FORMAT, MANIFEST, domain_named
+from hass_atlas.atlas.domains.base import DocError, FlowDict, FlowList, Row, in_field_order
 
 
 class AtlasError(Exception):
@@ -33,13 +33,6 @@ class AtlasFormatError(AtlasError):
 class Atlas:
     manifest: dict[str, Any]
     docs: dict[str, list[Row]] = field(default_factory=dict)
-
-
-def _domain(name: str) -> Domain:
-    for domain in DOMAINS:
-        if domain.name == name:
-            return domain
-    raise KeyError(name)
 
 
 class _Dumper(yaml.SafeDumper):
@@ -85,13 +78,7 @@ def dump(items: list[Row], field_order: tuple[str, ...]) -> str:
     """Render *items* as YAML, each item's fields in *field_order*."""
     if not items:
         return "[]\n"
-    ordered = []
-    for item in items:
-        unknown = set(item) - set(field_order)
-        if unknown:
-            raise ValueError(f"fields not in field order: {sorted(unknown)}")
-        ordered.append({name: item[name] for name in field_order if name in item})
-    return _safe_dump(ordered)
+    return _safe_dump(in_field_order(items, field_order))
 
 
 def render_atlas(docs: dict[str, list[Row]], manifest: dict[str, Any]) -> dict[str, str]:
@@ -99,7 +86,7 @@ def render_atlas(docs: dict[str, list[Row]], manifest: dict[str, Any]) -> dict[s
     files = {MANIFEST: _safe_dump(manifest)}
     for domain in DOMAINS:
         if domain.name in docs:
-            files[domain.filename] = dump(docs[domain.name], domain.field_order)
+            files[domain.filename] = _safe_dump(domain.to_doc(docs[domain.name]))
     return files
 
 
@@ -227,9 +214,31 @@ def write_atlas(out: Path, docs: dict[str, list[Row]], manifest: dict[str, Any])
         path.unlink(missing_ok=True)
 
 
+class _Loader(yaml.SafeLoader):
+    """``SafeLoader`` that refuses a mapping key given twice instead of keeping the last."""
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+        seen: set[Any] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                repeated = key in seen
+                seen.add(key)
+            except TypeError:
+                continue  # unhashable; SafeLoader reports it below
+            if repeated:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"found duplicate key {key!r}",
+                    key_node.start_mark,
+                )
+        return super().construct_mapping(node, deep=deep)
+
+
 def _load_yaml(path: Path) -> Any:
     try:
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.load(path.read_text(encoding="utf-8"), Loader=_Loader)
     except OSError as exc:
         raise AtlasFormatError(path, exc.strerror or str(exc)) from None
     except UnicodeDecodeError:
@@ -257,24 +266,10 @@ def load_atlas(path: Path) -> Atlas:
 
     atlas = Atlas(manifest=manifest)
     for name in names:
-        domain = _domain(name)
+        domain = domain_named(name)
         doc_path = path / domain.filename
-        items = _load_yaml(doc_path)
-        if not isinstance(items, list):
-            raise AtlasFormatError(doc_path, "expected a list")
-        key = domain.field_order[0]
-        seen: set[str] = set()
-        for index, item in enumerate(items):
-            if not isinstance(item, dict):
-                raise AtlasFormatError(doc_path, "expected a mapping", index)
-            if error := domain.key_error(item):
-                raise AtlasFormatError(doc_path, error, index)
-            ident = domain.item_key(item)
-            if ident in seen:
-                raise AtlasFormatError(doc_path, f"duplicate {key} {item[key]!r}", index)
-            seen.add(ident)
-            unknown_fields = sorted(set(item) - set(domain.field_order))
-            if unknown_fields:
-                raise AtlasFormatError(doc_path, f"unknown fields {unknown_fields}", index)
-        atlas.docs[name] = items
+        try:
+            atlas.docs[name] = domain.from_doc(_load_yaml(doc_path))
+        except DocError as exc:
+            raise AtlasFormatError(doc_path, str(exc), exc.index) from None
     return atlas

@@ -1,4 +1,4 @@
-"""The fake HA's registry writes behave as HA 2026.10.4's do."""
+"""The fake HA's registry and energy writes behave as HA 2026.10.4's do."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ from typing import Any
 import pytest
 
 from hass_atlas.ha_client import HAClientError
-from tests.atlas.fake_ha import FakeHA, empty_fixture
+from tests._ha_energy_schema import check_with_ha
+from tests.atlas.fake_ha import FakeHA, empty_fixture, energy_schema_problem
 
 
 async def send(fake: FakeHA, cmd: str, **kwargs: Any) -> Any:
@@ -450,3 +451,276 @@ async def test_category_list() -> None:
     assert await send(fake, "config/category_registry/list", scope="automation") == []
     exc = await error(fake, "config/category_registry/list")
     assert exc.code == "invalid_format"
+
+
+# --- energy --------------------------------------------------------------
+
+GRID = {"type": "grid", "stat_energy_from": "sensor.grid_in", "cost_adjustment_day": 0}
+GRID_NULLS = {
+    "type": "grid",
+    "stat_energy_from": "sensor.grid_in",
+    "stat_energy_to": None,
+    "stat_cost": None,
+    "entity_energy_price": None,
+    "number_energy_price": None,
+    "stat_compensation": None,
+    "entity_energy_price_export": None,
+    "number_energy_price_export": None,
+    "cost_adjustment_day": 0.0,
+}
+BATTERY = {"type": "battery", "stat_energy_from": "sensor.out", "stat_energy_to": "sensor.in"}
+DEVICE = {"stat_consumption": "sensor.dryer"}
+
+
+def no_prefs() -> FakeHA:
+    fake = FakeHA()
+    fake.energy = None
+    return fake
+
+
+async def test_energy_get_prefs_not_found_until_saved() -> None:
+    fake = no_prefs()
+    err = await error(fake, "energy/get_prefs")
+    assert err.code == "not_found"
+    result = await send(fake, "energy/save_prefs", device_consumption=[DEVICE])
+    assert result == {
+        "energy_sources": [],
+        "device_consumption": [DEVICE],
+        "device_consumption_water": [],
+    }
+    assert await send(fake, "energy/get_prefs") == result
+    assert fake.writes == [("energy/save_prefs", {"device_consumption": [DEVICE]})]
+
+
+async def test_energy_save_replaces_sent_lists_and_keeps_others() -> None:
+    fake = FakeHA()
+    assert fake.energy is not None
+    before = dict(fake.energy)
+    result = await send(fake, "energy/save_prefs", device_consumption_water=[DEVICE])
+    assert result == {**before, "device_consumption_water": [DEVICE]}
+    assert await send(fake, "energy/save_prefs") == result
+
+
+async def test_energy_save_normalizes() -> None:
+    fake = no_prefs()
+    sources = [
+        GRID,
+        {
+            **BATTERY,
+            "stat_rate": "sensor.old",
+            "power_config": {"stat_rate_from": "sensor.d", "stat_rate_to": "sensor.c"},
+            "capacity": "13",
+        },
+        {
+            **BATTERY,
+            "stat_energy_from": "sensor.o2",
+            "power_config": {"stat_rate_inverted": "sensor.p"},
+        },
+        {
+            "type": "grid",
+            "stat_energy_to": "sensor.export",
+            "power_config": {"stat_rate": "sensor.net"},
+            "cost_adjustment_day": "1",
+        },
+        {
+            "type": "gas",
+            "stat_energy_from": "sensor.gas",
+            "entity_energy_from": "sensor.gas",
+            "number_energy_price": 2,
+        },
+    ]
+    result = await send(fake, "energy/save_prefs", energy_sources=sources)
+    grid, battery, inverted, export, gas = result["energy_sources"]
+    assert grid == GRID_NULLS
+    assert battery["stat_rate"] == "sensor.energy_battery_d_c_net_power"
+    assert battery["capacity"] == 13.0
+    assert inverted["stat_rate"] == "sensor.p_inverted"
+    assert export["stat_rate"] == "sensor.net"
+    assert export["cost_adjustment_day"] == 1.0
+    assert export["stat_energy_from"] is None
+    assert gas == {"type": "gas", "stat_energy_from": "sensor.gas", "number_energy_price": 2.0}
+
+
+@pytest.mark.parametrize(
+    ("message", "fragment"),
+    [
+        ({"solar": []}, "extra keys not allowed"),
+        ({"device_consumption": None}, "expected list"),
+        ({"device_consumption": [{"stat_consumption": "sensor.a", "colour": "x"}]}, "extra keys"),
+        (
+            {"device_consumption": [{"stat_consumption": "sensor.a", "stat_rate": None}]},
+            "expected str",
+        ),
+        (
+            {"device_consumption": [{"stat_consumption": "sensor.a", "included_in_stat": None}]},
+            "expected str",
+        ),
+        ({"energy_sources": [{"type": "wind", "stat_energy_from": "sensor.a"}]}, "Expected grid"),
+        (
+            {"energy_sources": [{"type": "grid", "stat_energy_from": "sensor.a"}]},
+            "cost_adjustment_day",
+        ),
+        ({"energy_sources": [{"type": "grid", "cost_adjustment_day": 0}]}, "at least one"),
+        ({"energy_sources": [{**GRID, "flow_from": []}]}, "extra keys"),
+        (
+            {
+                "energy_sources": [
+                    {**GRID, "entity_energy_price": "sensor.p", "number_energy_price": 1}
+                ]
+            },
+            "either an entity or a fixed number",
+        ),
+        (
+            {"energy_sources": [{**GRID, "stat_energy_from": "ext:in", "number_energy_price": 1}]},
+            "external statistics",
+        ),
+        (
+            {
+                "energy_sources": [
+                    {**BATTERY, "power_config": {"stat_rate": "a", "stat_rate_inverted": "b"}}
+                ]
+            },
+            "power_source",
+        ),
+        ({"energy_sources": [{**BATTERY, "capacity": 0}]}, "above 0"),
+        (
+            {"energy_sources": [GRID, {**GRID, "stat_energy_to": "sensor.x"}]},
+            "used in multiple grid",
+        ),
+    ],
+)
+async def test_energy_save_rejects(message: dict[str, Any], fragment: str) -> None:
+    fake = FakeHA()
+    before = fake.energy
+    err = await error(fake, "energy/save_prefs", **message)
+    assert err.code == "invalid_format"
+    assert fragment in str(err)
+    assert fake.energy == before
+
+
+async def test_energy_save_allows_duplicate_solar_and_devices_and_ignores_ids() -> None:
+    fake = no_prefs()
+    solar = {
+        "type": "solar",
+        "stat_energy_from": "sensor.missing",
+        "config_entry_solar_forecast": ["nope"],
+    }
+    result = await send(
+        fake,
+        "energy/save_prefs",
+        energy_sources=[solar, solar],
+        device_consumption=[{**DEVICE, "included_in_stat": "sensor.nowhere"}, DEVICE],
+    )
+    assert len(result["energy_sources"]) == len(result["device_consumption"]) == 2
+
+
+async def test_energy_legacy_version_takes_legacy_grid_only() -> None:
+    fake = no_prefs()
+    fake.ha_version = "2026.2.3"
+    legacy = {
+        "type": "grid",
+        "flow_from": [
+            {
+                "stat_energy_from": "sensor.in",
+                "entity_energy_price": None,
+                "number_energy_price": None,
+            }
+        ],
+        "flow_to": [],
+        "cost_adjustment_day": 0.0,
+    }
+    assert (await send(fake, "energy/save_prefs", energy_sources=[legacy]))["energy_sources"] == [
+        legacy
+    ]
+    err = await error(fake, "energy/save_prefs", energy_sources=[GRID])
+    assert "legacy grid source" in str(err)
+
+
+@pytest.mark.parametrize(
+    ("version", "source", "field"),
+    [
+        ("2026.5.2", {"type": "solar", "stat_energy_from": "sensor.s", "name": "Roof"}, "name"),
+        ("2026.5.2", {**GRID, "name": "Mains"}, "name"),
+        ("2026.5.2", {**BATTERY, "stat_soc": "sensor.soc"}, "stat_soc"),
+        ("2026.7.1", {**BATTERY, "capacity": 5}, "capacity"),
+        (
+            "2026.2.3",
+            {"type": "water", "stat_energy_from": "sensor.w", "stat_rate": "sensor.r"},
+            "stat_rate",
+        ),
+        ("2026.2.3", {"type": "gas", "stat_energy_from": "sensor.g", "name": "Gas"}, "name"),
+    ],
+)
+async def test_energy_source_fields_need_the_release_that_added_them(
+    version: str, source: dict[str, Any], field: str
+) -> None:
+    fake = no_prefs()
+    fake.ha_version = version
+    err = await error(fake, "energy/save_prefs", energy_sources=[source])
+    assert f"extra keys not allowed @ data['energy_sources'][0]['{field}']" in str(err)
+    fake.ha_version = "2026.10.4"
+    assert (
+        len((await send(fake, "energy/save_prefs", energy_sources=[source]))["energy_sources"])
+        == 1
+    )
+
+
+async def test_energy_legacy_grid_takes_no_unified_keys() -> None:
+    fake = no_prefs()
+    fake.ha_version = "2026.2.3"
+    legacy = {"type": "grid", "flow_from": [], "flow_to": [], "cost_adjustment_day": 0.0}
+    err = await error(fake, "energy/save_prefs", energy_sources=[{**legacy, "name": "Mains"}])
+    assert "extra keys not allowed @ data['energy_sources'][0]['name']" in str(err)
+
+
+SCHEMA_CASES: list[dict[str, Any]] = [
+    {"energy_sources": [GRID], "device_consumption": [DEVICE]},
+    {"energy_sources": [{**BATTERY, "capacity": "2.5", "stat_soc": "sensor.soc"}]},
+    {"energy_sources": [{"type": "water", "stat_energy_from": "sensor.w", "stat_cost": None}]},
+    {
+        "energy_sources": [
+            {"type": "gas", "stat_energy_from": "sensor.g", "entity_energy_from": None}
+        ]
+    },
+    {
+        "energy_sources": [
+            {"type": "solar", "stat_energy_from": "sensor.s", "config_entry_solar_forecast": None}
+        ]
+    },
+    {
+        "energy_sources": [
+            {
+                "type": "grid",
+                "power_config": {"stat_rate_from": "a.b", "stat_rate_to": "c.d"},
+                "cost_adjustment_day": 0,
+            }
+        ]
+    },
+    {"energy_sources": [{**GRID, "stat_rate": None}]},
+    {"energy_sources": [{"type": "wind", "stat_energy_from": "sensor.a"}]},
+    {"energy_sources": [{**BATTERY, "capacity": 0}]},
+    {
+        "energy_sources": [
+            {**GRID, "stat_energy_to": "ext:out", "entity_energy_price_export": "sensor.p"}
+        ]
+    },
+    {
+        "energy_sources": [
+            GRID,
+            {**GRID, "stat_energy_from": "sensor.b", "stat_rate": "sensor.r"},
+            {**GRID, "stat_energy_from": "sensor.c", "stat_rate": "sensor.r"},
+        ]
+    },
+    {"device_consumption_water": [{"stat_consumption": "sensor.w", "name": None}]},
+]
+
+
+@pytest.mark.parametrize("message", SCHEMA_CASES)
+def test_energy_schema_matches_home_assistant(message: dict[str, Any]) -> None:
+    verdict = check_with_ha(message)
+    if verdict is None:
+        pytest.skip("no Home Assistant install to import energy/data.py from")
+    problem, lists = energy_schema_problem(message)
+    assert (problem is None) == ("error" not in verdict), (problem, verdict)
+    if problem is None:
+        assert lists == verdict["result"]

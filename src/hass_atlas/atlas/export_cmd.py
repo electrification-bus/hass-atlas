@@ -133,7 +133,7 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
         return
 
     write_atlas(out, docs, manifest)
-    counts = ", ".join(f"{name} ({len(items)})" for name, items in docs.items())
+    counts = ", ".join(f"{d.name} ({d.count(docs[d.name])})" for d in selected if d.name in docs)
     print_ok(f"Exported {counts} to {out}/")
 
 
@@ -157,7 +157,7 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
 )
 @pass_ctx
 def export(ctx: Context, out: Path, only: str | None) -> None:
-    """Export floors, labels, areas, devices and entities to YAML files (reads only).
+    """Export floors, labels, areas, devices, entities and energy prefs to YAML (reads only).
 
     With --dry-run, prints a unified diff against the files in --out and
     writes nothing.

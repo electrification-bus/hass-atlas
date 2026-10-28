@@ -77,7 +77,7 @@ hass-atlas energy-topology
 # Preview what energy would configure (dry-run, no changes made)
 hass-atlas --dry-run energy --topology
 
-# Apply after reviewing (creates a backup first!)
+# Apply after reviewing; this writes the Energy Dashboard, so back up Home Assistant first (see above)
 hass-atlas energy --topology
 ```
 
@@ -123,8 +123,8 @@ mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, 
 | `cascade` | Yes | No | Panel-cascade tree from publisher topology |
 | `energy-topology` | Yes | No | Energy system analysis |
 | `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
-| `export` | Yes | No | Write floors, labels, areas, devices and entities to YAML files |
-| `apply` | Yes | Yes | Make floors, labels, areas, devices and entities match those YAML files |
+| `export` | Yes | No | Write floors, labels, areas, devices, entities and Energy Dashboard prefs to YAML files |
+| `apply` | Yes | Yes | Make floors, labels, areas, devices, entities and Energy Dashboard prefs match those YAML files |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
@@ -227,11 +227,11 @@ Example mapping file:
 ### `export` - Write Configuration to YAML Files
 
 ```bash
-hass-atlas export [--out DIR] [--only floors,labels,areas,devices,entities]
+hass-atlas export [--out DIR] [--only floors,labels,areas,devices,entities,energy]
 hass-atlas --dry-run export [--out DIR]
 ```
 
-Reads the floor, label, area, device and entity registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions, the exported domains and `entities: all`. It sends only read commands (`list`, and `config/entity_registry/get_entries` for entity aliases and device classes), never a write.
+Reads the floor, label, area, device and entity registries and the Energy Dashboard prefs and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions, the exported domains and `entities: all`. It sends only read commands (`list`, `config/entity_registry/get_entries` for entity aliases and device classes, and `energy/get_prefs`), never a write.
 
 ```
 atlas/
@@ -241,6 +241,7 @@ atlas/
   areas.yaml     area_id, name, floor_id, icon, labels, aliases, temperature_entity_id, humidity_entity_id
   devices.yaml   match, name_by_user, area_id, labels, disabled
   entities.yaml  match, entity_id, name, icon, area_id, device_class, labels, categories, aliases, hidden, disabled, options
+  energy.yaml    energy_sources, device_consumption, device_consumption_water
 ```
 
 `devices.yaml` holds only the devices with a user value: a name given by the user, an area, labels, or disabled by the user. Device ids are random per installation, so each device is named by a `match` block instead: its identifiers, or its connections when it has no identifiers, plus `manufacturer` and `model` when another device shares one of those pairs (`null` when the device has none). A device whose `match` block fits another live device too, whether or not that one is exported, cannot be told apart, so export leaves it out and prints a warning.
@@ -295,10 +296,42 @@ atlas/
   - shop humidity
 ```
 
+`energy.yaml` holds the three lists of the Energy Dashboard prefs, in the order Home Assistant keeps them, which is the dashboard's order. Grid sources are written in the per-connection form Home Assistant has stored since 2026.3, also when the live Home Assistant is older and stores one legacy grid source; apply converts them back. As in the other files, a field holding `null` is not written. A battery or grid `stat_rate` is not written when the source has a `power_config`, since Home Assistant derives it from that on every save. A solar source's `config_entry_solar_forecast` is not written, since it holds config entry ids, which change on a rebuild; export prints a warning when it drops one. Export also leaves out, with a warning, an entry with the same key as an earlier one in its list, an empty string in a field other than `name`, and an entry that would then not load. When Home Assistant has never saved the dashboard, the three lists are empty.
+
+```yaml
+energy_sources:
+- type: grid
+  stat_energy_from: sensor.house_energy_in
+  stat_energy_to: sensor.grid_export_energy
+  stat_rate: sensor.grid_power
+  cost_adjustment_day: 0.0
+  entity_energy_price: sensor.grid_price
+  number_energy_price_export: 0.05
+- type: battery
+  stat_energy_from: sensor.battery_discharge
+  stat_energy_to: sensor.battery_charge
+  power_config: {stat_rate_from: sensor.battery_discharge_power, stat_rate_to: sensor.battery_charge_power}
+  stat_soc: sensor.battery_soc
+  capacity: 13.5
+- type: gas
+  stat_energy_from: acme_gas:meter_total
+  name: Gas meter
+  stat_cost: acme_gas:meter_cost
+device_consumption:
+- stat_consumption: sensor.main_panel_energy
+  name: Main panel
+- stat_consumption: sensor.subpanel_energy
+  stat_rate: sensor.subpanel_power
+  included_in_stat: sensor.main_panel_energy
+device_consumption_water:
+- stat_consumption: sensor.irrigation_water
+  name: Irrigation
+```
+
 The files are meant to be committed and diffed:
 
 - Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, devices and entities by their `match` block, and `labels`, identifier and connection lists and floor and area `aliases` are sorted. Entity `aliases` keep their order, which Home Assistant keeps.
-- Only fields that hold a value are written; a domain with no items is written as `[]`.
+- Only fields that hold a value are written; a domain with no items is written as `[]`, and `energy.yaml` as three empty lists.
 - Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild. Device and entity registry ids, config entry ids and the `via_device_id` and `parent_device_id` links are not written either, since they change on a rebuild. Neither are entity `categories`: category ids are random per installation, and apply does not create categories. A hand-written file can still set them by id.
 - Export writes each file to a hidden `.hass-atlas-tmp-*` file in `DIR` and renames them over the old files only once all are written, so an export that fails with an error leaves the previous files in place. If the process is killed while renaming, some files can be new and some old; run export again. Staged files left by a killed run are removed by the next export; to keep them out of a commit made in between, add `.hass-atlas-tmp-*` to the repository's `.gitignore`.
 - `DIR` can be `.`, a relative path or a symlink to a directory; a symlink is written through and kept. Other files already in `DIR` are kept. A `DIR` holding files other than hidden ones (such as `.DS_Store`) but no `atlas.yaml` is refused.
@@ -308,12 +341,12 @@ The files are meant to be committed and diffed:
 ### `apply` - Make Home Assistant Match the YAML Files
 
 ```bash
-hass-atlas --dry-run apply DIR [--only floors,labels,areas,devices,entities] [-v]
-hass-atlas apply DIR [--only ...] [--yes] [--snapshot-dir SNAPSHOT] [-v]
+hass-atlas --dry-run apply DIR [--only floors,labels,areas,devices,entities,energy] [-v]
+hass-atlas apply DIR [--only ...] [--yes] [--energy merge|replace] [--snapshot-dir SNAPSHOT] [-v]
 hass-atlas apply DIR --check
 ```
 
-Reads an export directory and creates the floors, labels and areas missing from Home Assistant, renames entities to the entity_id in the files, and updates the fields that differ on them, on devices and on entities. It never creates or deletes a device or an entity, and never deletes anything else. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
+Reads an export directory and creates the floors, labels and areas missing from Home Assistant, renames entities to the entity_id in the files, updates the fields that differ on them, on devices and on entities, and adds and updates Energy Dashboard entries. It never creates or deletes a device or an entity, and deletes nothing else except, with `--energy replace`, the energy entries the file leaves out. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
 
 Run it with `--dry-run` first. The plan has one line per change, grouped by stage:
 
@@ -332,9 +365,9 @@ Stage 5  area sensors  (1 in file)
 Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
 ```
 
-`+` is a create, `~` an update, `>` an entity rename, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` an unmatched device or entity (counted by the domain of a device's first identifier or connection, or by an entity's platform, or listed with `-v`) or a write whose result is unknown.
+`+` is a create, `~` an update, `>` an entity rename, `-` an energy entry that `--energy replace` removes, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` an unmatched device or entity (counted by the domain of a device's first identifier or connection, or by an entity's platform, or listed with `-v`) or a write whose result is unknown.
 
-- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then devices (stage 3), then entities (stage 4), then the areas' temperature and humidity sensors (stage 5), which Home Assistant checks against the entities' states. Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
+- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then devices (stage 3), then entities (stage 4), then the areas' temperature and humidity sensors (stage 5), which Home Assistant checks against the entities' states, then the Energy Dashboard (stage 6), once every entity_id is final. Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
 - **Matching.** A file item matches the Home Assistant item with the same id, or else the one with the same name, ignoring case and spaces. An item is refused when its name matches an item that another file item already matches, or more than one item.
 - **Ids.** Home Assistant makes a new item's id from its name. When the name would give a different id from the file's (an area `garage_2` named `Workshop`), apply creates the item under a temporary name that gives the file's id, then renames it. If Home Assistant still assigns another id, apply uses that id in every later reference and says so on the line.
 - **Devices.** A file device matches the device in Home Assistant whose identifiers are the same set, or whose connections are, when the file gives connections; a MAC address may be written in any form Home Assistant accepts. When several devices have that set, `manufacturer` and `model` choose among them, and `null` chooses a device without one. A device still matched by several, or matched by two file items, is refused. A device that matches none is unmatched, which is normal while integrations are still being added again; running apply later picks it up. `disabled: true` disables the device as a user would, and `false` or `null` enables it if a user disabled it. A device that Home Assistant disabled itself (`disabled_by` is `config_entry`, `integration` or `device`) is refused when the file sets `disabled`: apply sets and clears only a user disable. Part of a plan:
@@ -362,8 +395,17 @@ Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
     = entity  3 unchanged
   ```
 - **References.** An area's `floor_id` and `labels`, and a device's or entity's `area_id` and `labels`, must name a floor, area or label in the files or in Home Assistant, and a category that an entity's `categories` set must exist in Home Assistant; otherwise the item is refused (an entity's rename still runs), or for a category only its `categories`. When Home Assistant gave an area or label another id than the file's, a device's or entity's references use the new id, and an area's sensors use the id an entity has once the renames have run, also with `--only` leaving out entities. A sensor that names a file entity matching no entity in Home Assistant is refused. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
+- **Energy.** A file entry matches the live entry with the same key: a device by `stat_consumption`, a solar, gas or water source by its `type` and `stat_energy_from`, a battery by both statistics, and a grid source by its import or export statistic, so a file can add the export side to a live import-only connection. With `--energy merge`, the default, a grid source whose other side holds a different statistic in Home Assistant is refused, since Home Assistant allows each statistic in one grid source only, and so is an entry whose key two live entries share; a matched entry gets the fields the file sets, new entries are added at the end of their list in file order, and live entries the file does not match stay where they are; the plan counts them (`= keep 1 unmanaged device_consumption entry`). With `--energy replace`, each list in the file is sent as the file has it, in its order, except that a matched entry keeps the live fields a file cannot hold: a solar source's `config_entry_solar_forecast` and fields unknown to hass-atlas. Two file entries whose entity ids resolve to the same statistics are both refused. An entry that sets a source field the live Home Assistant release does not take yet is refused: `power_config` on a battery before 2026.2, `stat_rate` on gas and water before 2026.3, `name` on a source and `stat_soc` on a battery before 2026.6, and `capacity` on a battery before 2026.8. Before 2026.3, Home Assistant keeps one grid source, which pairs imports, exports and power sensors by position and has one `cost_adjustment_day`; a grid source it cannot hold as planned is refused. Entity ids in `energy.yaml` are the files' ids: they follow an entity's rename in stage 4, and when the rename is refused or does not run, the entity's live id is written. A new entry that names an entity Home Assistant has neither in its entity registry nor in its states, or a file entity that matches no live one, is skipped with a `!` line until a later run finds the entity; statistics such as `acme_gas:meter_total`, with a colon, are not checked, and an entry already in Home Assistant is never skipped for this. Before writing, apply reads the prefs again and skips as a conflict every change to a list that has changed in Home Assistant since the plan. Apply writes only the lists that change, in one `energy/save_prefs`, with grid sources in the format the live Home Assistant takes (one legacy grid source before 2026.3), and compares what Home Assistant then holds, in the per-connection form, with the planned lists through Home Assistant's known normalizations: a missing field equals `null`, numbers are floats, and a derived `stat_rate` is not compared. Part of a plan:
+
+  ```
+  Stage 6  energy  (11 in file, 11 live)
+    ~ device_consumption  sensor.pump_power  included_in_stat: sensor.main_panel_energy -> sensor.subpanel_energy
+    + device_consumption_water  sensor.irrigation_water  name="Irrigation"
+    = keep 1 unmanaged device_consumption entry
+    = energy  9 unchanged
+  ```
 - **Confirmation.** Apply prints the plan and asks once before writing. `--yes` skips the question; without a terminal, apply writes only with `--yes`.
-- **Snapshot.** Before its first write, apply creates `~/.local/state/hass-atlas/snapshots/<host>/<UTC time>/` (mode 0700; `--snapshot-dir` sets another, empty, directory) holding `before/`, an export of the registries the plan writes, as they were; `plan.json`, the plan; and `journal.jsonl`, one line per write with its payload, old values and result, synced to disk before the next write. `hass-atlas apply SNAPSHOT/before` puts back the fields that held a value; it does not clear fields that were empty or delete items the apply created. If the snapshot cannot be written, nothing is written to Home Assistant.
+- **Snapshot.** Before its first write, apply creates `~/.local/state/hass-atlas/snapshots/<host>/<UTC time>/` (mode 0700; `--snapshot-dir` sets another, empty, directory) holding `before/`, an export of the domains the plan writes, as they were; `plan.json`, the plan; and `journal.jsonl`, one line per write with its payload, old values and result, synced to disk before the next write. `hass-atlas apply SNAPSHOT/before` puts back the fields that held a value; it does not clear fields that were empty or delete items the apply created. If the snapshot cannot be written, nothing is written to Home Assistant.
 - **`--only`** applies the listed domains; the others are read to check references but never written.
 - **`--check`** only plans, and exits 0 when nothing would change, 2 when changes are pending and 3 when items are refused or unmatched. Apply warns when the files came from a different Home Assistant major or minor version.
 
@@ -567,8 +609,6 @@ Tests run against sanitized tree-v1 wire snapshots loaded via `tests/_fixture_lo
 - Entity ID slugification and normalization
 - WebSocket client auth and command handling
 - Area assignment planning
-
-Several legacy scenario tests are currently marked `xfail` pending rewrite against the tree-v1 fixtures — they assert on flat-model entity layouts (e.g., Kitchen / Garage circuits, `sensor.span_site_imported_energy`) that don't exist in the new shape. See `CHANGELOG.md` §Known issues.
 
 ## SPAN Energy Direction Convention
 

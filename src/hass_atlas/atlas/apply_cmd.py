@@ -7,10 +7,12 @@ from pathlib import Path
 
 import click
 
+from hass_atlas.atlas import domain_named
 from hass_atlas.atlas.domains.base import Row
+from hass_atlas.atlas.energy_stage import MODES
 from hass_atlas.atlas.executor import Executor
 from hass_atlas.atlas.export_cmd import parse_only
-from hass_atlas.atlas.plan import Plan, registry, render, summary
+from hass_atlas.atlas.plan import Plan, render, summary
 from hass_atlas.atlas.planner import build_plan, category_scopes, domains_to_read, needs_states
 from hass_atlas.atlas.snapshot import Snapshot, SnapshotError, default_dir
 from hass_atlas.atlas.yamlio import Atlas, AtlasError, load_atlas
@@ -77,11 +79,12 @@ async def _apply(
     check: bool,
     snapshot_dir: Path | None,
     verbose: bool,
+    energy: str = "merge",
 ) -> int:
     async with ctx.client() as client:
         live: dict[str, list[Row]] = {}
         for name in domains_to_read(atlas.docs, applied):
-            live[name] = await registry(name).fetch(client)
+            live[name] = await domain_named(name).fetch(client)
         states = None
         if needs_states(atlas.docs, applied):
             rows = await client.send_command("get_states")
@@ -99,6 +102,7 @@ async def _apply(
             url=ctx.url,
             ha_version=client.ha_version,
             categories=categories,
+            energy_mode=energy,
         )
         _print_plan(plan, verbose)
 
@@ -169,6 +173,16 @@ async def _apply(
     ),
 )
 @click.option(
+    "--energy",
+    type=click.Choice(MODES),
+    default="merge",
+    show_default=True,
+    help=(
+        "merge: add the file's Energy Dashboard entries, update matched ones and keep "
+        "the others. replace: make each energy list the file holds exactly the file's."
+    ),
+)
+@click.option(
     "-v", "--verbose", is_flag=True, help="List unchanged and unmatched items individually."
 )
 @pass_ctx
@@ -179,17 +193,20 @@ def apply(
     yes: bool,
     check: bool,
     snapshot_dir: Path | None,
+    energy: str,
     verbose: bool,
 ) -> None:
-    """Make Home Assistant's floors, labels, areas, devices and entities match an atlas directory.
+    """Make Home Assistant match an atlas directory.
 
     Creates missing floors, labels and areas, renames entities to their
-    entity_id in the files, and updates differing fields; never creates or
-    deletes a device or entity, and never deletes anything else. A field
-    absent from a file is left alone, and null clears it. Before the
-    first write, saves the affected domains, the plan and a journal of every
-    write to a snapshot directory. With --dry-run or --check, prints the plan
-    and writes nothing.
+    entity_id in the files, updates differing fields, and adds and updates
+    Energy Dashboard entries; never creates or deletes a device or entity,
+    and deletes nothing else except, with --energy replace, the energy
+    entries the file leaves out of a list it holds. A field absent from a
+    file is left alone, and null clears it. Before the first write, saves
+    the affected domains, the plan and a journal of every write to a
+    snapshot directory. With --dry-run or --check, prints the plan and
+    writes nothing.
 
     Exit codes: 0 done; 1 error, declined, failed write or failed verify;
     2 changes pending (--check); 3 done, but items were refused, skipped or
@@ -210,6 +227,7 @@ def apply(
                 check=check,
                 snapshot_dir=snapshot_dir,
                 verbose=verbose,
+                energy=energy,
             )
         )
     except AtlasError as exc:

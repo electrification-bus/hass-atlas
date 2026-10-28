@@ -28,6 +28,7 @@ FILES = (
     "areas.yaml",
     "devices.yaml",
     "entities.yaml",
+    "energy.yaml",
 )
 
 
@@ -68,7 +69,9 @@ def write(path: Path, docs: dict[str, list[dict[str, Any]]]) -> Path:
         "format": 1,
         "hass_atlas": "0.0.0",
         "ha_version": "2026.10.4",
-        "domains": [d for d in ("floors", "labels", "areas", "devices", "entities") if d in docs],
+        "domains": [
+            d for d in ("floors", "labels", "areas", "devices", "entities", "energy") if d in docs
+        ],
     }
     write_atlas(path, docs, manifest)
     return path
@@ -193,7 +196,7 @@ def test_second_apply_sends_only_reads(monkeypatch: pytest.MonkeyPatch, tmp_path
     result = apply(monkeypatch, b, a, tmp_path / "snap2")
     assert result.exit_code == 0, result.output
     assert b.writes == []
-    assert "Summary: 0 create, 0 update, 34 unchanged. Nothing to write." in result.output
+    assert "Summary: 0 create, 0 update, 45 unchanged. Nothing to write." in result.output
     assert not (tmp_path / "snap2").exists()
 
 
@@ -223,9 +226,10 @@ def test_dry_run_writes_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         "config/entity_registry/list",
         "config/entity_registry/get_entries",
         "get_states",
+        "energy/get_prefs",
     }
     assert (
-        "Summary: 11 create, 20 update, 3 rename, 3 unchanged. Dry run: nothing written."
+        "Summary: 22 create, 20 update, 3 rename, 3 unchanged. Dry run: nothing written."
         in result.output
     )
     assert not snap.exists()
@@ -273,7 +277,7 @@ def test_tty_confirmation(
     snap = tmp_path / "snap"
     result = invoke(monkeypatch, b, "apply", str(a), "--snapshot-dir", str(snap), input=answer)
     assert result.exit_code == code, result.output
-    assert result.output.count(f"Apply 34 changes to {URL}? [y/N]") == 1
+    assert result.output.count(f"Apply 45 changes to {URL}? [y/N]") == 1
     assert bool(b.writes) == (code == 0)
     assert snap.exists() == (code == 0)
 
@@ -587,7 +591,8 @@ def test_area_sensors_written_after_areas(monkeypatch: pytest.MonkeyPatch, tmp_p
     a = export(monkeypatch, FakeHA(), tmp_path / "a")
     b = FakeHA(empty_fixture())
     assert apply(monkeypatch, b, a, tmp_path / "snap").exit_code == 0
-    assert b.writes[-1] == (
+    assert b.writes[-1][0] == "energy/save_prefs"
+    assert b.writes[-2] == (
         "config/area_registry/update",
         {
             "area_id": "garage_2",
@@ -893,11 +898,15 @@ def test_progress_lines(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None
     a = export(monkeypatch, FakeHA(), tmp_path / "a")
     b = FakeHA(empty_fixture())
     result = apply(monkeypatch, b, a, tmp_path / "snap")
-    run = result.output.split("Summary: 11 create, 20 update, 3 rename, 3 unchanged.\n", 1)[1]
+    run = result.output.split("Summary: 22 create, 20 update, 3 rename, 3 unchanged.\n", 1)[1]
     assert run.startswith("Stage 1  labels, floors\n  + label   critical_load")
     assert "Stage 3  devices\n  ~ device  Smart plug (mac 02:00:5e:10:00:01)" in run
     assert "Stage 5  area sensors\n  ~ area    garage_2" in run
-    assert "Summary: 11 created, 20 updated, 3 renamed, 3 unchanged." in run
+    assert (
+        "Stage 6  energy\n  + grid source  sensor.house_energy_in / sensor.grid_export_energy"
+        in run
+    )
+    assert "Summary: 22 created, 20 updated, 3 renamed, 3 unchanged." in run
 
 
 # --- races, lost connections and restore --------------------------------

@@ -35,6 +35,21 @@ whole; the reply is ``{entity_entry: ...}``, with ``require_restart`` (no
 config entry) or ``reload_delay`` when the message enables the entity. A
 rename moves the entity's state. ``config/category_registry/list`` lists one
 scope's categories.
+
+Energy commands follow ``components/energy/{websocket_api,data}.py``:
+``energy/get_prefs`` fails with ``not_found`` until prefs are first saved,
+then returns them as stored. ``energy/save_prefs`` validates each list it is
+sent as HA's schema does (see :func:`energy_schema_problem`), replaces those
+lists and keeps the others (a first save starts from three empty lists),
+fills a grid source's null keys, coerces numbers to float, drops a gas
+``entity_energy_from``, sets a battery or grid ``stat_rate`` from its
+``power_config`` and returns the whole prefs. Ids are not checked. Before
+2026.3 (:data:`UNIFIED_GRID_SINCE`) it takes the legacy grid form only, and
+the source fields in :data:`SOURCE_FIELD_SINCE` only from the release that
+added each. With ``HASS_ATLAS_HA_PYTHON`` set, every save the 2026.10 schema
+applies to is also run through HA's own schema, and a different verdict or
+result is recorded in
+:data:`SCHEMA_MISMATCHES`, which ``tests/atlas/conftest.py`` fails a test on.
 """
 
 from __future__ import annotations
@@ -49,7 +64,9 @@ from typing import Any, Self
 
 from slugify import slugify as _slugify
 
+from hass_atlas.energy_prefs import UNIFIED_GRID_SINCE, parse_ha_version
 from hass_atlas.ha_client import HAClientError
+from tests._ha_energy_schema import check_with_ha, required_key_errors
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "atlas"
 
@@ -73,6 +90,12 @@ ENTITY_LIST = "config/entity_registry/list"
 ENTITY_GET = "config/entity_registry/get_entries"
 ENTITY_UPDATE = "config/entity_registry/update"
 CATEGORY_LIST = "config/category_registry/list"
+ENERGY_GET = "energy/get_prefs"
+ENERGY_SAVE = "energy/save_prefs"
+ENERGY_LISTS = ("energy_sources", "device_consumption", "device_consumption_water")
+
+SCHEMA_MISMATCHES: list[str] = []
+"""Saves on which the fake and HA's own schema disagreed."""
 
 # RegistryEntry.as_partial_dict, and what extended_dict adds to it.
 PARTIAL_FIELDS = (
@@ -320,6 +343,7 @@ class FakeHA:
         self.categories: dict[str, list[dict[str, Any]]] = data.get("categories", {})
         self.states: list[dict[str, Any]] = data.get("states", [])
         self.disabled_entries: set[str] = set(data.get("disabled_entries", []))
+        self.energy: dict[str, Any] | None = data.get("energy")
         self.sent: list[tuple[str, dict[str, Any]]] = []
         self.fail: dict[str, HAClientError] = {}
         self.before: dict[str, list[Hook]] = {}
@@ -334,7 +358,11 @@ class FakeHA:
 
     @property
     def writes(self) -> list[tuple[str, dict[str, Any]]]:
-        return [(cmd, msg) for cmd, msg in self.sent if cmd in _SCHEMAS or cmd == ENTITY_UPDATE]
+        return [
+            (cmd, msg)
+            for cmd, msg in self.sent
+            if cmd in _SCHEMAS or cmd in (ENTITY_UPDATE, ENERGY_SAVE)
+        ]
 
     async def send_command(self, msg_type: str, **kwargs: Any) -> Any:
         self.sent.append((msg_type, kwargs))
@@ -362,6 +390,12 @@ class FakeHA:
             if set(msg) != {"scope"}:
                 raise HAClientError(f"{msg_type} failed: scope is required", "invalid_format")
             return copy.deepcopy(self.categories.get(msg["scope"], []))
+        if msg_type == ENERGY_GET:
+            if self.energy is None:
+                raise HAClientError(f"{msg_type} failed: No prefs", code="not_found")
+            return copy.deepcopy(self.energy)
+        if msg_type == ENERGY_SAVE:
+            return self._save_energy(msg)
         if msg_type not in _SCHEMAS:
             raise AssertionError(f"unexpected command {msg_type}")
         if msg_type == DEVICE_UPDATE:
@@ -692,6 +726,363 @@ class FakeHA:
         if new_values:
             row.update(new_values, modified_at=self._tick())
 
+    @property
+    def legacy_energy(self) -> bool:
+        parsed = parse_ha_version(self.ha_version)
+        return parsed is not None and parsed < UNIFIED_GRID_SINCE
+
+    def _save_energy(self, msg: dict[str, Any]) -> dict[str, Any]:
+        version = parse_ha_version(self.ha_version)
+        problem, lists = energy_schema_problem(msg, legacy=self.legacy_energy, version=version)
+        if version is None or version >= _CURRENT_SCHEMA_SINCE:
+            _check_against_ha(msg, problem, lists)
+        if problem:
+            raise HAClientError(f"{ENERGY_SAVE} failed: {problem}", code="invalid_format")
+        if "energy_sources" in lists:
+            lists["energy_sources"] = [_derive_stat_rate(s) for s in lists["energy_sources"]]
+        current = self.energy or {name: [] for name in ENERGY_LISTS}
+        self.energy = {**current, **lists}
+        return copy.deepcopy(self.energy)
+
     def row(self, registry: str, live_id: str) -> dict[str, Any] | None:
         key = _KEYS[registry]
         return next((row for row in self.registries[registry] if row[key] == live_id), None)
+
+
+# --- energy/save_prefs ---------------------------------------------------
+
+
+class _Invalid(Exception):
+    pass
+
+
+_ENTITY_ID = re.compile(r"(?!.+__)" + _OBJECT_ID + r"\." + _OBJECT_ID)
+_POWER_KEYS = ("stat_rate", "stat_rate_inverted", "stat_rate_from", "stat_rate_to")
+
+
+_NO_DEFAULT = object()
+
+# The first release whose ``energy/data.py`` takes each source field, by
+# source type, from the core release tags.
+SOURCE_FIELD_SINCE: dict[str, dict[str, tuple[int, int]]] = {
+    "grid": {"name": (2026, 6)},
+    "solar": {"name": (2026, 6)},
+    "battery": {
+        "power_config": (2026, 2),
+        "stat_soc": (2026, 6),
+        "name": (2026, 6),
+        "capacity": (2026, 8),
+    },
+    "gas": {"stat_rate": (2026, 3), "name": (2026, 6)},
+    "water": {"stat_rate": (2026, 3), "name": (2026, 6)},
+}
+# Saves to this release or later get the schema of HA 2026.10.
+_CURRENT_SCHEMA_SINCE = max(v for fields in SOURCE_FIELD_SINCE.values() for v in fields.values())
+_LEGACY_GRID_KEYS = ("type", "flow_from", "flow_to", "power", "cost_adjustment_day")
+
+
+def _str(value: Any, where: str) -> str:
+    if not isinstance(value, str):
+        raise _Invalid(f"expected str @ {where}")
+    return value
+
+
+def _str_or_none(value: Any, where: str) -> str | None:
+    return None if value is None else _str(value, where)
+
+
+def _float(value: Any, where: str) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise _Invalid(f"expected float @ {where}") from None
+
+
+def _float_or_none(value: Any, where: str) -> float | None:
+    return None if value is None else _float(value, where)
+
+
+def _power_config(value: Any, where: str) -> dict[str, str]:
+    if not isinstance(value, dict):
+        raise _Invalid(f"expected a dictionary @ {where}")
+    for k in value:
+        if k not in _POWER_KEYS:
+            raise _Invalid(f"extra keys not allowed @ {where}['{k}']")
+    out = {k: _str(v, f"{where}['{k}']") for k, v in value.items()}
+    if "stat_rate" in out and "stat_rate_inverted" in out:
+        raise _Invalid(
+            f"two or more values in the same group of exclusion 'power_source' @ {where}"
+        )
+    if ("stat_rate_from" in out) != ("stat_rate_to" in out):
+        raise _Invalid(
+            f"some but not all values in the same group of inclusion 'two_sensors' @ {where}"
+        )
+    if not out:
+        raise _Invalid("power_config must have at least one option")
+    if sum(("stat_rate" in out, "stat_rate_inverted" in out, "stat_rate_from" in out)) > 1:
+        raise _Invalid("power_config must use only one configuration method")
+    return out
+
+
+def _fields(entry: dict[str, Any], where: str, spec: dict[str, Any]) -> dict[str, Any]:
+    """*entry* through *spec*, which maps a field to (checker, required, default).
+
+    A None checker drops the field, as HA's ``Remove`` does; ``_NO_DEFAULT``
+    leaves an absent optional field out.
+    """
+    for k in entry:
+        if k not in spec:
+            raise _Invalid(f"extra keys not allowed @ {where}['{k}']")
+    out = {}
+    for name, (check, needed, default) in spec.items():
+        if name in entry:
+            if check is not None:
+                out[name] = check(entry[name], f"{where}['{name}']")
+        elif needed:
+            raise _Invalid(f"required key not provided @ {where}['{name}']")
+        elif default is not _NO_DEFAULT:
+            out[name] = default
+    return out
+
+
+def _reject_external_price(
+    entry: dict[str, Any], stat: str, entity: str, number: str, cost: str
+) -> None:
+    value = entry.get(stat)
+    if value is not None and not _ENTITY_ID.fullmatch(value) and entry.get(cost) is None:
+        if entry.get(entity) is not None or entry.get(number) is not None:
+            raise _Invalid(
+                "Entity or number price is not supported for external statistics. "
+                f"Use {cost} instead"
+            )
+
+
+def _source(entry: Any, where: str, version: tuple[int, int] | None = None) -> dict[str, Any]:
+    if not isinstance(entry, dict) or entry.get("type") not in (
+        "grid",
+        "solar",
+        "battery",
+        "gas",
+        "water",
+    ):
+        raise _Invalid(
+            f"Unexpected value for type: Expected grid, solar, battery, gas, water @ {where}"
+        )
+    req, opt = (_str, True, _NO_DEFAULT), (_str, False, _NO_DEFAULT)
+    nullable = (_str_or_none, False, None)
+    number = (_float_or_none, False, None)
+    kind = entry["type"]
+    if kind == "grid":
+        spec = {
+            "type": req,
+            "stat_energy_from": nullable,
+            "stat_energy_to": nullable,
+            "stat_cost": nullable,
+            "entity_energy_price": nullable,
+            "number_energy_price": number,
+            "stat_compensation": nullable,
+            "entity_energy_price_export": nullable,
+            "number_energy_price_export": number,
+            "stat_rate": opt,
+            "power_config": (_power_config, False, _NO_DEFAULT),
+            "cost_adjustment_day": (_float, True, _NO_DEFAULT),
+            "name": opt,
+        }
+        out = _fields(entry, where, _since(spec, kind, version))
+        _reject_external_price(
+            out, "stat_energy_from", "entity_energy_price", "number_energy_price", "stat_cost"
+        )
+        _reject_external_price(
+            out,
+            "stat_energy_to",
+            "entity_energy_price_export",
+            "number_energy_price_export",
+            "stat_compensation",
+        )
+        for entity, num in (
+            ("entity_energy_price", "number_energy_price"),
+            ("entity_energy_price_export", "number_energy_price_export"),
+        ):
+            if out[entity] is not None and out[num] is not None:
+                raise _Invalid("Define either an entity or a fixed number for the price")
+        if not any(
+            out.get(k) is not None
+            for k in ("stat_energy_from", "stat_energy_to", "stat_rate", "power_config")
+        ):
+            raise _Invalid(
+                "Grid must have at least one of: import meter, export meter, or power sensor"
+            )
+        return out
+    if kind == "solar":
+
+        def forecast(value: Any, at: str) -> list[str] | None:
+            if value is None:
+                return None
+            if not isinstance(value, list):
+                raise _Invalid(f"expected a list @ {at}")
+            return [_str(v, at) for v in value]
+
+        spec = {
+            "type": req,
+            "stat_energy_from": req,
+            "stat_rate": opt,
+            "config_entry_solar_forecast": (forecast, False, _NO_DEFAULT),
+            "name": opt,
+        }
+        return _fields(entry, where, _since(spec, kind, version))
+    if kind == "battery":
+
+        def capacity(value: Any, at: str) -> float:
+            number = _float(value, at)
+            if number <= 0:
+                raise _Invalid(f"value must be above 0 @ {at}")
+            return number
+
+        spec = {
+            "type": req,
+            "stat_energy_from": req,
+            "stat_energy_to": req,
+            "stat_rate": opt,
+            "power_config": (_power_config, False, _NO_DEFAULT),
+            "stat_soc": opt,
+            "capacity": (capacity, False, _NO_DEFAULT),
+            "name": opt,
+        }
+        return _fields(entry, where, _since(spec, kind, version))
+    spec = {
+        "type": req,
+        "stat_energy_from": req,
+        "stat_rate": opt,
+        "stat_cost": (_str_or_none, False, _NO_DEFAULT),
+        "entity_energy_price": (_str_or_none, False, _NO_DEFAULT),
+        "number_energy_price": (_float_or_none, False, _NO_DEFAULT),
+        "name": opt,
+    }
+    if kind == "gas":
+        spec["entity_energy_from"] = (None, False, _NO_DEFAULT)  # removed
+    out = _fields(entry, where, _since(spec, kind, version))
+    _reject_external_price(
+        out, "stat_energy_from", "entity_energy_price", "number_energy_price", "stat_cost"
+    )
+    return out
+
+
+def _since(spec: dict[str, Any], kind: str, version: tuple[int, int] | None) -> dict[str, Any]:
+    """*spec* without the fields HA *version* does not take yet; None is the newest."""
+    if version is None:
+        return spec
+    since = SOURCE_FIELD_SINCE.get(kind, {})
+    return {k: v for k, v in spec.items() if k not in since or version >= since[k]}
+
+
+def _legacy_grid(entry: dict[str, Any], where: str) -> dict[str, Any]:
+    for k in entry:
+        if k not in _LEGACY_GRID_KEYS:
+            raise _Invalid(f"extra keys not allowed @ {where}['{k}']")
+    return copy.deepcopy(entry)
+
+
+def _device(entry: Any, where: str) -> dict[str, Any]:
+    if not isinstance(entry, dict):
+        raise _Invalid(f"expected a dictionary @ {where}")
+    opt = (_str, False, _NO_DEFAULT)
+    spec = {
+        "stat_consumption": (_str, True, _NO_DEFAULT),
+        "stat_rate": opt,
+        "name": opt,
+        "included_in_stat": opt,
+    }
+    return _fields(entry, where, spec)
+
+
+def _unique_grid_stats(sources: list[dict[str, Any]]) -> None:
+    for name, what in (
+        ("stat_energy_from", "Import meter"),
+        ("stat_energy_to", "Export meter"),
+        ("stat_rate", "Power stat"),
+    ):
+        seen: set[str] = set()
+        for source in sources:
+            value = source.get(name) if source["type"] == "grid" else None
+            if value is None:
+                continue
+            if value in seen:
+                raise _Invalid(f"{what} {value} is used in multiple grid connections")
+            seen.add(value)
+
+
+def energy_schema_problem(
+    msg: dict[str, Any], legacy: bool = False, version: tuple[int, int] | None = None
+) -> tuple[str | None, dict[str, Any]]:
+    """HA's error for an ``energy/save_prefs`` message, or None, and the validated lists.
+
+    *version* is HA's ``(year, month)``, None for the newest. A *legacy* grid
+    source is checked for its keys only (:func:`required_key_errors`).
+    """
+    for key in msg:
+        if key not in ENERGY_LISTS:
+            return f"extra keys not allowed @ data['{key}']", {}
+    for key, value in msg.items():
+        if not isinstance(value, list):
+            return f"expected list for dictionary value @ data['{key}']", {}
+    if legacy and (errors := required_key_errors(msg, legacy=True)):
+        return errors[0], {}
+    out: dict[str, Any] = {}
+    try:
+        for key, value in msg.items():
+            if key == "energy_sources":
+                sources = [
+                    _legacy_grid(e, f"data['{key}'][{i}]")
+                    if legacy and isinstance(e, dict) and e.get("type") == "grid"
+                    else _source(e, f"data['{key}'][{i}]", version)
+                    for i, e in enumerate(value)
+                ]
+                if not legacy:
+                    _unique_grid_stats(sources)
+                out[key] = sources
+            else:
+                out[key] = [_device(e, f"data['{key}'][{i}]") for i, e in enumerate(value)]
+    except _Invalid as err:
+        return str(err), {}
+    return None, out
+
+
+def _derive_stat_rate(source: dict[str, Any]) -> dict[str, Any]:
+    """``EnergyManager._process_energy_sources``: stat_rate from power_config."""
+    config = source.get("power_config")
+    if source["type"] not in ("battery", "grid") or config is None:
+        return source
+    if "stat_rate" in config:
+        rate = config["stat_rate"]
+    elif "stat_rate_inverted" in config:
+        inverted = config["stat_rate_inverted"]
+        rate = (
+            f"{inverted}_inverted"
+            if inverted.startswith("sensor.")
+            else f"sensor.{inverted.replace('.', '_')}_inverted"
+        )
+    else:
+        low = config["stat_rate_from"].removeprefix("sensor.")
+        high = config["stat_rate_to"].removeprefix("sensor.")
+        rate = f"sensor.energy_{source['type']}_{low}_{high}_net_power"
+    return {**source, "stat_rate": rate}
+
+
+def _check_against_ha(msg: dict[str, Any], problem: str | None, lists: dict[str, Any]) -> None:
+    """Record a save on which HA's list schemas disagree with the fake's.
+
+    The message-level checks (unknown keys, non-list values) are the fake's own.
+    """
+    if any(k not in ENERGY_LISTS or not isinstance(v, list) for k, v in msg.items()):
+        return
+    verdict = check_with_ha(msg)
+    if verdict is None:
+        return
+    if (problem is None) != ("error" not in verdict):
+        SCHEMA_MISMATCHES.append(
+            f"{json.dumps(msg)}: fake says {problem!r}, HA says {verdict.get('error')!r}"
+        )
+    elif problem is None and verdict["result"] != lists:
+        SCHEMA_MISMATCHES.append(
+            f"{json.dumps(msg)}: fake gives {json.dumps(lists)}, HA {json.dumps(verdict['result'])}"
+        )

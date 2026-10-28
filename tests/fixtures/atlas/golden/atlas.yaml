@@ -7,4 +7,5 @@ domains:
 - areas
 - devices
 - entities
+- energy
 entities: all

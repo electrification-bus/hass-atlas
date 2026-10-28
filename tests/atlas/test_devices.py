@@ -315,7 +315,7 @@ def test_dry_run_and_check_send_no_write(monkeypatch: pytest.MonkeyPatch, tmp_pa
     result = invoke(monkeypatch, b, "apply", str(a), dry_run=True)
     assert result.exit_code == 0, result.output
     assert (
-        "Summary: 0 create, 19 update, 3 rename, 15 unchanged. Dry run: nothing written."
+        "Summary: 11 create, 19 update, 3 rename, 15 unchanged. Dry run: nothing written."
         in result.output
     )
     result = invoke(monkeypatch, b, "apply", str(a), "--check", "--only", "devices")
@@ -720,8 +720,8 @@ def test_failed_device_write_stops_later_stages(
     result = apply(monkeypatch, b, a, tmp_path / "snap2")
     assert result.exit_code == 0, result.output
     sent = commands(b)
-    assert (sent[0], sent[-1]) == (DEVICE_UPDATE, AREA_UPDATE)
-    assert set(sent[1:-1]) == {ENTITY_UPDATE}
+    assert (sent[0], sent[-2], sent[-1]) == (DEVICE_UPDATE, AREA_UPDATE, "energy/save_prefs")
+    assert set(sent[1:-2]) == {ENTITY_UPDATE}
     exported = export(monkeypatch, b, tmp_path / "b")
     assert (exported / "devices.yaml").read_bytes() == (a / "devices.yaml").read_bytes()
     b.sent.clear()

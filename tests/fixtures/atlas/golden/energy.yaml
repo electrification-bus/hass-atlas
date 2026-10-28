@@ -1,0 +1,40 @@
+energy_sources:
+- type: grid
+  stat_energy_from: sensor.house_energy_in
+  stat_energy_to: sensor.grid_export_energy
+  stat_rate: sensor.grid_power
+  cost_adjustment_day: 0.0
+  entity_energy_price: sensor.grid_price
+  number_energy_price_export: 0.05
+- type: solar
+  stat_energy_from: sensor.solar_energy
+  name: Roof array
+  stat_rate: sensor.solar_power
+- type: battery
+  stat_energy_from: sensor.battery_discharge
+  stat_energy_to: sensor.battery_charge
+  power_config: {stat_rate_from: sensor.battery_discharge_power, stat_rate_to: sensor.battery_charge_power}
+  stat_soc: sensor.battery_soc
+  capacity: 13.5
+- type: water
+  stat_energy_from: sensor.water_meter
+- type: gas
+  stat_energy_from: acme_gas:meter_total
+  name: Gas meter
+  stat_cost: acme_gas:meter_cost
+device_consumption:
+- stat_consumption: sensor.main_panel_energy
+  name: Main panel
+- stat_consumption: sensor.subpanel_energy
+  stat_rate: sensor.subpanel_power
+  included_in_stat: sensor.main_panel_energy
+- stat_consumption: sensor.pump_power
+  included_in_stat: sensor.subpanel_energy
+- stat_consumption: sensor.kitchen_power
+  name: Kitchen
+  included_in_stat: sensor.main_panel_energy
+device_consumption_water:
+- stat_consumption: sensor.irrigation_water
+  name: Irrigation
+- stat_consumption: sensor.shower_water
+  included_in_stat: sensor.water_meter
