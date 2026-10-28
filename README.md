@@ -123,6 +123,7 @@ mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, 
 | `cascade` | Yes | No | Panel-cascade tree from publisher topology |
 | `energy-topology` | Yes | No | Energy system analysis |
 | `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
+| `export` | Yes | No | Write floors, labels and areas to YAML files |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
@@ -221,6 +222,33 @@ Example mapping file:
   "Future-240VAC-1": null
 }
 ```
+
+### `export` - Write Configuration to YAML Files
+
+```bash
+hass-atlas export [--out DIR] [--only floors,labels,areas]
+hass-atlas --dry-run export [--out DIR]
+```
+
+Reads the floor, label and area registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions and the exported domains. It sends only `list` commands, never a write.
+
+```
+atlas/
+  atlas.yaml     format, hass_atlas, ha_version, domains
+  floors.yaml    floor_id, name, level, icon, aliases
+  labels.yaml    label_id, name, color, icon, description
+  areas.yaml     area_id, name, floor_id, icon, labels, aliases, temperature_entity_id, humidity_entity_id
+```
+
+The files are meant to be committed and diffed:
+
+- Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, and `aliases` and `labels` lists are sorted.
+- Only fields that hold a value are written; a domain with no items is written as `[]`.
+- Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild.
+- Export writes each file to a hidden `.hass-atlas-tmp-*` file in `DIR` and renames them over the old files only once all are written, so an export that fails with an error leaves the previous files in place. If the process is killed while renaming, some files can be new and some old; run export again. Staged files left by a killed run are removed by the next export; to keep them out of a commit made in between, add `.hass-atlas-tmp-*` to the repository's `.gitignore`.
+- `DIR` can be `.`, a relative path or a symlink to a directory; a symlink is written through and kept. Other files already in `DIR` are kept. A `DIR` holding files other than hidden ones (such as `.DS_Store`) but no `atlas.yaml` is refused.
+
+`--only` exports the listed domains and keeps the domains that the existing `atlas.yaml` lists. It is refused when that earlier export came from a different Home Assistant or hass-atlas version, since the manifest records one version for every file. With `--dry-run`, export prints a unified diff of each file against `DIR` and writes nothing.
 
 ### `normalize` — Fix Entity IDs
 
@@ -368,6 +396,7 @@ Commands used:
 - `config/device_registry/list` and `update` — device hierarchy and area assignment
 - `config/entity_registry/list` and `update` — entity metadata and renaming
 - `config/area_registry/list` and `create` — area management
+- `config/floor_registry/list` and `config/label_registry/list` - floors and labels, for `export`
 - `energy/get_prefs` and `save_prefs` — Energy Dashboard configuration
 - `get_states` — live entity state values (for topology discovery)
 
@@ -395,6 +424,7 @@ src/hass_atlas/
   normalize.py    — Entity ID normalization
   panels.py       — Sub-panel linking
   span_panel.py   - span_panel backend: panel_topology, roles, gaps
+  atlas/          - export: domains/ (one module per registry), yamlio.py (atlas files), export_cmd.py
   output.py       — Rich-based formatters (tree, table, topology)
 ```
 

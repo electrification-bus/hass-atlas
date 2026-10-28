@@ -1,0 +1,7 @@
+format: 1
+hass_atlas: 0.0.0
+ha_version: 2026.10.4
+domains:
+- floors
+- labels
+- areas

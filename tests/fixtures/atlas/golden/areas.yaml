@@ -1,0 +1,25 @@
+- area_id: garage_2
+  name: Workshop
+  floor_id: ground
+  icon: mdi:tools
+  labels:
+  - critical_load
+  - solar
+  aliases:
+  - bench
+  - shop
+  temperature_entity_id: sensor.workshop_temperature
+  humidity_entity_id: sensor.workshop_humidity
+- area_id: den
+  name: Den
+  floor_id: upstairs
+- area_id: den_2
+  name: Library
+  floor_id: upstairs
+- area_id: cafe
+  name: Café
+  icon: mdi:coffee
+  aliases:
+  - 'coffee: corner'
+- area_id: kitchen
+  name: Kitchen

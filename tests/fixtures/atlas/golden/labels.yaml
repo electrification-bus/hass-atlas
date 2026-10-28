@@ -1,0 +1,11 @@
+- label_id: critical_load
+  name: Critical load
+  color: red
+  icon: mdi:flash-alert
+  description: On the backup subpanel
+- label_id: solar
+  name: Solar
+  color: amber
+  icon: mdi:solar-power
+- label_id: unused
+  name: Unused
