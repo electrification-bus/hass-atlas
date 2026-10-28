@@ -100,6 +100,20 @@ Every command accepts these options:
 | `--url URL` | `HA_URL` | Home Assistant URL. Auto-discovered via mDNS if omitted. |
 | `--token TOKEN` | `HASS_API_TOKEN` | Long-lived access token. **Required.** |
 | `--dry-run` | — | Preview changes without applying them. **Always use this first.** |
+| `--proxy URL` | `HASS_ATLAS_PROXY` | HTTP or SOCKS proxy for the WebSocket connection. See [Proxies](#proxies). |
+
+### Proxies
+
+hass-atlas can reach Home Assistant through an HTTP, HTTPS or SOCKS proxy, for example an `ssh -D` tunnel:
+
+```bash
+pip install '.[socks]'        # SOCKS needs python-socks; or: poetry install -E socks
+hass-atlas --url http://ha.example:8123 --proxy socks5h://localhost:1080 audit
+```
+
+Without `--proxy`, hass-atlas uses the proxy configured in the environment or the operating system the way the [websockets library](https://websockets.readthedocs.io/en/stable/topics/proxies.html) does, and falls back to `ALL_PROXY`. For an `http://` Home Assistant URL the order is `ws_proxy`, then a SOCKS proxy (`socks_proxy` or the operating system's SOCKS setting), then `https_proxy`, then `http_proxy`. For an `https://` URL it is `wss_proxy`, then the SOCKS proxy, then `https_proxy`; `http_proxy` is not used. Hosts in `NO_PROXY` are reached directly. Use `socks5h://` to have the proxy resolve the Home Assistant host name.
+
+mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, and with a proxy set in a `*_proxy` environment variable, discovery warns that it only searches the local network. Operating system proxy settings do not trigger the warning, and neither does `NO_PROXY=*`.
 
 ### Command Summary
 
