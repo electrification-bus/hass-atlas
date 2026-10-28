@@ -1,0 +1,12 @@
+- floor_id: upstairs
+  name: Upstairs
+  level: 1
+  icon: mdi:home-floor-1
+  aliases:
+  - attic level
+  - second floor
+- floor_id: ground
+  name: Ground
+  level: 0
+- floor_id: basement
+  name: Cellar

@@ -1,0 +1,20 @@
+{
+  "ha_version": "2026.10.4",
+  "floors": [
+    {"floor_id": "upstairs", "name": "Upstairs", "level": 1, "icon": "mdi:home-floor-1", "aliases": ["second floor", "attic level"], "created_at": 1760000000.0, "modified_at": 1760000100.5},
+    {"floor_id": "ground", "name": "Ground", "level": 0, "icon": null, "aliases": [], "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"floor_id": "basement", "name": "Cellar", "level": null, "icon": null, "aliases": [], "created_at": 1760000000.0, "modified_at": 1760000200.0}
+  ],
+  "labels": [
+    {"label_id": "solar", "name": "Solar", "color": "amber", "icon": "mdi:solar-power", "description": null, "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"label_id": "critical_load", "name": "Critical load", "color": "red", "icon": "mdi:flash-alert", "description": "On the backup subpanel", "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"label_id": "unused", "name": "Unused", "color": null, "icon": null, "description": "", "created_at": 1760000000.0, "modified_at": 1760000000.0}
+  ],
+  "areas": [
+    {"area_id": "garage_2", "name": "Workshop", "floor_id": "ground", "icon": "mdi:tools", "labels": ["solar", "critical_load"], "aliases": ["shop", "bench"], "picture": "/api/image/serve/0123456789abcdef0123456789abcdef/512x512", "temperature_entity_id": "sensor.workshop_temperature", "humidity_entity_id": "sensor.workshop_humidity", "created_at": 1760000000.0, "modified_at": 1760000300.0},
+    {"area_id": "den", "name": "Den", "floor_id": "upstairs", "icon": null, "labels": [], "aliases": [], "picture": null, "temperature_entity_id": null, "humidity_entity_id": null, "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"area_id": "den_2", "name": "Library", "floor_id": "upstairs", "icon": null, "labels": [], "aliases": [], "picture": null, "temperature_entity_id": null, "humidity_entity_id": null, "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"area_id": "cafe", "name": "Café", "floor_id": null, "icon": "mdi:coffee", "labels": [], "aliases": ["coffee: corner"], "picture": null, "temperature_entity_id": null, "humidity_entity_id": null, "created_at": 1760000000.0, "modified_at": 1760000000.0},
+    {"area_id": "kitchen", "name": "Kitchen", "floor_id": null, "icon": null, "labels": [], "aliases": [], "picture": null, "temperature_entity_id": null, "humidity_entity_id": null, "created_at": 1760000000.0, "modified_at": 1760000000.0}
+  ]
+}
