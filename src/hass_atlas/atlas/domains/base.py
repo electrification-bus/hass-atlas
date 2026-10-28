@@ -50,7 +50,8 @@ class RegistryDomain:
     timestamps, pictures and fields a newer HA adds are never written.
     ``set_fields`` are stored as sets in HA, so their order is arbitrary and
     they are sorted. With ``registry_order`` the items keep the order HA lists
-    them in (the user's order); otherwise they are sorted by key.
+    them in (the user's order); otherwise they are sorted by key. ``refs``
+    maps a field to the domain whose ids it holds.
     """
 
     name: str
@@ -59,6 +60,7 @@ class RegistryDomain:
     set_fields: tuple[str, ...] = ()
     registry_order: bool = False
     depends_on: tuple[str, ...] = ()
+    refs: tuple[tuple[str, str], ...] = ()
 
     @property
     def filename(self) -> str:
@@ -67,6 +69,15 @@ class RegistryDomain:
     @property
     def key(self) -> str:
         return self.field_order[0]
+
+    @property
+    def kind(self) -> str:
+        """One item's name in plan lines: ``floor`` for ``floors``."""
+        return self.name.removesuffix("s")
+
+    def command(self, op: str) -> str:
+        """The WebSocket command for *op* (``create``, ``update``) on this registry."""
+        return f"{self.list_command.rsplit('/', 1)[0]}/{op}"
 
     async def fetch(self, client: Client) -> list[Row]:
         rows: list[Row] = await client.send_command(self.list_command)

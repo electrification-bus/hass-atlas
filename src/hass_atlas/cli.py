@@ -68,6 +68,7 @@ def cli(
 # Register subcommands (imported after cli is defined to avoid circular deps)
 from hass_atlas.audit import audit  # noqa: E402
 from hass_atlas.areas import areas  # noqa: E402
+from hass_atlas.atlas.apply_cmd import apply  # noqa: E402
 from hass_atlas.atlas.export_cmd import export  # noqa: E402
 from hass_atlas.cascade import cascade  # noqa: E402
 from hass_atlas.energy import energy, energy_audit, energy_topology  # noqa: E402
@@ -76,6 +77,7 @@ from hass_atlas.panels import link_panels  # noqa: E402
 from hass_atlas.water import water  # noqa: E402
 
 cli.add_command(audit)
+cli.add_command(apply)
 cli.add_command(areas)
 cli.add_command(cascade)
 cli.add_command(energy)
