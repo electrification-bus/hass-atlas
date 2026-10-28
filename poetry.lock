@@ -381,6 +381,25 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-slugify"
+version = "9.1.2"
+description = "A Python slugify application that also handles Unicode"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "python_slugify-9.1.2-py3-none-any.whl", hash = "sha256:a470dafd2ad79672606cc0d1a5fcaf7a2ccf8f358073ff29b5b93c2bd7e288d6"},
+    {file = "python_slugify-9.1.2.tar.gz", hash = "sha256:bd36ca98e5ebb1cd2b9dfa2f27b948ce87402fb083b762cbd9d0fa3aed489a92"},
+]
+
+[package.dependencies]
+text-unidecode = ">=1.3"
+
+[package.extras]
+anyascii = ["anyascii (>=0.3.2)"]
+unidecode = ["Unidecode (>=1.1.1)"]
+
+[[package]]
 name = "python-socks"
 version = "3.2.0"
 description = "Proxy (SOCKS4, SOCKS5, HTTP CONNECT) client for Python"
@@ -526,6 +545,18 @@ files = [
     {file = "ruff-0.15.2-py3-none-win_amd64.whl", hash = "sha256:d20014e3dfa400f3ff84830dfb5755ece2de45ab62ecea4af6b7262d0fb4f7c5"},
     {file = "ruff-0.15.2-py3-none-win_arm64.whl", hash = "sha256:cabddc5822acdc8f7b5527b36ceac55cc51eec7b1946e60181de8fe83ca8876e"},
     {file = "ruff-0.15.2.tar.gz", hash = "sha256:14b965afee0969e68bb871eba625343b8673375f457af4abe98553e8bbb98342"},
+]
+
+[[package]]
+name = "text-unidecode"
+version = "1.3"
+description = "The most basic Text::Unidecode port"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "text-unidecode-1.3.tar.gz", hash = "sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93"},
+    {file = "text_unidecode-1.3-py2.py3-none-any.whl", hash = "sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8"},
 ]
 
 [[package]]
@@ -714,4 +745,4 @@ socks = ["python-socks"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "db9124c40b318e10f2fc0eec130dac273738df98352bca7c1f0ed5f82925b58c"
+content-hash = "4e4c91f300dea615a4fd5b949f9666c13589d7c0e7e037553a19b854b8eda2ab"

@@ -268,3 +268,23 @@ async def test_invalid_proxy_is_client_error() -> None:
 ])
 def test_redact_proxy(proxy: str, shown: str) -> None:
     assert redact_proxy(proxy) == shown
+
+
+@pytest.mark.asyncio
+async def test_send_on_closed_connection_is_connection_lost() -> None:
+    from websockets.exceptions import ConnectionClosed
+
+    class ClosedWebSocket(FakeWebSocket):
+        async def send(self, data: str) -> None:
+            if self._sent:
+                raise ConnectionClosed(None, None)
+            self._sent.append(data)
+
+    ws = ClosedWebSocket([
+        json.dumps({"type": "auth_required"}),
+        json.dumps({"type": "auth_ok"}),
+    ])
+    with patch("hass_atlas.ha_client.websockets.connect", AsyncMock(return_value=ws)):
+        async with HAClient("http://ha.local:8123", "token") as client:
+            with pytest.raises(ha_client.HAConnectionLost, match="Connection lost during"):
+                await client.send_command("config/area_registry/list")

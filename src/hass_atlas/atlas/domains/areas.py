@@ -24,4 +24,5 @@ AREAS = RegistryDomain(
     set_fields=("labels", "aliases"),
     registry_order=True,
     depends_on=("floors", "labels"),
+    refs=(("floor_id", "floors"), ("labels", "labels")),
 )

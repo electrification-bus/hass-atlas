@@ -10,6 +10,8 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 - **`export`.** Writes the floor, label and area registries to YAML files in a directory (default `./atlas`) with an `atlas.yaml` manifest, sending only read commands. Output is deterministic and sparse, leaves out timestamps and area pictures, and replaces its files only once every new file is written. `--only` limits the domains (refused when the files it keeps came from other versions), and `--dry-run` prints a diff against the directory instead of writing.
 
+- **`apply`.** Makes Home Assistant's floors, labels and areas match an `export` directory: creates missing items and updates differing fields, never deletes, leaves fields absent from a file alone and clears fields set to `null`. Items match by id, then by name; an id that Home Assistant would not derive from the name is kept by creating under a temporary name and renaming. Area references to unknown floors, labels or sensors are refused. Writes run in stages, each re-read before writing (a value changed since the plan is skipped as a conflict) and checked after. A write that times out or loses the connection ends the run and is journaled as unknown. Before the first write, apply saves a snapshot (the old values in export format, the plan and a journal of every write) under `~/.local/state/hass-atlas/snapshots/`. It asks once before writing (`--yes` skips the question, and is required without a terminal); `--dry-run` prints the plan, and `--check` exits 2 when changes are pending.
+
 ### Changed
 
 - Requires websockets 16.0 or later, the first release with the `websockets.proxy` module.

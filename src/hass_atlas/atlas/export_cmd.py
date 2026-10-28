@@ -26,7 +26,7 @@ def _package_version() -> str:
     return importlib.metadata.version("hass-atlas")
 
 
-def _parse_only(value: str | None) -> tuple[Domain, ...]:
+def parse_only(value: str | None) -> tuple[Domain, ...]:
     if value is None:
         return DOMAINS
     names = {name.strip() for name in value.split(",") if name.strip()}
@@ -41,7 +41,7 @@ def _parse_only(value: str | None) -> tuple[Domain, ...]:
     return tuple(domain for domain in DOMAINS if domain.name in names)
 
 
-def _manifest(ha_version: str | None, domains: list[str]) -> dict[str, Any]:
+def build_manifest(ha_version: str | None, domains: list[str]) -> dict[str, Any]:
     manifest: dict[str, Any] = {"format": FORMAT, "hass_atlas": _package_version()}
     if ha_version:
         manifest["ha_version"] = ha_version
@@ -112,7 +112,7 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
     export_ctx = ExportContext(ha_version=ha_version, rows=rows)
     docs = {domain.name: domain.export(rows[domain.name], export_ctx) for domain in selected}
     domains = [d.name for d in DOMAINS if d.name in docs or d.name in kept]
-    manifest = _manifest(ha_version, domains)
+    manifest = build_manifest(ha_version, domains)
     _check_same_source(out, kept, old_manifest, manifest)
 
     if ctx.dry_run:
@@ -154,7 +154,7 @@ def export(ctx: Context, out: Path, only: str | None) -> None:
     With --dry-run, prints a unified diff against the files in --out and
     writes nothing.
     """
-    selected = _parse_only(only)
+    selected = parse_only(only)
     try:
         run_async(_export(ctx, out, selected))
     except AtlasError as exc:

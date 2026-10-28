@@ -124,6 +124,7 @@ mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, 
 | `energy-topology` | Yes | No | Energy system analysis |
 | `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
 | `export` | Yes | No | Write floors, labels and areas to YAML files |
+| `apply` | Yes | Yes | Make floors, labels and areas match those YAML files |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
@@ -249,6 +250,46 @@ The files are meant to be committed and diffed:
 - `DIR` can be `.`, a relative path or a symlink to a directory; a symlink is written through and kept. Other files already in `DIR` are kept. A `DIR` holding files other than hidden ones (such as `.DS_Store`) but no `atlas.yaml` is refused.
 
 `--only` exports the listed domains and keeps the domains that the existing `atlas.yaml` lists. It is refused when that earlier export came from a different Home Assistant or hass-atlas version, since the manifest records one version for every file. With `--dry-run`, export prints a unified diff of each file against `DIR` and writes nothing.
+
+### `apply` - Make Home Assistant Match the YAML Files
+
+```bash
+hass-atlas --dry-run apply DIR [--only floors,labels,areas] [-v]
+hass-atlas apply DIR [--only ...] [--yes] [--snapshot-dir SNAPSHOT] [-v]
+hass-atlas apply DIR --check
+```
+
+Reads an export directory and creates the floors, labels and areas missing from Home Assistant, and updates the fields that differ. It never deletes anything. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
+
+Run it with `--dry-run` first. The plan has one line per change, grouped by stage:
+
+```
+$ hass-atlas --dry-run apply atlas --only floors,areas
+Plan for http://ha.local:8123  (HA 2026.10.4, atlas format 1)
+Stage 1  floors  (3 in file, 2 live)
+  + floor   basement          create as "basement", rename -> "Cellar"
+  = floor   2 unchanged
+Stage 2  areas  (5 in file, 4 live)
+  ~ area    den               floor_id: null -> upstairs
+  ! area    cafe              refused: floor_id attic: no floor attic in the file or in HA
+  = area    3 unchanged
+Stage 5  area sensors  (1 in file)
+  = area    1 unchanged
+Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
+```
+
+`+` is a create, `~` an update, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` a write whose result is unknown.
+
+- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then the areas' temperature and humidity sensors (stage 5; later releases put devices and entities in stages 3 and 4). Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
+- **Matching.** A file item matches the Home Assistant item with the same id, or else the one with the same name, ignoring case and spaces. An item is refused when its name matches an item that another file item already matches, or more than one item.
+- **Ids.** Home Assistant makes a new item's id from its name. When the name would give a different id from the file's (an area `garage_2` named `Workshop`), apply creates the item under a temporary name that gives the file's id, then renames it. If Home Assistant still assigns another id, apply uses that id in every later reference and says so on the line.
+- **References.** An area's `floor_id` and `labels` must name a floor or label in the files or in Home Assistant; otherwise the area is refused. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
+- **Confirmation.** Apply prints the plan and asks once before writing. `--yes` skips the question; without a terminal, apply writes only with `--yes`.
+- **Snapshot.** Before its first write, apply creates `~/.local/state/hass-atlas/snapshots/<host>/<UTC time>/` (mode 0700; `--snapshot-dir` sets another, empty, directory) holding `before/`, an export of the registries the plan writes, as they were; `plan.json`, the plan; and `journal.jsonl`, one line per write with its payload, old values and result, synced to disk before the next write. `hass-atlas apply SNAPSHOT/before` puts back the fields that held a value; it does not clear fields that were empty or delete items the apply created. If the snapshot cannot be written, nothing is written to Home Assistant.
+- **`--only`** applies the listed domains; the others are read to check references but never written.
+- **`--check`** only plans, and exits 0 when nothing would change, 2 when changes are pending and 3 when items are refused. Apply warns when the files came from a different Home Assistant major or minor version.
+
+Exit codes: 0 done; 1 an error, a declined confirmation, a failed write or a failed check after a stage; 2 changes pending (`--check`); 3 done, but items were refused, skipped or in conflict.
 
 ### `normalize` — Fix Entity IDs
 
@@ -395,10 +436,10 @@ Commands used:
 
 - `config/device_registry/list` and `update` — device hierarchy and area assignment
 - `config/entity_registry/list` and `update` — entity metadata and renaming
-- `config/area_registry/list` and `create` — area management
-- `config/floor_registry/list` and `config/label_registry/list` - floors and labels, for `export`
+- `config/area_registry/list`, `create` and `update` — area management
+- `config/floor_registry/list`, `create` and `update`, and the same for `config/label_registry` - floors and labels, for `export` and `apply`
 - `energy/get_prefs` and `save_prefs` — Energy Dashboard configuration
-- `get_states` — live entity state values (for topology discovery)
+- `get_states` — live entity state values (for topology discovery, and for the area sensor checks in `apply`)
 
 Frame size is set to 16 MB (`max_size=16*1024*1024`) because HA registries can exceed the default 1 MB WebSocket frame limit.
 
@@ -424,7 +465,7 @@ src/hass_atlas/
   normalize.py    — Entity ID normalization
   panels.py       — Sub-panel linking
   span_panel.py   - span_panel backend: panel_topology, roles, gaps
-  atlas/          - export: domains/ (one module per registry), yamlio.py (atlas files), export_cmd.py
+  atlas/          - export and apply: domains/ (one module per registry), yamlio.py (atlas files), planner.py and plan.py (matching, plan lines), refs.py (file ids to live ids), executor.py (all apply writes), snapshot.py, export_cmd.py, apply_cmd.py
   output.py       — Rich-based formatters (tree, table, topology)
 ```
 

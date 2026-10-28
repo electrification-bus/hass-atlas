@@ -29,6 +29,10 @@ class HAClientError(Exception):
         self.code = code
 
 
+class HAConnectionLost(HAClientError):
+    """A command timed out or the connection dropped, so whether HA ran it is unknown."""
+
+
 def resolve_proxy(ws_url: str, proxy: str | None = None) -> str | None:
     """Return the proxy to reach *ws_url* through, or None to connect directly.
 
@@ -148,10 +152,10 @@ class HAClient:
 
         self._msg_id += 1
         msg = {"id": self._msg_id, "type": msg_type, **kwargs}
-        await self._ws.send(json.dumps(msg))
 
-        # Read responses until we get one matching our ID
         try:
+            await self._ws.send(json.dumps(msg))
+            # Read responses until we get one matching our ID
             while True:
                 raw = await asyncio.wait_for(self._ws.recv(), timeout=30.0)
                 response = json.loads(raw)
@@ -166,10 +170,10 @@ class HAClient:
         except HAClientError:
             raise
         except TimeoutError:
-            raise HAClientError(
+            raise HAConnectionLost(
                 f"Command '{msg_type}' timed out after 30s"
             ) from None
-        except websockets.exceptions.ConnectionClosed:
-            raise HAClientError(
+        except (websockets.exceptions.ConnectionClosed, OSError):
+            raise HAConnectionLost(
                 f"Connection lost during '{msg_type}'"
             ) from None
