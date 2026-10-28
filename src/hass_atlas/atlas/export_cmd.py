@@ -47,6 +47,9 @@ def build_manifest(ha_version: str | None, domains: list[str]) -> dict[str, Any]
     if ha_version:
         manifest["ha_version"] = ha_version
     manifest["domains"] = domains
+    if "entities" in domains:
+        # Every entity is exported, not only those with a user value.
+        manifest["entities"] = "all"
     return manifest
 
 
@@ -154,7 +157,7 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
 )
 @pass_ctx
 def export(ctx: Context, out: Path, only: str | None) -> None:
-    """Export floors, labels, areas and devices to YAML files (reads only).
+    """Export floors, labels, areas, devices and entities to YAML files (reads only).
 
     With --dry-run, prints a unified diff against the files in --out and
     writes nothing.

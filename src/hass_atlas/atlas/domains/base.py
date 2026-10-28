@@ -47,6 +47,10 @@ class FlowList(list[Any]):
     """A list that YAML output writes on one line, such as an identifier pair."""
 
 
+class FlowDict(dict[str, Any]):
+    """A mapping that YAML output writes on one line, such as an entity's match block."""
+
+
 def has_value(value: Any) -> bool:
     return value is not None and value != "" and value != [] and value != {}
 
@@ -60,9 +64,10 @@ class RegistryDomain:
     ``set_fields`` are stored as sets in HA, so their order is arbitrary and
     they are sorted. With ``registry_order`` the items keep the order HA lists
     them in (the user's order); otherwise they are sorted by key. ``refs``
-    maps a field to the domain whose ids it holds. ``live_key`` names the id
-    field of live rows and ``update_key`` the id argument of the update
-    command, when they differ from the file's key.
+    maps a field to the domain whose ids it holds, or to ``ENTITY_IDS`` for
+    an entity_id. ``live_key`` names the id field of live rows and
+    ``update_key`` the id argument of the update command, when they differ
+    from the file's key.
     """
 
     name: str
@@ -109,6 +114,35 @@ class RegistryDomain:
     def group(self, key: str) -> str:
         """What unmatched items are counted by in plan lines."""
         return self.kind
+
+    def comparable(self, name: str, value: Any) -> Any:
+        """*value* as HA stores it: set fields sorted, aliases stripped, null lists empty."""
+        if name in self.set_fields:
+            items = value if isinstance(value, list) else []
+            if name == "aliases":
+                return sorted({v.strip() for v in items if isinstance(v, str) and v.strip()})
+            return sorted(set(items))
+        return value
+
+    def live_value(self, row: Row, name: str, wanted: Any) -> Any:
+        """The part of *row*'s *name* that a file value *wanted* is compared with."""
+        return row.get(name)
+
+    def stored(self, row: Row, name: str, value: Any) -> Any:
+        """What *row*'s *name* holds once *value* is written."""
+        return [] if value is None and name in self.set_fields else value
+
+    def update_payloads(self, live_id: str, row: Row | None, values: Row) -> list[Row]:
+        """The update commands that write *values* to item *live_id*, whose live row is *row*.
+
+        A null list clears it.
+        """
+        fields = {k: ([] if v is None and k in self.set_fields else v) for k, v in values.items()}
+        return [{self.update_key: live_id, **fields}]
+
+    def shown(self, values: Row) -> list[tuple[str, Any]]:
+        """*values* as plan lines list them: in ``plan_fields`` order."""
+        return [(name, values[name]) for name in self.plan_fields if name in values]
 
     @property
     def kind(self) -> str:

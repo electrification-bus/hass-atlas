@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+ENTITY_IDS = "entity_ids"
+"""The IdMap domain from an entity_id in the files to the entity's live entity_id."""
+
 
 class IdMap:
     """Exported id to live id, per domain.

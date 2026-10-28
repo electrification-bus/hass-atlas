@@ -13,7 +13,7 @@ from hass_atlas.atlas import apply_cmd, export_cmd
 from hass_atlas.atlas.domains.devices import format_mac
 from hass_atlas.atlas.yamlio import AtlasFormatError, load_atlas
 from hass_atlas.ha_client import HAClientError
-from tests.atlas.fake_ha import DEVICE_UPDATE, FakeHA, empty_fixture, load_fixture
+from tests.atlas.fake_ha import DEVICE_UPDATE, ENTITY_UPDATE, FakeHA, empty_fixture, load_fixture
 from tests.atlas.test_apply import apply, commands, export, flat, invoke, write
 
 PLUG = ("mac", "02:00:5e:10:00:01")
@@ -291,7 +291,7 @@ def test_rebuild_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     a, b = rebuilt(monkeypatch, tmp_path)
     old_ids = {row["id"] for row in load_fixture()["devices"]}
     assert not old_ids & {row["id"] for row in b.registries["devices"]}
-    result = apply(monkeypatch, b, a, tmp_path / "snap")
+    result = apply(monkeypatch, b, a, tmp_path / "snap", "--only", "devices")
     assert result.exit_code == 0, result.output
     assert {cmd for cmd, _ in b.writes} == {DEVICE_UPDATE}
     sent = device_writes(b)
@@ -304,7 +304,7 @@ def test_rebuild_round_trip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     assert (exported / "devices.yaml").read_bytes() == (a / "devices.yaml").read_bytes()
 
     b.sent.clear()
-    result = apply(monkeypatch, b, a, tmp_path / "snap2")
+    result = apply(monkeypatch, b, a, tmp_path / "snap2", "--only", "devices")
     assert result.exit_code == 0, result.output
     assert b.writes == []
     assert "= device  7 unchanged" in result.output
@@ -314,7 +314,10 @@ def test_dry_run_and_check_send_no_write(monkeypatch: pytest.MonkeyPatch, tmp_pa
     a, b = rebuilt(monkeypatch, tmp_path)
     result = invoke(monkeypatch, b, "apply", str(a), dry_run=True)
     assert result.exit_code == 0, result.output
-    assert "Summary: 0 create, 7 update, 12 unchanged. Dry run: nothing written." in result.output
+    assert (
+        "Summary: 0 create, 19 update, 3 rename, 15 unchanged. Dry run: nothing written."
+        in result.output
+    )
     result = invoke(monkeypatch, b, "apply", str(a), "--check", "--only", "devices")
     assert result.exit_code == 2, result.output
     assert b.writes == []
@@ -716,7 +719,9 @@ def test_failed_device_write_stops_later_stages(
     b.sent.clear()
     result = apply(monkeypatch, b, a, tmp_path / "snap2")
     assert result.exit_code == 0, result.output
-    assert commands(b) == [DEVICE_UPDATE, AREA_UPDATE]
+    sent = commands(b)
+    assert (sent[0], sent[-1]) == (DEVICE_UPDATE, AREA_UPDATE)
+    assert set(sent[1:-1]) == {ENTITY_UPDATE}
     exported = export(monkeypatch, b, tmp_path / "b")
     assert (exported / "devices.yaml").read_bytes() == (a / "devices.yaml").read_bytes()
     b.sent.clear()

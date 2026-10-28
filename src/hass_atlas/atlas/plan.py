@@ -12,13 +12,14 @@ from hass_atlas.atlas import DOMAINS, FORMAT
 from hass_atlas.atlas.domains.base import RegistryDomain, Row
 from hass_atlas.atlas.refs import IdMap
 
-WRITES = ("create", "update")
+WRITES = ("create", "update", "rename")
 # How a write ends when it is not done.
 ENDED = ("failed", "conflict", "skipped", "unknown")
 
 SYMBOLS = {
     "create": "+",
     "update": "~",
+    "rename": ">",
     "unchanged": "=",
     "refused": "!",
     "unmatched": "?",
@@ -56,7 +57,10 @@ class Change:
     ``after`` the subset to write and ``before`` their live values when the
     plan was made. References in both stay in the file's terms until they are
     written, so a live id learned in an earlier stage is used. ``label`` is
-    shown in place of ``key`` when the key is not readable.
+    shown in place of ``key`` when the key is not readable. An entity
+    ``rename`` that goes through a temporary entity_id holds it in
+    ``temp_name``, and an entity change holds the registry ``id`` of the
+    entity it was planned for in ``registry_id``.
     """
 
     stage: int
@@ -64,6 +68,7 @@ class Change:
     key: str
     op: str
     live_id: str | None = None
+    registry_id: str | None = None
     desired: Row = field(default_factory=dict)
     after: Row = field(default_factory=dict)
     before: Row = field(default_factory=dict)
@@ -158,7 +163,7 @@ def _line(symbol: str, kind: str, key: str, text: str) -> str:
 
 
 def _ordered(domain: RegistryDomain, values: Row) -> list[tuple[str, Any]]:
-    return [(name, values[name]) for name in domain.plan_fields if name in values]
+    return domain.shown(values)
 
 
 def _text(change: Change, domain: RegistryDomain, ids: IdMap) -> list[str]:
@@ -176,10 +181,14 @@ def _text(change: Change, domain: RegistryDomain, ids: IdMap) -> list[str]:
         else:
             head = f"create name={_field('name', after['name'])}"
         lines = [" ".join([head, *fields])]
+    elif change.op == "rename":
+        lines = [f"-> {after['entity_id']}"]
+        if change.temp_name is not None:
+            lines[0] += f"  (through {change.temp_name})"
     elif change.op == "update":
+        old = dict(_ordered(domain, before))
         lines = [
-            f"{k}: {_field(k, before.get(k))} -> {_field(k, v)}"
-            for k, v in _ordered(domain, after)
+            f"{k}: {_field(k, old.get(k))} -> {_field(k, v)}" for k, v in _ordered(domain, after)
         ]
     else:
         lines = ["unchanged"]
@@ -240,6 +249,9 @@ def summary(plan: Plan, done: bool = False) -> str:
         created = sum(1 for c in plan.changes if c.op == "create" and c.status == "done")
         updated = sum(1 for c in plan.changes if c.op == "update" and c.status == "done")
         parts = [f"{created} created", f"{updated} updated"]
+        renamed = sum(1 for c in plan.changes if c.op == "rename" and c.status == "done")
+        if renamed:
+            parts.append(f"{renamed} renamed")
         extra: tuple[str, ...] = (
             "refused",
             "conflict",
@@ -250,7 +262,7 @@ def summary(plan: Plan, done: bool = False) -> str:
         )
     else:
         parts = [f"{plan.count('create')} create", f"{plan.count('update')} update"]
-        extra = ("refused", "conflict", "unmatched")
+        extra = ("rename", "refused", "conflict", "unmatched")
     parts += [f"{plan.count(state)} {state}" for state in extra if plan.count(state)]
     parts.append(f"{plan.count('unchanged')} unchanged")
     return "Summary: " + ", ".join(parts) + "."
