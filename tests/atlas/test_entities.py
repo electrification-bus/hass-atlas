@@ -497,7 +497,7 @@ def test_swap_goes_through_temporary_ids(monkeypatch: pytest.MonkeyPatch, tmp_pa
         "> entity  sensor.pump_power_2 -> sensor.pump_power  (through sensor.pump_power_atlas_tmp)"
         in result.output
     )
-    assert "Summary: 11 created, 20 updated, 3 renamed, 3 unchanged." in result.output
+    assert "Summary: 22 created, 20 updated, 3 renamed, 3 unchanged." in result.output
     # The field writes go to the entities' new ids.
     [average] = [m for m in entity_writes(b) if m.get("name") == "Pump power average"]
     assert average["entity_id"] == "sensor.pump_power_2"
@@ -750,7 +750,8 @@ def test_area_sensors_set_after_renames(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert result.exit_code == 0, result.output
     sent = b.writes
     last_entity = max(i for i, (cmd, _) in enumerate(sent) if cmd == ENTITY_UPDATE)
-    assert sent[last_entity + 1 :] == [(AREA_UPDATE, sensor_writes(b)[0])]
+    assert sent[last_entity + 1 : -1] == [(AREA_UPDATE, sensor_writes(b)[0])]
+    assert sent[-1][0] == "energy/save_prefs"
     assert sensor_writes(b)[0]["temperature_entity_id"] == "sensor.workshop_temperature"
     assert area_row(b)["temperature_entity_id"] == "sensor.workshop_temperature"
 

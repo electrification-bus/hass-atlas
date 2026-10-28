@@ -1,4 +1,4 @@
-"""``export`` for floors, labels, areas, devices and entities."""
+"""``export`` for floors, labels, areas, devices, entities and energy."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from hass_atlas.ha_client import HAClientError
 from tests.atlas.fake_ha import FIXTURES, FakeHA, load_fixture
 
 GOLDEN = FIXTURES / "golden"
-READS = ("/list", "/get_entries")
+READS = ("/list", "/get_entries", "/get_prefs")
 FILES = (
     "atlas.yaml",
     "floors.yaml",
@@ -26,6 +26,7 @@ FILES = (
     "areas.yaml",
     "devices.yaml",
     "entities.yaml",
+    "energy.yaml",
 )
 
 
@@ -135,10 +136,11 @@ def test_only_keeps_other_domains(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         "areas",
         "devices",
         "entities",
+        "energy",
     ]
 
 
-@pytest.mark.parametrize("only", ["energy", "floors,bogus", ","])
+@pytest.mark.parametrize("only", ["exposure", "floors,bogus", ","])
 def test_only_rejects_unknown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, only: str) -> None:
     fake = FakeHA()
     result = run_export(monkeypatch, fake, "--out", str(tmp_path / "atlas"), "--only", only)
@@ -371,7 +373,9 @@ def test_only_refuses_mixed_sources(
         result = run_export(
             monkeypatch, fake, "--out", str(out), "--only", "labels", dry_run=dry_run
         )
-        _assert_clean_error(result, f"{out} holds floors, areas, devices, entities from {change}")
+        _assert_clean_error(
+            result, f"{out} holds floors, areas, devices, entities, energy from {change}"
+        )
         assert "without --only" in result.output
     assert snapshot(out) == before
 
@@ -477,7 +481,7 @@ def test_manifest_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         "format": 1,
         "hass_atlas": "0.0.0",
         "ha_version": "2026.10.4",
-        "domains": ["floors", "labels", "areas", "devices", "entities"],
+        "domains": ["floors", "labels", "areas", "devices", "entities", "energy"],
         "entities": "all",
     }
 
@@ -515,7 +519,7 @@ GOOD_MANIFEST = "format: 1\nhass_atlas: 0.0.0\ndomains: [labels]\n"
         ({"atlas.yaml": "format: true\ndomains: []\n"}, "atlas.yaml", "unsupported format True"),
         ({"atlas.yaml": "format: 1.0\ndomains: []\n"}, "atlas.yaml", "unsupported format 1.0"),
         ({"atlas.yaml": "format: '1'\ndomains: []\n"}, "atlas.yaml", "unsupported format '1'"),
-        ({"atlas.yaml": "format: 1\ndomains: [energy]\n"}, "atlas.yaml", "unknown domains"),
+        ({"atlas.yaml": "format: 1\ndomains: [exposure]\n"}, "atlas.yaml", "unknown domains"),
         ({"atlas.yaml": "- 1\n"}, "atlas.yaml", "expected a mapping"),
         ({"atlas.yaml": GOOD_MANIFEST}, "labels.yaml", "No such file"),
         (

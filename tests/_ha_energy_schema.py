@@ -1,15 +1,17 @@
 """Check Energy Dashboard prefs against Home Assistant's own energy/save_prefs schema.
 
-``required_key_errors`` encodes the keys HA's voluptuous schema requires for
-each grid format, and always runs.  ``validate_with_ha`` and
-``validate_legacy_flows_with_ha`` run the schema of a real Home Assistant
-install in a subprocess: the interpreter named by
-``HASS_ATLAS_HA_PYTHON``, else the ``span`` sibling checkout's virtualenv.  It
-returns None when no such interpreter can import the schema.
+``required_key_errors`` encodes the keys HA's schema requires for each grid
+format, and always runs.  ``validate_with_ha``, ``validate_legacy_flows_with_ha``
+and ``check_with_ha`` run the schema of a real Home Assistant install in a
+subprocess: the interpreter named by ``HASS_ATLAS_HA_PYTHON``, else the
+``span`` sibling checkout's virtualenv.  They return None when no such
+interpreter can import the schema.  HA 2026.10 builds the schema with
+probatio, whose errors subclass the ``voluptuous`` ones its shim provides.
 """
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import subprocess
@@ -31,6 +33,7 @@ for prefs in json.load(sys.stdin):
     try:
         ENERGY_SOURCE_SCHEMA(prefs.get("energy_sources", []))
         vol.Schema([DEVICE_CONSUMPTION_SCHEMA])(prefs.get("device_consumption", []))
+        vol.Schema([DEVICE_CONSUMPTION_SCHEMA])(prefs.get("device_consumption_water", []))
         results.append(None)
     except vol.Invalid as err:
         results.append(str(err))
@@ -107,6 +110,57 @@ def validate_legacy_flows_with_ha(prefs_list: list[dict[str, Any]]) -> list[str 
     return results
 
 
+_SERVE = """
+import json, sys
+from homeassistant.components.energy.data import (
+    DEVICE_CONSUMPTION_SCHEMA, ENERGY_SOURCE_SCHEMA,
+)
+import voluptuous as vol  # after homeassistant, which may substitute its own
+devices = vol.Schema([DEVICE_CONSUMPTION_SCHEMA])
+for line in sys.stdin:
+    message = json.loads(line)
+    try:
+        result = {
+            key: (ENERGY_SOURCE_SCHEMA if key == "energy_sources" else devices)(value)
+            for key, value in message.items()
+        }
+        print(json.dumps({"result": result}), flush=True)
+    except vol.Invalid as err:
+        print(json.dumps({"error": str(err)}), flush=True)
+"""
+
+
+@cache
+def _server() -> subprocess.Popen[str] | None:
+    python = ha_python()
+    if python is None:
+        return None
+    process = subprocess.Popen(
+        [python, "-c", _SERVE],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    atexit.register(process.kill)
+    return process
+
+
+def check_with_ha(lists: dict[str, Any]) -> dict[str, Any] | None:
+    """Run HA's schema for each list in *lists*, as ``energy/save_prefs`` does.
+
+    Returns ``{"result": {list: validated list}}`` or ``{"error": message}``,
+    or None without a Home Assistant install. One subprocess serves every call.
+    """
+    process = _server()
+    if process is None:
+        return None
+    assert process.stdin is not None and process.stdout is not None
+    process.stdin.write(json.dumps(lists) + "\n")
+    process.stdin.flush()
+    reply: dict[str, Any] = json.loads(process.stdout.readline())
+    return reply
+
+
 def required_key_errors(prefs: dict[str, Any], legacy: bool) -> list[str]:
     """Errors against the keys HA requires: unified (2026.3+) or legacy (earlier)."""
     errors: list[str] = []
@@ -140,9 +194,10 @@ def required_key_errors(prefs: dict[str, Any], legacy: bool) -> list[str]:
     for s in sources:
         if s.get("type") == "battery" and not (s.get("stat_energy_from") and s.get("stat_energy_to")):
             errors.append(f"battery source without both statistics: {s}")
-        if s.get("type") == "solar" and not s.get("stat_energy_from"):
-            errors.append(f"solar source without stat_energy_from: {s}")
-    for d in prefs.get("device_consumption", []):
-        if not d.get("stat_consumption"):
-            errors.append(f"device_consumption entry without stat_consumption: {d}")
+        if s.get("type") in ("solar", "gas", "water") and not s.get("stat_energy_from"):
+            errors.append(f"{s.get('type')} source without stat_energy_from: {s}")
+    for name in ("device_consumption", "device_consumption_water"):
+        for d in prefs.get(name, []):
+            if not d.get("stat_consumption"):
+                errors.append(f"{name} entry without stat_consumption: {d}")
     return errors

@@ -50,6 +50,65 @@
   "states": [
     {"entity_id": "sensor.workshop_temperature", "state": "18.5", "attributes": {"device_class": "temperature", "unit_of_measurement": "°C"}},
     {"entity_id": "sensor.workshop_humidity", "state": "40", "attributes": {"device_class": "humidity", "unit_of_measurement": "%"}},
-    {"entity_id": "sensor.kitchen_power", "state": "120", "attributes": {"device_class": "power", "unit_of_measurement": "W"}}
-  ]
+    {"entity_id": "sensor.kitchen_power", "state": "120", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.grid_export_energy", "state": "812.4", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.grid_price", "state": "0.31", "attributes": {"unit_of_measurement": "USD/kWh"}},
+    {"entity_id": "sensor.grid_power", "state": "1450", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.solar_energy", "state": "2210.7", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.solar_power", "state": "3020", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.battery_discharge", "state": "530.2", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.battery_charge", "state": "561.9", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.battery_discharge_power", "state": "0", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.battery_charge_power", "state": "800", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.battery_soc", "state": "64", "attributes": {"device_class": "battery", "unit_of_measurement": "%"}},
+    {"entity_id": "sensor.water_meter", "state": "301.25", "attributes": {"device_class": "water", "unit_of_measurement": "m³"}},
+    {"entity_id": "sensor.main_panel_energy", "state": "9120.3", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.subpanel_energy", "state": "1840.6", "attributes": {"device_class": "energy", "unit_of_measurement": "kWh"}},
+    {"entity_id": "sensor.subpanel_power", "state": "410", "attributes": {"device_class": "power", "unit_of_measurement": "W"}},
+    {"entity_id": "sensor.irrigation_water", "state": "48.2", "attributes": {"device_class": "water", "unit_of_measurement": "m³"}},
+    {"entity_id": "sensor.shower_water", "state": "61.7", "attributes": {"device_class": "water", "unit_of_measurement": "m³"}}
+  ],
+  "energy": {
+    "energy_sources": [
+      {"type": "grid", "stat_energy_from": "sensor.house_energy_in", "stat_energy_to": "sensor.grid_export_energy", "stat_cost": null, "entity_energy_price": "sensor.grid_price", "number_energy_price": null, "stat_compensation": null, "entity_energy_price_export": null, "number_energy_price_export": 0.05, "stat_rate": "sensor.grid_power", "cost_adjustment_day": 0.0},
+      {"type": "solar", "stat_energy_from": "sensor.solar_energy", "stat_rate": "sensor.solar_power", "config_entry_solar_forecast": ["01KBFAKEF0RECAST0000000001"], "name": "Roof array"},
+      {"type": "battery", "stat_energy_from": "sensor.battery_discharge", "stat_energy_to": "sensor.battery_charge", "stat_rate": "sensor.energy_battery_battery_discharge_power_battery_charge_power_net_power", "power_config": {"stat_rate_from": "sensor.battery_discharge_power", "stat_rate_to": "sensor.battery_charge_power"}, "stat_soc": "sensor.battery_soc", "capacity": 13.5},
+      {"type": "water", "stat_energy_from": "sensor.water_meter", "stat_cost": null, "entity_energy_price": null, "number_energy_price": null},
+      {"type": "gas", "stat_energy_from": "acme_gas:meter_total", "stat_cost": "acme_gas:meter_cost", "name": "Gas meter"}
+    ],
+    "device_consumption": [
+      {"stat_consumption": "sensor.main_panel_energy", "name": "Main panel"},
+      {"stat_consumption": "sensor.subpanel_energy", "stat_rate": "sensor.subpanel_power", "included_in_stat": "sensor.main_panel_energy"},
+      {"stat_consumption": "sensor.pump_power", "included_in_stat": "sensor.subpanel_energy"},
+      {"stat_consumption": "sensor.kitchen_power", "name": "Kitchen", "included_in_stat": "sensor.main_panel_energy"}
+    ],
+    "device_consumption_water": [
+      {"stat_consumption": "sensor.irrigation_water", "name": "Irrigation"},
+      {"stat_consumption": "sensor.shower_water", "included_in_stat": "sensor.water_meter"}
+    ]
+  },
+  "energy_legacy": {
+    "energy_sources": [
+      {"type": "grid", "flow_from": [{"stat_energy_from": "sensor.house_energy_in", "stat_cost": null, "entity_energy_price": "sensor.grid_price", "number_energy_price": null}], "flow_to": [{"stat_energy_to": "sensor.grid_export_energy", "stat_compensation": null, "entity_energy_price": null, "number_energy_price": 0.05}], "power": [{"stat_rate": "sensor.grid_power"}], "cost_adjustment_day": 0.0},
+      {"type": "solar", "stat_energy_from": "sensor.solar_energy", "stat_rate": "sensor.solar_power", "config_entry_solar_forecast": ["01KBFAKEF0RECAST0000000001"]},
+      {"type": "battery", "stat_energy_from": "sensor.battery_discharge", "stat_energy_to": "sensor.battery_charge", "stat_rate": "sensor.energy_battery_battery_discharge_power_battery_charge_power_net_power", "power_config": {"stat_rate_from": "sensor.battery_discharge_power", "stat_rate_to": "sensor.battery_charge_power"}},
+      {"type": "water", "stat_energy_from": "sensor.water_meter", "stat_cost": null, "entity_energy_price": null, "number_energy_price": null},
+      {"type": "gas", "stat_energy_from": "acme_gas:meter_total", "stat_cost": "acme_gas:meter_cost"}
+    ],
+    "device_consumption": [
+      {"stat_consumption": "sensor.main_panel_energy", "name": "Main panel"},
+      {"stat_consumption": "sensor.subpanel_energy", "stat_rate": "sensor.subpanel_power", "included_in_stat": "sensor.main_panel_energy"},
+      {"stat_consumption": "sensor.pump_power", "included_in_stat": "sensor.subpanel_energy"},
+      {"stat_consumption": "sensor.kitchen_power", "name": "Kitchen", "included_in_stat": "sensor.main_panel_energy"}
+    ],
+    "device_consumption_water": [
+      {"stat_consumption": "sensor.irrigation_water", "name": "Irrigation"},
+      {"stat_consumption": "sensor.shower_water", "included_in_stat": "sensor.water_meter"}
+    ]
+  },
+  "energy_unmanaged": {
+    "energy_sources": [{"type": "solar", "stat_energy_from": "sensor.garage_solar_energy"}],
+    "device_consumption": [{"stat_consumption": "sensor.dehumidifier_energy", "name": "Dehumidifier"}],
+    "device_consumption_water": [{"stat_consumption": "sensor.hose_water"}]
+  }
 }

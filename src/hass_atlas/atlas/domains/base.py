@@ -21,6 +21,14 @@ class ExportContext:
     warnings: list[str] = field(default_factory=list)
 
 
+class DocError(ValueError):
+    """A file's content is malformed; *index* is the list item at fault, if one is."""
+
+    def __init__(self, message: str, index: int | None = None) -> None:
+        super().__init__(message)
+        self.index = index
+
+
 class Domain(Protocol):
     @property
     def name(self) -> str: ...
@@ -38,9 +46,17 @@ class Domain(Protocol):
 
     def export(self, rows: list[Row], ctx: ExportContext) -> list[Row]: ...
 
-    def key_error(self, item: Row) -> str | None: ...
+    def to_doc(self, items: list[Row]) -> Any:
+        """*items* as the domain's file holds them, for YAML output."""
+        ...
 
-    def item_key(self, item: Row) -> str: ...
+    def from_doc(self, doc: Any) -> list[Row]:
+        """The items of a loaded file; raises DocError when it is malformed."""
+        ...
+
+    def count(self, items: list[Row]) -> int:
+        """How many entries *items* hold, as export reports them."""
+        ...
 
 
 class FlowList(list[Any]):
@@ -49,6 +65,17 @@ class FlowList(list[Any]):
 
 class FlowDict(dict[str, Any]):
     """A mapping that YAML output writes on one line, such as an entity's match block."""
+
+
+def in_field_order(items: list[Row], field_order: tuple[str, ...]) -> list[Row]:
+    """*items* with each item's fields in *field_order*."""
+    ordered = []
+    for item in items:
+        unknown = set(item) - set(field_order)
+        if unknown:
+            raise ValueError(f"fields not in field order: {sorted(unknown)}")
+        ordered.append({name: item[name] for name in field_order if name in item})
+    return ordered
 
 
 def has_value(value: Any) -> bool:
@@ -156,6 +183,30 @@ class RegistryDomain:
     async def fetch(self, client: Client) -> list[Row]:
         rows: list[Row] = await client.send_command(self.list_command)
         return rows
+
+    def to_doc(self, items: list[Row]) -> list[Row]:
+        return in_field_order(items, self.field_order)
+
+    def from_doc(self, doc: Any) -> list[Row]:
+        if not isinstance(doc, list):
+            raise DocError("expected a list")
+        seen: set[str] = set()
+        for index, item in enumerate(doc):
+            if not isinstance(item, dict):
+                raise DocError("expected a mapping", index)
+            if error := self.key_error(item):
+                raise DocError(error, index)
+            ident = self.item_key(item)
+            if ident in seen:
+                raise DocError(f"duplicate {self.key} {item[self.key]!r}", index)
+            seen.add(ident)
+            unknown_fields = sorted(set(item) - set(self.field_order))
+            if unknown_fields:
+                raise DocError(f"unknown fields {unknown_fields}", index)
+        return doc
+
+    def count(self, items: list[Row]) -> int:
+        return len(items)
 
     def export(self, rows: list[Row], ctx: ExportContext) -> list[Row]:
         items = [self._export_row(row) for row in rows]

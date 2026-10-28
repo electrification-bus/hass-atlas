@@ -13,14 +13,18 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
+from hass_atlas.atlas import domain_named
 from hass_atlas.atlas.domains.areas import AREAS
-from hass_atlas.atlas.domains.base import RegistryDomain, Row
+from hass_atlas.atlas.domains.base import Domain, RegistryDomain, Row
 from hass_atlas.atlas.domains.devices import DEVICES, PAIR_FIELDS, TIE_FIELDS, DeviceDomain
+from hass_atlas.atlas.domains.energy import ENERGY, LISTS, EnergyDomain
 from hass_atlas.atlas.domains.entities import ENTITIES, EntityDomain
 from hass_atlas.atlas.domains.floors import FLOORS
 from hass_atlas.atlas.domains.labels import LABELS
+from hass_atlas.atlas.energy_stage import plan_energy
 from hass_atlas.atlas.plan import Change, Plan, Section, registry, resolve_refs
 from hass_atlas.atlas.refs import ENTITY_IDS, IdMap
+from hass_atlas.energy_prefs import grid_format, parse_ha_version
 
 AREA_SENSORS = ("temperature_entity_id", "humidity_entity_id")
 _SENSOR_CLASS = {"temperature_entity_id": "temperature", "humidity_entity_id": "humidity"}
@@ -30,7 +34,7 @@ TEMP_SUFFIX = "_atlas_tmp"
 @dataclass(frozen=True)
 class Stage:
     number: int
-    domain: RegistryDomain
+    domain: Domain
     title: str
     fields: tuple[str, ...]
     creates: bool = True
@@ -42,6 +46,7 @@ def _fields(domain: RegistryDomain, exclude: tuple[str, ...] = ()) -> tuple[str,
 
 # Entities (4) come before the area sensors (5): HA checks a sensor's
 # device class against its state when it is set, and a rename moves the state.
+# Energy (6) comes last, once every entity_id is final.
 STAGES: tuple[Stage, ...] = (
     Stage(1, LABELS, "labels", _fields(LABELS)),
     Stage(1, FLOORS, "floors", _fields(FLOORS)),
@@ -49,6 +54,7 @@ STAGES: tuple[Stage, ...] = (
     Stage(3, DEVICES, "devices", DEVICES.plan_fields, creates=False),
     Stage(4, ENTITIES, "entities", ENTITIES.plan_fields, creates=False),
     Stage(5, AREAS, "area sensors", AREA_SENSORS, creates=False),
+    Stage(6, ENERGY, "energy", ()),
 )
 
 
@@ -279,6 +285,7 @@ class _Planner:
     states: dict[str, Row] | None
     sim: dict[str, list[Row]]
     categories: dict[str, set[str]] = field(default_factory=dict)
+    ha_version: str | None = None
     ids: IdMap = field(default_factory=IdMap)
     bindings: dict[str, dict[str, Binding]] = field(default_factory=dict)
     created: dict[str, set[str]] = field(default_factory=dict)
@@ -417,6 +424,7 @@ class _Planner:
 
     def plan_item(self, stage: Stage, item: Row) -> Change:
         domain = stage.domain
+        assert isinstance(domain, RegistryDomain)
         if isinstance(domain, DeviceDomain):
             return self.plan_device(stage, item)
         key = item[domain.key]
@@ -696,6 +704,48 @@ class _Planner:
             out["hidden_by"] = f"hidden_by is {held} in HA; apply sets or clears only user"
         return out
 
+    def plan_energy(self, stage: Stage, items: list[Row], rows: list[Row], mode: str) -> Section:
+        """Plan the energy lists against the live prefs, after the entity renames."""
+        doc = items[0] if items else {}
+        before = rows[0] if rows else {}
+        files = {ENTITIES.file_entity_id(item) for item in self.docs.get("entities", [])}
+
+        def resolve(entity_id: str) -> str:
+            return self.ids.resolve(ENTITY_IDS, entity_id)
+
+        def unbound(entity_id: str) -> str | None:
+            if entity_id in files and self.ids.get(ENTITY_IDS, entity_id) is None:
+                return f"the file's entity {entity_id} matches no live entity"
+            return None
+
+        def waits(entity_id: str) -> str | None:
+            if reason := unbound(entity_id):
+                return reason
+            live_id = resolve(entity_id)
+            if live_id not in self.entity_index() and live_id not in (self.states or {}):
+                return f"{live_id} is not in HA"
+            return None
+
+        changes, energy = plan_energy(
+            doc,
+            before,
+            mode=mode,
+            fmt=grid_format(self.ha_version, before),
+            resolve=resolve,
+            version=parse_ha_version(self.ha_version),
+            waits=waits,
+            unbound=unbound,
+        )
+        return Section(
+            stage=stage.number,
+            title=stage.title,
+            domain=stage.domain.name,
+            in_file=sum(len(entries) for entries in doc.values()),
+            live=sum(len(before.get(name) or []) for name in LISTS),
+            changes=changes,
+            energy=energy,
+        )
+
     def entity_refusal(self, row: Row, change: Change, wanted: Row) -> str | None:
         """Why HA would reject *change*'s writes to entity *row* as a whole, or None."""
         after = change.after
@@ -723,19 +773,25 @@ def domains_to_read(docs: dict[str, list[Row]], applied: set[str]) -> list[str]:
     """Domains apply reads: the applied ones and every domain they depend on.
 
     Entities are read too when areas set sensors, so a sensor follows the
-    file's entity to its live entity_id.
+    file's entity to its live entity_id; energy depends on them for the same.
     """
     names = set(applied)
     for name in applied:
-        names.update(registry(name).depends_on)
+        names.update(domain_named(name).depends_on)
     if docs.get("entities") and _sets_area_sensors(docs, applied):
         names.add("entities")
     return list(dict.fromkeys(s.domain.name for s in STAGES if s.domain.name in names))
 
 
 def needs_states(docs: dict[str, list[Row]], applied: set[str]) -> bool:
-    """Whether apply reads the states: to check area sensors and rename targets."""
+    """Whether apply reads the states.
+
+    They check area sensors, rename targets and the entities that new energy
+    entries reference.
+    """
     if "entities" in applied and docs.get("entities"):
+        return True
+    if ENERGY.name in applied and docs.get(ENERGY.name):
         return True
     return _sets_area_sensors(docs, applied)
 
@@ -761,10 +817,12 @@ def build_plan(
     url: str,
     ha_version: str | None,
     categories: dict[str, set[str]] | None = None,
+    energy_mode: str = "merge",
 ) -> Plan:
     """Plan every stage for the *applied* domains of an atlas against *live* rows.
 
-    *categories* holds the live category ids per scope that entities name.
+    *categories* holds the live category ids per scope that entities name;
+    *energy_mode* is ``merge`` or ``replace``.
     """
     planner = _Planner(
         docs=docs,
@@ -772,9 +830,10 @@ def build_plan(
         states=dict(states) if states is not None else None,
         sim=copy.deepcopy(live),
         categories=categories or {},
+        ha_version=ha_version,
     )
     for name in domains_to_read(docs, applied):
-        if name not in docs:
+        if name not in docs or name == ENERGY.name:
             continue
         domain = registry(name)
         rows = live.get(name, [])
@@ -800,6 +859,9 @@ def build_plan(
         if name not in applied or name not in docs:
             continue
         items = docs[name]
+        if isinstance(stage.domain, EnergyDomain):
+            sections.append(planner.plan_energy(stage, items, live.get(name, []), energy_mode))
+            continue
         sensors = stage.fields == AREA_SENSORS
         if sensors:
             items = [item for item in items if any(f in item for f in stage.fields)]

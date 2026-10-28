@@ -16,7 +16,7 @@ from hass_atlas.energy import (
     build_energy_config,
     build_topology_aware_config,
 )
-from hass_atlas.energy_prefs import LEGACY, UNIFIED
+from hass_atlas.energy_prefs import LEGACY, UNIFIED, UNIFIED_GRID_SINCE, parse_ha_version
 from hass_atlas.models import HADevice, HAEntity
 from hass_atlas.output import console
 from hass_atlas.registry import build_span_trees
@@ -329,7 +329,8 @@ def test_produced_prefs_pass_home_assistant_schema() -> None:
     if checked is None:
         pytest.skip("no Home Assistant install to import energy/data.py from")
     version, results = checked
-    assert version >= "2026.3"
+    parsed = parse_ha_version(version)
+    assert parsed is not None and parsed >= UNIFIED_GRID_SINCE
     assert results == [None] * len(results)
 
 
