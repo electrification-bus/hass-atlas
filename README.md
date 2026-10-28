@@ -123,8 +123,8 @@ mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, 
 | `cascade` | Yes | No | Panel-cascade tree from publisher topology |
 | `energy-topology` | Yes | No | Energy system analysis |
 | `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
-| `export` | Yes | No | Write floors, labels and areas to YAML files |
-| `apply` | Yes | Yes | Make floors, labels and areas match those YAML files |
+| `export` | Yes | No | Write floors, labels, areas and devices to YAML files |
+| `apply` | Yes | Yes | Make floors, labels, areas and devices match those YAML files |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
@@ -227,11 +227,11 @@ Example mapping file:
 ### `export` - Write Configuration to YAML Files
 
 ```bash
-hass-atlas export [--out DIR] [--only floors,labels,areas]
+hass-atlas export [--out DIR] [--only floors,labels,areas,devices]
 hass-atlas --dry-run export [--out DIR]
 ```
 
-Reads the floor, label and area registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions and the exported domains. It sends only `list` commands, never a write.
+Reads the floor, label, area and device registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions and the exported domains. It sends only `list` commands, never a write.
 
 ```
 atlas/
@@ -239,13 +239,36 @@ atlas/
   floors.yaml    floor_id, name, level, icon, aliases
   labels.yaml    label_id, name, color, icon, description
   areas.yaml     area_id, name, floor_id, icon, labels, aliases, temperature_entity_id, humidity_entity_id
+  devices.yaml   match, name_by_user, area_id, labels, disabled
+```
+
+`devices.yaml` holds only the devices with a user value: a name given by the user, an area, labels, or disabled by the user. Device ids are random per installation, so each device is named by a `match` block instead: its identifiers, or its connections when it has no identifiers, plus `manufacturer` and `model` when another device shares one of those pairs (`null` when the device has none). A device whose `match` block fits another live device too, whether or not that one is exported, cannot be told apart, so export leaves it out and prints a warning.
+
+```yaml
+- match:
+    connections:
+    - [mac, '02:00:5e:10:00:01']
+  area_id: den
+- match:
+    identifiers:
+    - [acme_hub, hub-7f3a]
+    manufacturer: Acme
+    model: Relay R2
+  name_by_user: Pump relay
+  labels:
+  - critical_load
+  - solar
+- match:
+    identifiers:
+    - [acme_hub, sensor-0042]
+  disabled: true
 ```
 
 The files are meant to be committed and diffed:
 
-- Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, and `aliases` and `labels` lists are sorted.
+- Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, devices by their `match` block, and `aliases`, `labels`, identifier and connection lists are sorted.
 - Only fields that hold a value are written; a domain with no items is written as `[]`.
-- Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild.
+- Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild. Device ids, config entry ids and the `via_device_id` and `parent_device_id` links are not written either, since they change on a rebuild.
 - Export writes each file to a hidden `.hass-atlas-tmp-*` file in `DIR` and renames them over the old files only once all are written, so an export that fails with an error leaves the previous files in place. If the process is killed while renaming, some files can be new and some old; run export again. Staged files left by a killed run are removed by the next export; to keep them out of a commit made in between, add `.hass-atlas-tmp-*` to the repository's `.gitignore`.
 - `DIR` can be `.`, a relative path or a symlink to a directory; a symlink is written through and kept. Other files already in `DIR` are kept. A `DIR` holding files other than hidden ones (such as `.DS_Store`) but no `atlas.yaml` is refused.
 
@@ -254,12 +277,12 @@ The files are meant to be committed and diffed:
 ### `apply` - Make Home Assistant Match the YAML Files
 
 ```bash
-hass-atlas --dry-run apply DIR [--only floors,labels,areas] [-v]
+hass-atlas --dry-run apply DIR [--only floors,labels,areas,devices] [-v]
 hass-atlas apply DIR [--only ...] [--yes] [--snapshot-dir SNAPSHOT] [-v]
 hass-atlas apply DIR --check
 ```
 
-Reads an export directory and creates the floors, labels and areas missing from Home Assistant, and updates the fields that differ. It never deletes anything. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
+Reads an export directory and creates the floors, labels and areas missing from Home Assistant, and updates the fields that differ on them and on devices. It never creates or deletes a device, and never deletes anything else. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
 
 Run it with `--dry-run` first. The plan has one line per change, grouped by stage:
 
@@ -278,18 +301,30 @@ Stage 5  area sensors  (1 in file)
 Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
 ```
 
-`+` is a create, `~` an update, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` a write whose result is unknown.
+`+` is a create, `~` an update, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` an unmatched device (counted by the domain of its first identifier or connection, or listed with `-v`) or a write whose result is unknown.
 
-- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then the areas' temperature and humidity sensors (stage 5; later releases put devices and entities in stages 3 and 4). Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
+- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then devices (stage 3), then the areas' temperature and humidity sensors (stage 5; a later release puts entities in stage 4). Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
 - **Matching.** A file item matches the Home Assistant item with the same id, or else the one with the same name, ignoring case and spaces. An item is refused when its name matches an item that another file item already matches, or more than one item.
 - **Ids.** Home Assistant makes a new item's id from its name. When the name would give a different id from the file's (an area `garage_2` named `Workshop`), apply creates the item under a temporary name that gives the file's id, then renames it. If Home Assistant still assigns another id, apply uses that id in every later reference and says so on the line.
-- **References.** An area's `floor_id` and `labels` must name a floor or label in the files or in Home Assistant; otherwise the area is refused. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
+- **Devices.** A file device matches the device in Home Assistant whose identifiers are the same set, or whose connections are, when the file gives connections; a MAC address may be written in any form Home Assistant accepts. When several devices have that set, `manufacturer` and `model` choose among them, and `null` chooses a device without one. A device still matched by several, or matched by two file items, is refused. A device that matches none is unmatched, which is normal while integrations are still being added again; running apply later picks it up. `disabled: true` disables the device as a user would, and `false` or `null` enables it if a user disabled it. A device that Home Assistant disabled itself (`disabled_by` is `config_entry`, `integration` or `device`) is refused when the file sets `disabled`: apply sets and clears only a user disable. Part of a plan:
+
+  ```
+  Stage 3  devices  (5 in file, 8 live)
+    ~ device  Smart plug (mac 02:00:5e:10:00:01) area_id: den -> kitchen
+                                                 disabled_by: null -> user
+    ~ device  Fridge relay (acme_hub hub-7f3a, Relay R4) name_by_user: null -> "Fridge relay"
+                                                         labels: [] -> [solar, critical_load]
+    ! device  Weather bridge (acme_cloud acct-91) refused: disabled_by is config_entry in HA; apply sets or clears only user
+    ? device  1 unmatched:      zwave_js 1  (-v lists them)
+    = device  1 unchanged
+  ```
+- **References.** An area's `floor_id` and `labels`, and a device's `area_id` and `labels`, must name a floor, area or label in the files or in Home Assistant; otherwise the item is refused. When Home Assistant gave an area or label another id than the file's, a device's references use the new id. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
 - **Confirmation.** Apply prints the plan and asks once before writing. `--yes` skips the question; without a terminal, apply writes only with `--yes`.
 - **Snapshot.** Before its first write, apply creates `~/.local/state/hass-atlas/snapshots/<host>/<UTC time>/` (mode 0700; `--snapshot-dir` sets another, empty, directory) holding `before/`, an export of the registries the plan writes, as they were; `plan.json`, the plan; and `journal.jsonl`, one line per write with its payload, old values and result, synced to disk before the next write. `hass-atlas apply SNAPSHOT/before` puts back the fields that held a value; it does not clear fields that were empty or delete items the apply created. If the snapshot cannot be written, nothing is written to Home Assistant.
 - **`--only`** applies the listed domains; the others are read to check references but never written.
-- **`--check`** only plans, and exits 0 when nothing would change, 2 when changes are pending and 3 when items are refused. Apply warns when the files came from a different Home Assistant major or minor version.
+- **`--check`** only plans, and exits 0 when nothing would change, 2 when changes are pending and 3 when items are refused or unmatched. Apply warns when the files came from a different Home Assistant major or minor version.
 
-Exit codes: 0 done; 1 an error, a declined confirmation, a failed write or a failed check after a stage; 2 changes pending (`--check`); 3 done, but items were refused, skipped or in conflict.
+Exit codes: 0 done; 1 an error, a declined confirmation, a failed write or a failed check after a stage; 2 changes pending (`--check`); 3 done, but items were refused, skipped, in conflict or unmatched.
 
 ### `normalize` — Fix Entity IDs
 

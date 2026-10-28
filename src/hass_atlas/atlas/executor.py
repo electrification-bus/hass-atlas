@@ -24,7 +24,7 @@ Echo = Callable[[str], None]
 
 
 def _by_id(domain: RegistryDomain, rows: list[Row]) -> dict[str, Row]:
-    return {row[domain.key]: row for row in rows}
+    return {row[domain.live_key]: row for row in rows}
 
 
 def _write_payload(domain: RegistryDomain, values: Row, create: bool) -> Row:
@@ -111,7 +111,7 @@ class Executor:
         values = resolve_refs(domain, change.after, self.plan.ids)
         if change.op == "update":
             live_id = self.plan.ids.resolve(change.domain, change.key)
-            payload = {domain.key: live_id, **_write_payload(domain, values, create=False)}
+            payload = {domain.update_key: live_id, **_write_payload(domain, values, create=False)}
             await self._send(change, "update", domain.command("update"), payload)
             return
         payload = _write_payload(domain, values, create=True)
@@ -134,7 +134,7 @@ class Executor:
         domain = registry(change.domain)
         live_id = self.plan.ids.resolve(change.domain, change.key)
         row = live.get(live_id)
-        where = f"{domain.kind} {change.key}"
+        where = f"{domain.kind} {change.label or change.key}"
         if row is None:
             return [f"{where}: {live_id} is not in HA"]
         wanted = resolve_refs(domain, change.desired, self.plan.ids)

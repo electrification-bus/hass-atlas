@@ -1,4 +1,4 @@
-"""``export`` for floors, labels and areas."""
+"""``export`` for floors, labels, areas and devices."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from hass_atlas.ha_client import HAClientError
 from tests.atlas.fake_ha import FIXTURES, FakeHA, load_fixture
 
 GOLDEN = FIXTURES / "golden"
-FILES = ("atlas.yaml", "floors.yaml", "labels.yaml", "areas.yaml")
+FILES = ("atlas.yaml", "floors.yaml", "labels.yaml", "areas.yaml", "devices.yaml")
 
 
 @pytest.fixture(autouse=True)
@@ -67,6 +67,11 @@ def test_deterministic(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     for floor in data["floors"]:
         floor["aliases"].reverse()
         floor["modified_at"] += 1000
+    data["devices"].reverse()
+    for device in data["devices"]:
+        device["identifiers"].reverse()
+        device["labels"].reverse()
+        device["modified_at"] += 1000
     assert run_export(monkeypatch, FakeHA(data), "--out", str(second)).exit_code == 0
     assert snapshot(first) == snapshot(second)
 
@@ -116,10 +121,10 @@ def test_only_keeps_other_domains(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert after["labels.yaml"] == before["labels.yaml"]
     assert after["notes.txt"] == b"kept\n"
     assert after["floors.yaml"] != before["floors.yaml"]
-    assert load_atlas(out).manifest["domains"] == ["floors", "labels", "areas"]
+    assert load_atlas(out).manifest["domains"] == ["floors", "labels", "areas", "devices"]
 
 
-@pytest.mark.parametrize("only", ["devices", "floors,bogus", ","])
+@pytest.mark.parametrize("only", ["entities", "floors,bogus", ","])
 def test_only_rejects_unknown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, only: str) -> None:
     fake = FakeHA()
     result = run_export(monkeypatch, fake, "--out", str(tmp_path / "atlas"), "--only", only)
@@ -352,7 +357,7 @@ def test_only_refuses_mixed_sources(
         result = run_export(
             monkeypatch, fake, "--out", str(out), "--only", "labels", dry_run=dry_run
         )
-        _assert_clean_error(result, f"{out} holds floors, areas from {change}")
+        _assert_clean_error(result, f"{out} holds floors, areas, devices from {change}")
         assert "without --only" in result.output
     assert snapshot(out) == before
 
@@ -458,7 +463,7 @@ def test_manifest_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
         "format": 1,
         "hass_atlas": "0.0.0",
         "ha_version": "2026.10.4",
-        "domains": ["floors", "labels", "areas"],
+        "domains": ["floors", "labels", "areas", "devices"],
     }
 
 
@@ -495,7 +500,7 @@ GOOD_MANIFEST = "format: 1\nhass_atlas: 0.0.0\ndomains: [labels]\n"
         ({"atlas.yaml": "format: true\ndomains: []\n"}, "atlas.yaml", "unsupported format True"),
         ({"atlas.yaml": "format: 1.0\ndomains: []\n"}, "atlas.yaml", "unsupported format 1.0"),
         ({"atlas.yaml": "format: '1'\ndomains: []\n"}, "atlas.yaml", "unsupported format '1'"),
-        ({"atlas.yaml": "format: 1\ndomains: [devices]\n"}, "atlas.yaml", "unknown domains"),
+        ({"atlas.yaml": "format: 1\ndomains: [entities]\n"}, "atlas.yaml", "unknown domains"),
         ({"atlas.yaml": "- 1\n"}, "atlas.yaml", "expected a mapping"),
         ({"atlas.yaml": GOOD_MANIFEST}, "labels.yaml", "No such file"),
         (

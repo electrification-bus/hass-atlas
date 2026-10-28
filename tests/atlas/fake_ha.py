@@ -9,11 +9,21 @@ ones dropped; area labels that do not exist are dropped; area floors are not
 checked; a changed area temperature or humidity sensor is checked against the
 states; a label icon needs a ``:`` and a label color is ``#RRGGBB`` or a
 theme color; an update of an unknown id fails with ``unknown_error``.
+
+Device updates follow ``components/config/device_registry.py`` and
+``helpers/device_registry.py``: ``area_id`` and ``name_by_user`` take null,
+``labels`` does not, ``disabled_by`` is ``user`` or null; unknown labels are
+dropped and the area is not checked; an unknown ``device_id`` fails with
+``not_found``; an equal value changes nothing; disabling a device gives its
+enabled child devices ``disabled_by: device`` and enabling it clears that; an
+enable is ignored while the device's config entry (in ``disabled_entries``)
+is disabled, and an enabled child under a disabled parent stays ``device``.
 """
 
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 from collections.abc import Callable
@@ -30,9 +40,12 @@ _LISTS = {
     "config/floor_registry/list": "floors",
     "config/label_registry/list": "labels",
     "config/area_registry/list": "areas",
+    "config/device_registry/list": "devices",
 }
 
-_KEYS = {"floors": "floor_id", "labels": "label_id", "areas": "area_id"}
+_KEYS = {"floors": "floor_id", "labels": "label_id", "areas": "area_id", "devices": "id"}
+
+DEVICE_UPDATE = "config/device_registry/update"
 
 # Optional fields per write command, and whether each accepts null.
 _SCHEMAS: dict[str, dict[str, bool]] = {
@@ -69,6 +82,7 @@ _SCHEMAS: dict[str, dict[str, bool]] = {
         "picture": True,
         "temperature_entity_id": True,
     },
+    DEVICE_UPDATE: {"area_id": True, "disabled_by": True, "labels": False, "name_by_user": True},
 }
 
 # A label color is #RRGGBB or one of these (``SUPPORTED_LABEL_THEME_COLORS``).
@@ -101,10 +115,43 @@ def load_fixture(name: str = "small") -> dict[str, Any]:
     return data
 
 
+def _new_id(old: str) -> str:
+    return hashlib.sha256(f"rebuilt {old}".encode()).hexdigest()[:32]
+
+
+def rebuilt_devices(devices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """*devices* as a rebuilt Home Assistant has them.
+
+    Device and config entry ids are new, and the user's names, areas, labels
+    and disables are gone; a disable set by HA itself is kept.
+    """
+    out = []
+    for device in copy.deepcopy(devices):
+        for name in ("id", "config_entry_id", "parent_device_id", "via_device_id"):
+            if device.get(name) is not None:
+                device[name] = _new_id(device[name])
+        if "config_entries" in device:
+            device["config_entries"] = [_new_id(e) for e in device["config_entries"]]
+        if "primary_config_entry" in device:
+            device["primary_config_entry"] = device["config_entry_id"]
+        device.update(name_by_user=None, area_id=None, labels=[])
+        if device["disabled_by"] in ("user", "device"):
+            device["disabled_by"] = None
+        out.append(device)
+    return out
+
+
 def empty_fixture(data: dict[str, Any] | None = None) -> dict[str, Any]:
-    """A Home Assistant with no floors, labels or areas, and *data*'s states."""
+    """A rebuilt Home Assistant: no floors, labels or areas, *data*'s devices with
+    new ids and no user values (see :func:`rebuilt_devices`), and *data*'s states.
+    """
     data = data if data is not None else load_fixture()
-    return {"ha_version": data.get("ha_version"), "states": copy.deepcopy(data.get("states", []))}
+    return {
+        "ha_version": data.get("ha_version"),
+        "devices": rebuilt_devices(data.get("devices", [])),
+        "disabled_entries": [_new_id(e) for e in data.get("disabled_entries", [])],
+        "states": copy.deepcopy(data.get("states", [])),
+    }
 
 
 def slugify(text: str) -> str:
@@ -135,6 +182,7 @@ class FakeHA:
             name: data.get(name, []) for name in _LISTS.values()
         }
         self.states: list[dict[str, Any]] = data.get("states", [])
+        self.disabled_entries: set[str] = set(data.get("disabled_entries", []))
         self.sent: list[tuple[str, dict[str, Any]]] = []
         self.fail: dict[str, HAClientError] = {}
         self.before: dict[str, list[Hook]] = {}
@@ -169,6 +217,8 @@ class FakeHA:
             return copy.deepcopy(self.states)
         if msg_type not in _SCHEMAS:
             raise AssertionError(f"unexpected command {msg_type}")
+        if msg_type == DEVICE_UPDATE:
+            return copy.deepcopy(self._update_device(msg))
         registry = msg_type.split("/")[1].removesuffix("_registry") + "s"
         op = msg_type.rsplit("/", 1)[1]
         self._validate(msg_type, registry, op, msg)
@@ -276,6 +326,56 @@ class FakeHA:
         if changes:
             rows[index] = {**old, **changes, "modified_at": self._tick()}
         return rows[index]
+
+    def _update_device(self, msg: dict[str, Any]) -> dict[str, Any]:
+        schema = _SCHEMAS[DEVICE_UPDATE]
+        allowed = {"device_id", *schema}
+        problems = [f"extra keys not allowed @ data['{k}']" for k in msg if k not in allowed]
+        if "device_id" not in msg:
+            problems.append("required key not provided @ data['device_id']")
+        for k, value in msg.items():
+            if k == "labels":
+                if not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
+                    problems.append(f"expected list for dictionary value @ data['{k}']")
+            elif k == "disabled_by":
+                if value not in (None, "user"):
+                    problems.append(
+                        f"value must be one of ['user'] for dictionary value @ data['{k}']"
+                    )
+            elif k in schema and not (value is None or isinstance(value, str)):
+                problems.append(f"expected str for dictionary value @ data['{k}']")
+        if problems:
+            raise HAClientError(f"{DEVICE_UPDATE} failed: {problems[0]}", code="invalid_format")
+        row = self.row("devices", msg["device_id"])
+        if row is None:
+            raise HAClientError(f"{DEVICE_UPDATE} failed: Device not found", code="not_found")
+        data = {k: v for k, v in msg.items() if k != "device_id"}
+        if "labels" in data:
+            known = {label["label_id"] for label in self.registries["labels"]}
+            data["labels"] = sorted(set(data["labels"]) & known)
+        if "disabled_by" in data and data["disabled_by"] is None:
+            parent = self.row("devices", row.get("parent_device_id") or "")
+            if row.get("config_entry_id") in self.disabled_entries:
+                del data["disabled_by"]
+            elif parent is not None and parent["disabled_by"] is not None:
+                data["disabled_by"] = "device"
+        changes = {
+            k: v
+            for k, v in data.items()
+            if (set(v) != set(row[k]) if k == "labels" else v != row.get(k))
+        }
+        if not changes:
+            return row
+        row.update(changes, modified_at=self._tick())
+        if "disabled_by" in changes:
+            for child in self.registries["devices"]:
+                if child.get("parent_device_id") != row["id"]:
+                    continue
+                if row["disabled_by"] is not None and child["disabled_by"] is None:
+                    child.update(disabled_by="device", modified_at=self._tick())
+                elif row["disabled_by"] is None and child["disabled_by"] == "device":
+                    child.update(disabled_by=None, modified_at=self._tick())
+        return row
 
     def row(self, registry: str, live_id: str) -> dict[str, Any] | None:
         key = _KEYS[registry]

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import click
+from rich.text import Text
 
 from hass_atlas.atlas import DOMAINS, FORMAT, MANIFEST
 from hass_atlas.atlas.domains.base import Domain, ExportContext, Row
@@ -19,7 +20,7 @@ from hass_atlas.atlas.yamlio import (
     write_atlas,
 )
 from hass_atlas.context import Context, pass_ctx, run_async
-from hass_atlas.output import print_dry_run, print_ok
+from hass_atlas.output import console, print_dry_run, print_ok
 
 
 def _package_version() -> str:
@@ -111,6 +112,10 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
 
     export_ctx = ExportContext(ha_version=ha_version, rows=rows)
     docs = {domain.name: domain.export(rows[domain.name], export_ctx) for domain in selected}
+    for warning in export_ctx.warnings:
+        # Text, not a markup string: warnings quote device identifiers, and a
+        # MAC holding ":ab:" would otherwise print as an emoji.
+        console.print(Text.assemble(("WARN", "bold yellow"), " ", warning))
     domains = [d.name for d in DOMAINS if d.name in docs or d.name in kept]
     manifest = build_manifest(ha_version, domains)
     _check_same_source(out, kept, old_manifest, manifest)
@@ -149,7 +154,7 @@ async def _export(ctx: Context, out: Path, selected: tuple[Domain, ...]) -> None
 )
 @pass_ctx
 def export(ctx: Context, out: Path, only: str | None) -> None:
-    """Export floors, labels and areas to YAML files (reads only).
+    """Export floors, labels, areas and devices to YAML files (reads only).
 
     With --dry-run, prints a unified diff against the files in --out and
     writes nothing.

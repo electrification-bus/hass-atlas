@@ -127,7 +127,7 @@ async def _apply(
     is_flag=True,
     help=(
         "Only plan (implies --dry-run). Exit 0 if nothing would change, 2 if changes "
-        "are pending, 3 if items are refused."
+        "are pending, 3 if items are refused or unmatched."
     ),
 )
 @click.option(
@@ -139,7 +139,9 @@ async def _apply(
         "~/.local/state/hass-atlas/snapshots/<host>/<UTC time>). Must be missing or empty."
     ),
 )
-@click.option("-v", "--verbose", is_flag=True, help="List unchanged items individually.")
+@click.option(
+    "-v", "--verbose", is_flag=True, help="List unchanged and unmatched items individually."
+)
 @pass_ctx
 def apply(
     ctx: Context,
@@ -150,16 +152,18 @@ def apply(
     snapshot_dir: Path | None,
     verbose: bool,
 ) -> None:
-    """Make Home Assistant's floors, labels and areas match an atlas directory.
+    """Make Home Assistant's floors, labels, areas and devices match an atlas directory.
 
-    Creates missing items and updates differing fields; never deletes. A
+    Creates missing floors, labels and areas and updates differing fields;
+    never creates or deletes a device, and never deletes anything else. A
     field absent from a file is left alone, and null clears it. Before the
     first write, saves the affected domains, the plan and a journal of every
     write to a snapshot directory. With --dry-run or --check, prints the plan
     and writes nothing.
 
     Exit codes: 0 done; 1 error, declined, failed write or failed verify;
-    2 changes pending (--check); 3 done, but items were refused or skipped.
+    2 changes pending (--check); 3 done, but items were refused, skipped or
+    unmatched.
     """
     try:
         atlas = load_atlas(directory)

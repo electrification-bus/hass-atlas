@@ -14,6 +14,7 @@ from typing import Any
 
 from hass_atlas.atlas.domains.areas import AREAS
 from hass_atlas.atlas.domains.base import RegistryDomain, Row
+from hass_atlas.atlas.domains.devices import DEVICES, PAIR_FIELDS, TIE_FIELDS, DeviceDomain
 from hass_atlas.atlas.domains.floors import FLOORS
 from hass_atlas.atlas.domains.labels import LABELS
 from hass_atlas.atlas.plan import Change, Plan, Section, registry, resolve_refs
@@ -36,12 +37,13 @@ def _fields(domain: RegistryDomain, exclude: tuple[str, ...] = ()) -> tuple[str,
     return tuple(name for name in domain.field_order[1:] if name not in exclude)
 
 
-# Numbered as in the full apply order, where devices (3) and entities (4) come
-# before the area sensors: HA checks a sensor's device class when it is set.
+# Numbered as in the full apply order, where entities (4) come before the
+# area sensors: HA checks a sensor's device class when it is set.
 STAGES: tuple[Stage, ...] = (
     Stage(1, LABELS, "labels", _fields(LABELS)),
     Stage(1, FLOORS, "floors", _fields(FLOORS)),
     Stage(2, AREAS, "areas", _fields(AREAS, AREA_SENSORS)),
+    Stage(3, DEVICES, "devices", DEVICES.plan_fields, creates=False),
     Stage(5, AREAS, "area sensors", AREA_SENSORS, creates=False),
 )
 
@@ -112,6 +114,10 @@ def _type_error(domain: RegistryDomain, name: str, value: Any) -> str | None:
         if value is None or (isinstance(value, list) and all(isinstance(v, str) for v in value)):
             return None
         return f"{name} must be a list of strings"
+    if name == "disabled":
+        if value is None or isinstance(value, bool):
+            return None
+        return "disabled must be true or false"
     if name == "level":
         if value is None or (isinstance(value, int) and not isinstance(value, bool)):
             return None
@@ -170,6 +176,50 @@ def match(domain: RegistryDomain, items: list[Row], rows: list[Row]) -> dict[str
     return out
 
 
+def match_devices(domain: DeviceDomain, items: list[Row], rows: list[Row]) -> dict[str, Binding]:
+    """Bind each file device to the live device with the same identifier (or connection) set.
+
+    Manufacturer and model only break a tie. Two file items bound to one live
+    device are both refused, since neither can be preferred.
+    """
+    index: dict[tuple[str, frozenset[Any]], list[Row]] = {}
+    for row in rows:
+        for pair_field in PAIR_FIELDS:
+            index.setdefault((pair_field, domain.live_set(row, pair_field)), []).append(row)
+    out: dict[str, Binding] = {}
+    claims: dict[str, list[str]] = {}
+    for item in items:
+        key = domain.item_key(item)
+        name, wanted = domain.match_set(item)
+        found = index.get((name, wanted), [])
+        if len(found) > 1:
+            block = item["match"]
+            ties = [f for f in TIE_FIELDS if f in block]
+            narrowed = [row for row in found if all(row.get(f) == block[f] for f in ties)]
+            if len(narrowed) != 1:
+                if not ties:
+                    why = "add manufacturer and model to the match to tell them apart"
+                elif narrowed:
+                    why = "manufacturer and model do not tell them apart"
+                else:
+                    why = "none has this manufacturer and model"
+                out[key] = Binding(refused=f"{name} match {len(found)} live devices; {why}")
+                continue
+            found = narrowed
+        if found:
+            out[key] = Binding(found[0])
+            claims.setdefault(found[0][domain.live_key], []).append(key)
+        else:
+            out[key] = Binding()
+    for keys in claims.values():
+        if len(keys) > 1:
+            for key in keys:
+                out[key] = Binding(
+                    out[key].live, refused="another file item matches the same live device"
+                )
+    return out
+
+
 @dataclass
 class _Planner:
     docs: dict[str, list[Row]]
@@ -183,7 +233,7 @@ class _Planner:
 
     def row(self, domain: RegistryDomain, live_id: str | None) -> Row | None:
         for row in self.sim.get(domain.name, []):
-            if row[domain.key] == live_id:
+            if row[domain.live_key] == live_id:
                 return row
         return None
 
@@ -237,8 +287,45 @@ class _Planner:
                     return str(row[domain.key])
         return None
 
+    def plan_device(self, stage: Stage, item: Row) -> Change:
+        domain = DEVICES
+        key = domain.item_key(item)
+        binding = self.bindings[domain.name][key]
+        change = Change(stage=stage.number, domain=domain.name, key=key, op="refused")
+        change.label = domain.label(item, binding.live)
+        fields = {name: item[name] for name in domain.field_order[1:] if name in item}
+        desired = {name: value for name, value in fields.items() if name != "disabled"}
+        if "disabled" in fields:
+            desired["disabled_by"] = "user" if fields["disabled"] else None
+        change.desired = desired
+        if binding.refused:
+            change.reason = binding.refused
+            return change
+        for name, value in fields.items():
+            if error := _type_error(domain, name, value):
+                change.reason = error
+                return change
+        if binding.live is None:
+            change.op = "unmatched"
+            return change
+        if error := self.check_refs(domain, desired, change):
+            change.reason = error
+            return change
+        change.live_id = binding.live[domain.live_key]
+        row = self.row(domain, change.live_id)
+        assert row is not None
+        held = row.get("disabled_by")
+        if "disabled_by" in desired and held not in (None, "user"):
+            # HA ignores an enable while the config entry is disabled, and a
+            # user disable would outlast the config entry being enabled again.
+            change.reason = f"disabled_by is {held} in HA; apply sets or clears only user"
+            return change
+        return self.plan_update(domain, row, change)
+
     def plan_item(self, stage: Stage, item: Row) -> Change:
         domain = stage.domain
+        if isinstance(domain, DeviceDomain):
+            return self.plan_device(stage, item)
         key = item[domain.key]
         binding = self.bindings[domain.name][key]
         desired = {name: item[name] for name in stage.fields if name in item}
@@ -341,7 +428,7 @@ def domains_to_read(docs: dict[str, list[Row]], applied: set[str]) -> list[str]:
     names = set(applied)
     for name in applied:
         names.update(target for _, target in registry(name).refs)
-    return [stage.domain.name for stage in STAGES if stage.domain.name in names and stage.creates]
+    return list(dict.fromkeys(s.domain.name for s in STAGES if s.domain.name in names))
 
 
 def needs_states(docs: dict[str, list[Row]], applied: set[str]) -> bool:
@@ -367,11 +454,15 @@ def build_plan(
         if name not in docs:
             continue
         domain = registry(name)
-        bindings = match(domain, docs[name], live.get(name, []))
+        rows = live.get(name, [])
+        if isinstance(domain, DeviceDomain):
+            bindings = match_devices(domain, docs[name], rows)
+        else:
+            bindings = match(domain, docs[name], rows)
         planner.bindings[name] = bindings
         for key, binding in bindings.items():
-            if binding.live is not None:
-                planner.ids.bind(name, key, binding.live[domain.key])
+            if binding.live is not None and binding.refused is None:
+                planner.ids.bind(name, key, binding.live[domain.live_key])
 
     sections: list[Section] = []
     for stage in STAGES:
@@ -379,14 +470,15 @@ def build_plan(
         if name not in applied or name not in docs:
             continue
         items = docs[name]
-        if not stage.creates:
+        sensors = stage.fields == AREA_SENSORS
+        if sensors:
             items = [item for item in items if any(f in item for f in stage.fields)]
         section = Section(
             stage=stage.number,
             title=stage.title,
             domain=name,
             in_file=len(items),
-            live=len(live.get(name, [])) if stage.creates else None,
+            live=None if sensors else len(live.get(name, [])),
         )
         for item in items:
             change = planner.plan_item(stage, item)
