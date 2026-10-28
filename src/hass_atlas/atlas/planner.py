@@ -9,19 +9,22 @@ from __future__ import annotations
 
 import copy
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 from hass_atlas.atlas.domains.areas import AREAS
 from hass_atlas.atlas.domains.base import RegistryDomain, Row
 from hass_atlas.atlas.domains.devices import DEVICES, PAIR_FIELDS, TIE_FIELDS, DeviceDomain
+from hass_atlas.atlas.domains.entities import ENTITIES, EntityDomain
 from hass_atlas.atlas.domains.floors import FLOORS
 from hass_atlas.atlas.domains.labels import LABELS
 from hass_atlas.atlas.plan import Change, Plan, Section, registry, resolve_refs
-from hass_atlas.atlas.refs import IdMap
+from hass_atlas.atlas.refs import ENTITY_IDS, IdMap
 
 AREA_SENSORS = ("temperature_entity_id", "humidity_entity_id")
 _SENSOR_CLASS = {"temperature_entity_id": "temperature", "humidity_entity_id": "humidity"}
+TEMP_SUFFIX = "_atlas_tmp"
 
 
 @dataclass(frozen=True)
@@ -37,13 +40,14 @@ def _fields(domain: RegistryDomain, exclude: tuple[str, ...] = ()) -> tuple[str,
     return tuple(name for name in domain.field_order[1:] if name not in exclude)
 
 
-# Numbered as in the full apply order, where entities (4) come before the
-# area sensors: HA checks a sensor's device class when it is set.
+# Entities (4) come before the area sensors (5): HA checks a sensor's
+# device class against its state when it is set, and a rename moves the state.
 STAGES: tuple[Stage, ...] = (
     Stage(1, LABELS, "labels", _fields(LABELS)),
     Stage(1, FLOORS, "floors", _fields(FLOORS)),
     Stage(2, AREAS, "areas", _fields(AREAS, AREA_SENSORS)),
     Stage(3, DEVICES, "devices", DEVICES.plan_fields, creates=False),
+    Stage(4, ENTITIES, "entities", ENTITIES.plan_fields, creates=False),
     Stage(5, AREAS, "area sensors", AREA_SENSORS, creates=False),
 )
 
@@ -100,13 +104,8 @@ def next_id(base: str, taken: set[str]) -> str:
 
 
 def comparable(domain: RegistryDomain, name: str, value: Any) -> Any:
-    """*value* as HA stores it: set fields sorted, aliases stripped, null lists empty."""
-    if name in domain.set_fields:
-        items = value if isinstance(value, list) else []
-        if name == "aliases":
-            return sorted({v.strip() for v in items if isinstance(v, str) and v.strip()})
-        return sorted(set(items))
-    return value
+    """*value* as HA stores it in *domain*; see :meth:`RegistryDomain.comparable`."""
+    return domain.comparable(name, value)
 
 
 def _type_error(domain: RegistryDomain, name: str, value: Any) -> str | None:
@@ -220,22 +219,85 @@ def match_devices(domain: DeviceDomain, items: list[Row], rows: list[Row]) -> di
     return out
 
 
+def match_entities(domain: EntityDomain, items: list[Row], rows: list[Row]) -> dict[str, Binding]:
+    """Bind each file entity to the live entity with its platform and unique_id, or entity_id.
+
+    A unique_id match also needs the domain of the item's entity_id, when it
+    has one, since HA keys entities by domain, platform and unique_id. Two
+    file items bound to one live entity are both refused.
+    """
+    by_unique_id: dict[tuple[str, str], list[Row]] = {}
+    by_entity_id: dict[str, Row] = {}
+    for row in rows:
+        by_entity_id[row["entity_id"]] = row
+        if row.get("unique_id") is not None:
+            pair = (str(row.get("platform")), str(row["unique_id"]))
+            by_unique_id.setdefault(pair, []).append(row)
+    out: dict[str, Binding] = {}
+    claims: dict[str, list[str]] = {}
+    for item in items:
+        key = domain.item_key(item)
+        block = item["match"]
+        if "entity_id" in block:
+            held = by_entity_id.get(block["entity_id"])
+            if held is not None and held.get("platform") != block["platform"]:
+                out[key] = Binding(
+                    refused=f"{block['entity_id']} is held by platform {held.get('platform')}"
+                )
+                continue
+            found = [held] if held is not None else []
+        else:
+            found = by_unique_id.get((block["platform"], block["unique_id"]), [])
+            entity_id = item.get("entity_id")
+            if isinstance(entity_id, str):
+                prefix = entity_id.partition(".")[0] + "."
+                found = [r for r in found if r["entity_id"].startswith(prefix)]
+            if len(found) > 1:
+                out[key] = Binding(
+                    refused=f"unique_id matches {len(found)} live entities; set entity_id "
+                    "to tell them apart by domain"
+                )
+                continue
+        if found:
+            out[key] = Binding(found[0])
+            claims.setdefault(found[0]["entity_id"], []).append(key)
+        else:
+            out[key] = Binding()
+    for keys in claims.values():
+        if len(keys) > 1:
+            for key in keys:
+                out[key] = Binding(
+                    out[key].live, refused="another file item matches the same live entity"
+                )
+    return out
+
+
 @dataclass
 class _Planner:
     docs: dict[str, list[Row]]
     applied: set[str]
     states: dict[str, Row] | None
     sim: dict[str, list[Row]]
+    categories: dict[str, set[str]] = field(default_factory=dict)
     ids: IdMap = field(default_factory=IdMap)
     bindings: dict[str, dict[str, Binding]] = field(default_factory=dict)
     created: dict[str, set[str]] = field(default_factory=dict)
     refused: dict[str, set[str]] = field(default_factory=dict)
+    _entities: dict[str, Row] | None = None
 
     def row(self, domain: RegistryDomain, live_id: str | None) -> Row | None:
+        if isinstance(domain, EntityDomain):
+            return self.entity_index().get(live_id or "")
         for row in self.sim.get(domain.name, []):
             if row[domain.live_key] == live_id:
                 return row
         return None
+
+    def entity_index(self) -> dict[str, Row]:
+        """The simulated entity rows by entity_id, kept current through renames."""
+        if self._entities is None:
+            self._entities = {row["entity_id"]: row for row in self.sim.get("entities", [])}
+        return self._entities
 
     def resolve_ref(self, target: str, value: str) -> tuple[str | None, bool]:
         """Return an error, or None, and whether *value* is created by this plan."""
@@ -254,6 +316,8 @@ class _Planner:
 
     def check_refs(self, domain: RegistryDomain, values: Row, change: Change) -> str | None:
         for name, target in domain.refs:
+            if target == ENTITY_IDS:
+                continue  # sensors are checked against the states, by check_sensors
             value = values.get(name)
             refs = value if isinstance(value, list) else [value] if value is not None else []
             for ref in refs:
@@ -277,6 +341,22 @@ class _Planner:
                 or state.get("attributes", {}).get("device_class") != device_class
             ):
                 return f"{name} {entity_id}: not a {device_class} sensor"
+        return None
+
+    def check_sensor_refs(self, values: Row) -> str | None:
+        """Why a sensor in *values* is refused: it names a file entity that matches no live one.
+
+        That entity_id in HA may belong to another entity.
+        """
+        files = {ENTITIES.file_entity_id(item) for item in self.docs.get("entities", [])}
+        for name in AREA_SENSORS:
+            value = values.get(name)
+            if (
+                isinstance(value, str)
+                and value in files
+                and self.ids.get(ENTITY_IDS, value) is None
+            ):
+                return f"{name} {value}: the file's entity {value} matches no live entity"
         return None
 
     def name_holder(self, domain: RegistryDomain, name: str, skip: str | None) -> str | None:
@@ -320,7 +400,20 @@ class _Planner:
             # user disable would outlast the config entry being enabled again.
             change.reason = f"disabled_by is {held} in HA; apply sets or clears only user"
             return change
-        return self.plan_update(domain, row, change)
+        self.plan_update(domain, row, change)
+        if "disabled_by" in change.after:
+            self.cascade_device(row)
+        return change
+
+    def cascade_device(self, device: Row) -> None:
+        """Disable or enable *device*'s entities as HA does when the device's disable changes."""
+        for row in self.sim.get("entities", []):
+            if row.get("device_id") != device["id"]:
+                continue
+            if device["disabled_by"] is None and row.get("disabled_by") == "device":
+                row["disabled_by"] = None
+            elif device["disabled_by"] is not None and row.get("disabled_by") is None:
+                row["disabled_by"] = "device"
 
     def plan_item(self, stage: Stage, item: Row) -> Change:
         domain = stage.domain
@@ -358,8 +451,12 @@ class _Planner:
         if key in self.created.get(domain.name, set()):
             change.needs.append((domain.name, key))
         if stage.fields == AREA_SENSORS:
+            if error := self.check_sensor_refs(desired):
+                change.reason = error
+                return change
             # HA checks a sensor only when it changes, so only changes are checked here.
-            changed = {name: value for name, value in desired.items() if value != row.get(name)}
+            wanted = resolve_refs(domain, desired, self.ids)
+            changed = {name: value for name, value in wanted.items() if value != row.get(name)}
             if error := self.check_sensors(changed):
                 change.reason = error
                 return change
@@ -402,12 +499,18 @@ class _Planner:
         self.sim.setdefault(domain.name, []).append(row)
         return change
 
-    def plan_update(self, domain: RegistryDomain, row: Row, change: Change) -> Change:
+    def diff(self, domain: RegistryDomain, row: Row, change: Change) -> Row:
+        """Fill *change*'s ``after`` and ``before`` from *row*; return the wanted live values."""
         wanted = resolve_refs(domain, change.desired, self.ids)
         for name, value in change.desired.items():
-            if comparable(domain, name, wanted[name]) != comparable(domain, name, row.get(name)):
+            have = domain.live_value(row, name, wanted[name])
+            if comparable(domain, name, wanted[name]) != comparable(domain, name, have):
                 change.after[name] = value
-                change.before[name] = row.get(name)
+                change.before[name] = have
+        return wanted
+
+    def plan_update(self, domain: RegistryDomain, row: Row, change: Change) -> Change:
+        wanted = self.diff(domain, row, change)
         new_name = change.after.get("name")
         if isinstance(new_name, str) and normalize_name(new_name) != normalize_name(
             str(row.get("name"))
@@ -416,27 +519,237 @@ class _Planner:
                 change.after, change.before = {}, {}
                 change.reason = f"name {new_name!r} is in use by {holder}"
                 return change
+        return self.commit(domain, row, change, wanted)
+
+    def commit(self, domain: RegistryDomain, row: Row, change: Change, wanted: Row) -> Change:
+        """Mark *change* an update or unchanged and apply it to the simulated *row*."""
         change.op = "update" if change.after else "unchanged"
         for name in change.after:
-            empty = wanted[name] is None and name in domain.set_fields
-            row[name] = [] if empty else wanted[name]
+            row[name] = domain.stored(row, name, wanted[name])
         return change
 
+    def plan_entities(self, stage: Stage, items: list[Row]) -> list[Change]:
+        """Plan every file entity: renames first, then the other fields."""
+        domain = ENTITIES
+        bindings = self.bindings[domain.name]
+        out: list[Change] = []
+        matched: list[tuple[Row, Change, Row]] = []
+        renames: dict[str, Change] = {}
+        for item in items:
+            key = domain.item_key(item)
+            binding = bindings[key]
+            change = Change(stage=stage.number, domain=domain.name, key=key, op="refused")
+            change.label = domain.label(item, binding.live)
+            change.desired = {k: v for k, v in domain.desired(item).items() if k != "entity_id"}
+            if binding.refused:
+                change.reason = binding.refused
+                out.append(change)
+                continue
+            error = next(
+                (
+                    e
+                    for name in item
+                    if name != "match"
+                    if (e := domain.field_error(name, item[name]))
+                ),
+                None,
+            )
+            if error:
+                change.reason = error
+                out.append(change)
+                continue
+            if binding.live is None:
+                change.op = "unmatched"
+                out.append(change)
+                continue
+            row = self.row(domain, binding.live["entity_id"])
+            assert row is not None
+            new = item.get("entity_id")
+            if isinstance(new, str) and new != row["entity_id"]:
+                rename = Change(stage=stage.number, domain=domain.name, key=key, op="rename")
+                rename.label = row["entity_id"]
+                rename.live_id = row["entity_id"]
+                rename.registry_id = row.get("id")
+                rename.desired = {"entity_id": new}
+                renames[key] = rename
+            matched.append((item, change, row))
+        self.plan_renames(renames)
+        out.extend(renames[key] for key in sorted(renames))
+        for item, change, row in matched:
+            if change.key in renames and renames[change.key].op == "rename":
+                change.needs.append((domain.name, change.key))
+            held = self.plan_entity(item, change, row)
+            if not (change.op == "unchanged" and (change.key in renames or held)):
+                out.append(change)
+            out.extend(held)
+        return out
 
-def domains_to_read(docs: dict[str, list[Row]], applied: set[str]) -> list[str]:
-    """Domains apply reads: the applied ones and every domain they reference."""
-    names = set(applied)
-    for name in applied:
-        names.update(target for _, target in registry(name).refs)
-    return list(dict.fromkeys(s.domain.name for s in STAGES if s.domain.name in names))
+    def plan_renames(self, renames: dict[str, Change]) -> None:
+        """Decide which renames can run and simulate them.
+
+        A target held by an entity that is itself renamed away goes through
+        ``<target>_atlas_tmp``: every such entity moves to its temporary id
+        first, then on. A target held by anything else, an entity or a
+        state with no registry entry, refuses the rename, and so in turn
+        any rename onto the id that entity keeps.
+        """
+        index = self.entity_index()
+        states = self.states or {}
+        targets = Counter(c.desired["entity_id"] for c in renames.values())
+        refused: dict[str, str] = {}
+        for key, change in renames.items():
+            new = change.desired["entity_id"]
+            if targets[new] > 1:
+                refused[key] = f"{targets[new]} file items set entity_id {new}"
+        while True:
+            moving = {c.live_id for k, c in renames.items() if k not in refused}
+            more = False
+            for key, change in renames.items():
+                if key in refused:
+                    continue
+                new = change.desired["entity_id"]
+                temp = new + TEMP_SUFFIX
+                if new in index and new not in moving:
+                    refused[key] = f"entity_id {new} is held by another entity"
+                elif new not in index and new in states:
+                    refused[key] = f"entity_id {new} is held by a state with no registry entry"
+                elif new in moving and (temp in index or temp in states or temp in targets):
+                    refused[key] = f"temporary entity_id {temp} is taken"
+                else:
+                    change.temp_name = temp if new in moving else None
+                    continue
+                more = True
+            if not more:
+                break
+        for key, change in renames.items():
+            if key in refused:
+                change.op, change.reason, change.temp_name = "refused", refused[key], None
+        done = [c for k, c in renames.items() if k not in refused]
+        rows = [index.pop(str(c.live_id)) for c in done]
+        moved = {str(c.live_id): states.pop(str(c.live_id)) for c in done if c.live_id in states}
+        for change, row in zip(done, rows, strict=True):
+            old, new = str(change.live_id), change.desired["entity_id"]
+            change.before = {"entity_id": old}
+            change.after = {"entity_id": new}
+            row["entity_id"] = new
+            index[new] = row
+            if old in moved:
+                states[new] = {**moved[old], "entity_id": new}
+            self.ids.bind(ENTITIES.name, change.key, new)
+            self.ids.bind(ENTITY_IDS, new, new)
+
+    def plan_entity(self, item: Row, change: Change, row: Row) -> list[Change]:
+        """Plan *item*'s fields other than entity_id on its simulated live *row*.
+
+        Return one refused change for each field HA would reject; the item's
+        other fields are planned without it.
+        """
+        domain = ENTITIES
+        change.live_id = change.label = row["entity_id"]
+        change.registry_id = row.get("id")
+        change.desired = domain.explicit(row, change.desired)
+        if error := self.check_refs(domain, change.desired, change):
+            change.reason = error
+            return []
+        wanted = self.diff(domain, row, change)
+        held = []
+        for name, error in self.field_refusals(row, change).items():
+            refusal = Change(
+                stage=change.stage,
+                domain=change.domain,
+                key=change.key,
+                op="refused",
+                live_id=change.live_id,
+                label=change.label,
+                desired={name: change.desired.pop(name)},
+                reason=error,
+            )
+            del change.after[name], change.before[name]
+            held.append(refusal)
+        if error := self.entity_refusal(row, change, wanted):
+            change.after, change.before = {}, {}
+            change.reason = error
+            change.op = "refused"
+            return held
+        self.commit(domain, row, change, wanted)
+        return held
+
+    def field_refusals(self, row: Row, change: Change) -> dict[str, str]:
+        """The fields of *change* that HA would reject for entity *row*, with why."""
+        after = change.after
+        out = {}
+        for scope, category in (after.get("categories") or {}).items():
+            if category is not None and category not in self.categories.get(scope, set()):
+                out["categories"] = f"categories {scope} {category}: no such category in HA"
+                break
+        # HA checks only an enable; a user disable replaces one that HA set.
+        if "disabled_by" in after and after["disabled_by"] is None:
+            device = self.row(DEVICES, row["device_id"]) if row.get("device_id") else None
+            if device is not None and device["disabled_by"]:
+                held = device["disabled_by"]
+                out["disabled_by"] = f"its device is disabled ({held}); enable the device first"
+            elif row.get("disabled_by") != "user":
+                held = row["disabled_by"]
+                out["disabled_by"] = f"disabled_by is {held} in HA; apply clears only user"
+        if "hidden_by" in after and row.get("hidden_by") not in (None, "user"):
+            held = row["hidden_by"]
+            out["hidden_by"] = f"hidden_by is {held} in HA; apply sets or clears only user"
+        return out
+
+    def entity_refusal(self, row: Row, change: Change, wanted: Row) -> str | None:
+        """Why HA would reject *change*'s writes to entity *row* as a whole, or None."""
+        after = change.after
+        if "area_id" in after or "name" in after:
+            area = wanted["area_id"] if "area_id" in after else row.get("area_id")
+            name = wanted["name"] if "name" in after else row.get("name")
+            own = name if name is not None else row.get("original_name")
+            if area is not None and row.get("device_id") and not own:
+                return (
+                    "an entity without a name of its own cannot have an area of its own; "
+                    "set the area on its device or give the entity a name"
+                )
+        return None
 
 
-def needs_states(docs: dict[str, list[Row]], applied: set[str]) -> bool:
+def _sets_area_sensors(docs: dict[str, list[Row]], applied: set[str]) -> bool:
     if "areas" not in applied:
         return False
     return any(
         item.get(name) is not None for item in docs.get("areas", []) for name in AREA_SENSORS
     )
+
+
+def domains_to_read(docs: dict[str, list[Row]], applied: set[str]) -> list[str]:
+    """Domains apply reads: the applied ones and every domain they depend on.
+
+    Entities are read too when areas set sensors, so a sensor follows the
+    file's entity to its live entity_id.
+    """
+    names = set(applied)
+    for name in applied:
+        names.update(registry(name).depends_on)
+    if docs.get("entities") and _sets_area_sensors(docs, applied):
+        names.add("entities")
+    return list(dict.fromkeys(s.domain.name for s in STAGES if s.domain.name in names))
+
+
+def needs_states(docs: dict[str, list[Row]], applied: set[str]) -> bool:
+    """Whether apply reads the states: to check area sensors and rename targets."""
+    if "entities" in applied and docs.get("entities"):
+        return True
+    return _sets_area_sensors(docs, applied)
+
+
+def category_scopes(docs: dict[str, list[Row]], applied: set[str]) -> list[str]:
+    """The category scopes the applied entities name, which apply reads categories for."""
+    if "entities" not in applied:
+        return []
+    scopes: set[str] = set()
+    for item in docs.get("entities", []):
+        categories = item.get("categories")
+        if isinstance(categories, dict):
+            scopes.update(k for k in categories if isinstance(k, str))
+    return sorted(scopes)
 
 
 def build_plan(
@@ -447,9 +760,19 @@ def build_plan(
     *,
     url: str,
     ha_version: str | None,
+    categories: dict[str, set[str]] | None = None,
 ) -> Plan:
-    """Plan every stage for the *applied* domains of an atlas against *live* rows."""
-    planner = _Planner(docs=docs, applied=applied, states=states, sim=copy.deepcopy(live))
+    """Plan every stage for the *applied* domains of an atlas against *live* rows.
+
+    *categories* holds the live category ids per scope that entities name.
+    """
+    planner = _Planner(
+        docs=docs,
+        applied=applied,
+        states=dict(states) if states is not None else None,
+        sim=copy.deepcopy(live),
+        categories=categories or {},
+    )
     for name in domains_to_read(docs, applied):
         if name not in docs:
             continue
@@ -457,6 +780,13 @@ def build_plan(
         rows = live.get(name, [])
         if isinstance(domain, DeviceDomain):
             bindings = match_devices(domain, docs[name], rows)
+        elif isinstance(domain, EntityDomain):
+            bindings = match_entities(domain, docs[name], rows)
+            for item in docs[name]:
+                binding = bindings[domain.item_key(item)]
+                file_id = domain.file_entity_id(item)
+                if file_id is not None and binding.live is not None and binding.refused is None:
+                    planner.ids.bind(ENTITY_IDS, file_id, binding.live["entity_id"])
         else:
             bindings = match(domain, docs[name], rows)
         planner.bindings[name] = bindings
@@ -480,6 +810,10 @@ def build_plan(
             in_file=len(items),
             live=None if sensors else len(live.get(name, [])),
         )
+        if isinstance(stage.domain, EntityDomain):
+            section.changes.extend(planner.plan_entities(stage, items))
+            sections.append(section)
+            continue
         for item in items:
             change = planner.plan_item(stage, item)
             if change.op == "refused" and planner.ids.get(name, change.key) is None:

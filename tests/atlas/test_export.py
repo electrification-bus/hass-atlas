@@ -1,4 +1,4 @@
-"""``export`` for floors, labels, areas and devices."""
+"""``export`` for floors, labels, areas, devices and entities."""
 
 from __future__ import annotations
 
@@ -18,7 +18,15 @@ from hass_atlas.ha_client import HAClientError
 from tests.atlas.fake_ha import FIXTURES, FakeHA, load_fixture
 
 GOLDEN = FIXTURES / "golden"
-FILES = ("atlas.yaml", "floors.yaml", "labels.yaml", "areas.yaml", "devices.yaml")
+READS = ("/list", "/get_entries")
+FILES = (
+    "atlas.yaml",
+    "floors.yaml",
+    "labels.yaml",
+    "areas.yaml",
+    "devices.yaml",
+    "entities.yaml",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +58,7 @@ def test_golden(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         assert (out / name).read_text(encoding="utf-8") == (GOLDEN / name).read_text(
             encoding="utf-8"
         ), name
-    assert all(cmd.endswith("/list") for cmd, _ in fake.sent)
+    assert all(cmd.endswith(READS) for cmd, _ in fake.sent)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["atlas"]
 
 
@@ -121,10 +129,16 @@ def test_only_keeps_other_domains(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert after["labels.yaml"] == before["labels.yaml"]
     assert after["notes.txt"] == b"kept\n"
     assert after["floors.yaml"] != before["floors.yaml"]
-    assert load_atlas(out).manifest["domains"] == ["floors", "labels", "areas", "devices"]
+    assert load_atlas(out).manifest["domains"] == [
+        "floors",
+        "labels",
+        "areas",
+        "devices",
+        "entities",
+    ]
 
 
-@pytest.mark.parametrize("only", ["entities", "floors,bogus", ","])
+@pytest.mark.parametrize("only", ["energy", "floors,bogus", ","])
 def test_only_rejects_unknown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, only: str) -> None:
     fake = FakeHA()
     result = run_export(monkeypatch, fake, "--out", str(tmp_path / "atlas"), "--only", only)
@@ -357,7 +371,7 @@ def test_only_refuses_mixed_sources(
         result = run_export(
             monkeypatch, fake, "--out", str(out), "--only", "labels", dry_run=dry_run
         )
-        _assert_clean_error(result, f"{out} holds floors, areas, devices from {change}")
+        _assert_clean_error(result, f"{out} holds floors, areas, devices, entities from {change}")
         assert "without --only" in result.output
     assert snapshot(out) == before
 
@@ -406,7 +420,7 @@ def test_dry_run_new_dir_writes_nothing(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert list(tmp_path.iterdir()) == []
     assert "+- area_id: garage_2" in result.output
     assert "Nothing written" in result.output
-    assert all(cmd.endswith("/list") for cmd, _ in fake.sent)
+    assert all(cmd.endswith(READS) for cmd, _ in fake.sent)
 
 
 def test_dry_run_diffs_existing_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -458,12 +472,13 @@ def test_manifest_format(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     out = tmp_path / "atlas"
     assert run_export(monkeypatch, FakeHA(), "--out", str(out)).exit_code == 0
     manifest = yaml.safe_load((out / "atlas.yaml").read_text(encoding="utf-8"))
-    assert list(manifest) == ["format", "hass_atlas", "ha_version", "domains"]
+    assert list(manifest) == ["format", "hass_atlas", "ha_version", "domains", "entities"]
     assert manifest == {
         "format": 1,
         "hass_atlas": "0.0.0",
         "ha_version": "2026.10.4",
-        "domains": ["floors", "labels", "areas", "devices"],
+        "domains": ["floors", "labels", "areas", "devices", "entities"],
+        "entities": "all",
     }
 
 
@@ -500,7 +515,7 @@ GOOD_MANIFEST = "format: 1\nhass_atlas: 0.0.0\ndomains: [labels]\n"
         ({"atlas.yaml": "format: true\ndomains: []\n"}, "atlas.yaml", "unsupported format True"),
         ({"atlas.yaml": "format: 1.0\ndomains: []\n"}, "atlas.yaml", "unsupported format 1.0"),
         ({"atlas.yaml": "format: '1'\ndomains: []\n"}, "atlas.yaml", "unsupported format '1'"),
-        ({"atlas.yaml": "format: 1\ndomains: [entities]\n"}, "atlas.yaml", "unknown domains"),
+        ({"atlas.yaml": "format: 1\ndomains: [energy]\n"}, "atlas.yaml", "unknown domains"),
         ({"atlas.yaml": "- 1\n"}, "atlas.yaml", "expected a mapping"),
         ({"atlas.yaml": GOOD_MANIFEST}, "labels.yaml", "No such file"),
         (

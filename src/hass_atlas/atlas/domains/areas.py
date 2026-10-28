@@ -7,6 +7,7 @@ path that does not survive a rebuild.
 from __future__ import annotations
 
 from hass_atlas.atlas.domains.base import RegistryDomain
+from hass_atlas.atlas.refs import ENTITY_IDS
 
 AREAS = RegistryDomain(
     name="areas",
@@ -24,5 +25,10 @@ AREAS = RegistryDomain(
     set_fields=("labels", "aliases"),
     registry_order=True,
     depends_on=("floors", "labels"),
-    refs=(("floor_id", "floors"), ("labels", "labels")),
+    refs=(
+        ("floor_id", "floors"),
+        ("labels", "labels"),
+        ("temperature_entity_id", ENTITY_IDS),
+        ("humidity_entity_id", ENTITY_IDS),
+    ),
 )

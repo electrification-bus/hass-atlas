@@ -123,8 +123,8 @@ mDNS discovery cannot run through a proxy: with `--proxy`, `--url` is required, 
 | `cascade` | Yes | No | Panel-cascade tree from publisher topology |
 | `energy-topology` | Yes | No | Energy system analysis |
 | `energy-audit` | Yes | `--prune` / `--remap` | Find / fix stale dashboard references |
-| `export` | Yes | No | Write floors, labels, areas and devices to YAML files |
-| `apply` | Yes | Yes | Make floors, labels, areas and devices match those YAML files |
+| `export` | Yes | No | Write floors, labels, areas, devices and entities to YAML files |
+| `apply` | Yes | Yes | Make floors, labels, areas, devices and entities match those YAML files |
 | `energy` | Yes | Yes | Auto-configure Energy Dashboard |
 | `areas` | Yes | Yes | Assign devices to areas |
 | `normalize` | Yes | Yes | Rename entity IDs |
@@ -227,19 +227,20 @@ Example mapping file:
 ### `export` - Write Configuration to YAML Files
 
 ```bash
-hass-atlas export [--out DIR] [--only floors,labels,areas,devices]
+hass-atlas export [--out DIR] [--only floors,labels,areas,devices,entities]
 hass-atlas --dry-run export [--out DIR]
 ```
 
-Reads the floor, label, area and device registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions and the exported domains. It sends only `list` commands, never a write.
+Reads the floor, label, area, device and entity registries and writes one YAML file per domain to `DIR` (default `./atlas`), plus a manifest, `atlas.yaml`, holding the file format, the hass-atlas and Home Assistant versions, the exported domains and `entities: all`. It sends only read commands (`list`, and `config/entity_registry/get_entries` for entity aliases and device classes), never a write.
 
 ```
 atlas/
-  atlas.yaml     format, hass_atlas, ha_version, domains
+  atlas.yaml     format, hass_atlas, ha_version, domains, entities
   floors.yaml    floor_id, name, level, icon, aliases
   labels.yaml    label_id, name, color, icon, description
   areas.yaml     area_id, name, floor_id, icon, labels, aliases, temperature_entity_id, humidity_entity_id
   devices.yaml   match, name_by_user, area_id, labels, disabled
+  entities.yaml  match, entity_id, name, icon, area_id, device_class, labels, categories, aliases, hidden, disabled, options
 ```
 
 `devices.yaml` holds only the devices with a user value: a name given by the user, an area, labels, or disabled by the user. Device ids are random per installation, so each device is named by a `match` block instead: its identifiers, or its connections when it has no identifiers, plus `manufacturer` and `model` when another device shares one of those pairs (`null` when the device has none). A device whose `match` block fits another live device too, whether or not that one is exported, cannot be told apart, so export leaves it out and prints a warning.
@@ -264,11 +265,41 @@ atlas/
   disabled: true
 ```
 
+`entities.yaml` holds every entity (`entities: all` in the manifest), so a rebuilt Home Assistant gets every entity_id back, including those that match the id Home Assistant would generate today. Entity ids are kept in the files, but registry ids are not, so each entity is named by a `match` block: its `platform` and `unique_id`. A `mobile_app` unique_id embeds the app's webhook id, which is a credential, and a config-entry helper's unique_id holds its config entry id, which changes on a rebuild, as does the config subentry id that some conversation agents use as their unique_id; such an entity (any whose unique_id contains its config entry or subentry id) is matched by `platform` and `entity_id` instead, and its unique_id is never written. An entity of that kind whose entity_id was built from its unique_id is left out with a warning. Besides `entity_id`, only values a user set are written: `name`, `icon` and `device_class` (Home Assistant keeps its own in separate `original_*` fields), `area_id`, `labels`, `aliases` when they differ from a new entity's `[null]` (`null` in the list stands for the entity's own name), `hidden: true` and `disabled: true` for a hide or disable by a user, and the option keys a user sets: `sensor` `display_precision` and `unit_of_measurement`, and the `weather` units. Option keys Home Assistant writes itself, such as `suggested_display_precision`, are not written.
+
+```yaml
+- match: {platform: acme_hub, unique_id: hub-7f3a-r2-power}
+  entity_id: sensor.pump_power
+  options:
+    sensor: {display_precision: 1}
+- match: {platform: acme_hub, unique_id: hub-7f3a-r2-switch}
+  entity_id: switch.pump_relay
+  name: Pump
+  icon: mdi:pump
+  area_id: garage_2
+  labels:
+  - critical_load
+  - solar
+- match: {platform: acme_hub, unique_id: sensor-0042-contact}
+  entity_id: binary_sensor.door_contact
+  device_class: window
+  hidden: true
+- match: {platform: integration, entity_id: sensor.house_energy_in}
+  icon: mdi:transmission-tower
+- match: {platform: mobile_app, entity_id: sensor.pixel_battery_level}
+  area_id: den
+- match: {platform: zwave_js, unique_id: 4011223344-12-49-0-Humidity}
+  entity_id: sensor.workshop_humidity
+  aliases:
+  - null
+  - shop humidity
+```
+
 The files are meant to be committed and diffed:
 
-- Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, devices by their `match` block, and `aliases`, `labels`, identifier and connection lists are sorted.
+- Running export twice against an unchanged Home Assistant gives identical bytes. Floors and areas keep the order Home Assistant lists them in, labels are sorted by `label_id`, devices and entities by their `match` block, and `labels`, identifier and connection lists and floor and area `aliases` are sorted. Entity `aliases` keep their order, which Home Assistant keeps.
 - Only fields that hold a value are written; a domain with no items is written as `[]`.
-- Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild. Device ids, config entry ids and the `via_device_id` and `parent_device_id` links are not written either, since they change on a rebuild.
+- Timestamps (`created_at`, `modified_at`) and area pictures are not written. A picture is an `/api/image/serve/<random id>/...` path that does not survive a rebuild. Device and entity registry ids, config entry ids and the `via_device_id` and `parent_device_id` links are not written either, since they change on a rebuild. Neither are entity `categories`: category ids are random per installation, and apply does not create categories. A hand-written file can still set them by id.
 - Export writes each file to a hidden `.hass-atlas-tmp-*` file in `DIR` and renames them over the old files only once all are written, so an export that fails with an error leaves the previous files in place. If the process is killed while renaming, some files can be new and some old; run export again. Staged files left by a killed run are removed by the next export; to keep them out of a commit made in between, add `.hass-atlas-tmp-*` to the repository's `.gitignore`.
 - `DIR` can be `.`, a relative path or a symlink to a directory; a symlink is written through and kept. Other files already in `DIR` are kept. A `DIR` holding files other than hidden ones (such as `.DS_Store`) but no `atlas.yaml` is refused.
 
@@ -277,12 +308,12 @@ The files are meant to be committed and diffed:
 ### `apply` - Make Home Assistant Match the YAML Files
 
 ```bash
-hass-atlas --dry-run apply DIR [--only floors,labels,areas,devices] [-v]
+hass-atlas --dry-run apply DIR [--only floors,labels,areas,devices,entities] [-v]
 hass-atlas apply DIR [--only ...] [--yes] [--snapshot-dir SNAPSHOT] [-v]
 hass-atlas apply DIR --check
 ```
 
-Reads an export directory and creates the floors, labels and areas missing from Home Assistant, and updates the fields that differ on them and on devices. It never creates or deletes a device, and never deletes anything else. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
+Reads an export directory and creates the floors, labels and areas missing from Home Assistant, renames entities to the entity_id in the files, and updates the fields that differ on them, on devices and on entities. It never creates or deletes a device or an entity, and never deletes anything else. A field absent from a file is left alone, and `null` clears it, so a hand-written file can hold only the fields it manages. Items in Home Assistant that are not in the files are left alone.
 
 Run it with `--dry-run` first. The plan has one line per change, grouped by stage:
 
@@ -301,9 +332,9 @@ Stage 5  area sensors  (1 in file)
 Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
 ```
 
-`+` is a create, `~` an update, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` an unmatched device (counted by the domain of its first identifier or connection, or listed with `-v`) or a write whose result is unknown.
+`+` is a create, `~` an update, `>` an entity rename, `=` unchanged (counted, or listed with `-v`; an item matched by name is always listed), `!` refused, a conflict or skipped, `x` a failed write, and `?` an unmatched device or entity (counted by the domain of a device's first identifier or connection, or by an entity's platform, or listed with `-v`) or a write whose result is unknown.
 
-- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then devices (stage 3), then the areas' temperature and humidity sensors (stage 5; a later release puts entities in stage 4). Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
+- **Stages.** Labels and floors are written first (stage 1), then areas (stage 2), then devices (stage 3), then entities (stage 4), then the areas' temperature and humidity sensors (stage 5), which Home Assistant checks against the entities' states. Before a stage writes, apply reads its registries again; a change whose old value has changed in Home Assistant since the plan is skipped as a conflict. After a stage writes, apply reads them again and compares them with the files; any difference stops the run. A failed write stops the run after its stage. A write that times out or loses the connection stops the run at once and is shown and journaled as unknown, since Home Assistant may have applied it. Running apply again picks up from where Home Assistant is.
 - **Matching.** A file item matches the Home Assistant item with the same id, or else the one with the same name, ignoring case and spaces. An item is refused when its name matches an item that another file item already matches, or more than one item.
 - **Ids.** Home Assistant makes a new item's id from its name. When the name would give a different id from the file's (an area `garage_2` named `Workshop`), apply creates the item under a temporary name that gives the file's id, then renames it. If Home Assistant still assigns another id, apply uses that id in every later reference and says so on the line.
 - **Devices.** A file device matches the device in Home Assistant whose identifiers are the same set, or whose connections are, when the file gives connections; a MAC address may be written in any form Home Assistant accepts. When several devices have that set, `manufacturer` and `model` choose among them, and `null` chooses a device without one. A device still matched by several, or matched by two file items, is refused. A device that matches none is unmatched, which is normal while integrations are still being added again; running apply later picks it up. `disabled: true` disables the device as a user would, and `false` or `null` enables it if a user disabled it. A device that Home Assistant disabled itself (`disabled_by` is `config_entry`, `integration` or `device`) is refused when the file sets `disabled`: apply sets and clears only a user disable. Part of a plan:
@@ -318,7 +349,19 @@ Summary: 1 create, 1 update, 1 refused, 6 unchanged. Dry run: nothing written.
     ? device  1 unmatched:      zwave_js 1  (-v lists them)
     = device  1 unchanged
   ```
-- **References.** An area's `floor_id` and `labels`, and a device's `area_id` and `labels`, must name a floor, area or label in the files or in Home Assistant; otherwise the item is refused. When Home Assistant gave an area or label another id than the file's, a device's references use the new id. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
+- **Entities.** A file entity matches the entity in Home Assistant with the same platform and unique_id (and the domain of its `entity_id`), or, when the file matches it by `entity_id`, the entity with that entity_id, which must be of the same platform. An entity that matches none is unmatched, like a device. Renames run first in stage 4: when an entity's `entity_id` differs, apply renames it, and when the new id is held by another entity that the plan also renames away (two entities whose ids were swapped on a rebuild), each moves to `<id>_atlas_tmp` first and then to its id. A rename onto an id held by anything else, an entity the plan does not rename or a state with no registry entry, is refused, and so is a rename onto the id such an entity keeps; the entity's other fields are still applied. When a planned rename does not run, the entity's other fields are skipped, and an entity already at its temporary id whose target is still held moves back to its old id. Before each write, apply checks that the entity at the entity_id is the one it planned for, by its registry id. Then the other fields: `disabled: true` disables an entity as a user would, also one that Home Assistant disabled itself, and `disabled: false` or `null` enables it only if a user disabled it and its device is enabled. `hidden` sets and clears only a user hide, so it is refused on an entity that Home Assistant hid. Such a refusal refuses only that field; the entity's other fields are still applied. `options` keys are written into the live options of their domain, keeping the keys Home Assistant wrote there, and a key set to `null` is removed; `options: null` removes every user key. `aliases: null` sets the default `[null]`. An entity without a name of its own (neither `name` nor one from its integration) cannot be given an area; apply refuses it, as Home Assistant does. When entities were enabled, apply prints one line saying how many load after Home Assistant restarts and how many when their integration reloads. Part of a plan for a rebuilt Home Assistant:
+
+  ```
+  Stage 4  entities  (15 in file, 15 live)
+    > entity  sensor.pump_power_2 -> sensor.pump_power  (through sensor.pump_power_atlas_tmp)
+    > entity  sensor.pump_power -> sensor.pump_power_2  (through sensor.pump_power_2_atlas_tmp)
+    > entity  sensor.relay_power -> sensor.kitchen_power
+    ~ entity  sensor.pump_power options.sensor.display_precision: null -> 1
+    ~ entity  binary_sensor.door_contact device_class: null -> window
+                                         hidden_by: null -> user
+    = entity  3 unchanged
+  ```
+- **References.** An area's `floor_id` and `labels`, and a device's or entity's `area_id` and `labels`, must name a floor, area or label in the files or in Home Assistant, and a category that an entity's `categories` set must exist in Home Assistant; otherwise the item is refused (an entity's rename still runs), or for a category only its `categories`. When Home Assistant gave an area or label another id than the file's, a device's or entity's references use the new id, and an area's sensors use the id an entity has once the renames have run, also with `--only` leaving out entities. A sensor that names a file entity matching no entity in Home Assistant is refused. A temperature or humidity sensor is checked only when it changes, and must be a `sensor` entity with that device class; otherwise neither sensor is set, and the area is created or updated without them. A label's `icon` must have the form `prefix:name` and its `color` must be `#RRGGBB` or a theme color such as `red`; otherwise the label is refused.
 - **Confirmation.** Apply prints the plan and asks once before writing. `--yes` skips the question; without a terminal, apply writes only with `--yes`.
 - **Snapshot.** Before its first write, apply creates `~/.local/state/hass-atlas/snapshots/<host>/<UTC time>/` (mode 0700; `--snapshot-dir` sets another, empty, directory) holding `before/`, an export of the registries the plan writes, as they were; `plan.json`, the plan; and `journal.jsonl`, one line per write with its payload, old values and result, synced to disk before the next write. `hass-atlas apply SNAPSHOT/before` puts back the fields that held a value; it does not clear fields that were empty or delete items the apply created. If the snapshot cannot be written, nothing is written to Home Assistant.
 - **`--only`** applies the listed domains; the others are read to check references but never written.
@@ -470,11 +513,12 @@ hass-atlas uses the Home Assistant [WebSocket API](https://developers.home-assis
 Commands used:
 
 - `config/device_registry/list` and `update` — device hierarchy and area assignment
-- `config/entity_registry/list` and `update` — entity metadata and renaming
+- `config/entity_registry/list`, `get_entries` and `update` - entity metadata and renaming (`get_entries` gives `export` and `apply` the aliases and device classes that `list` leaves out)
+- `config/category_registry/list` - categories that entities name, for `apply`
 - `config/area_registry/list`, `create` and `update` — area management
 - `config/floor_registry/list`, `create` and `update`, and the same for `config/label_registry` - floors and labels, for `export` and `apply`
 - `energy/get_prefs` and `save_prefs` — Energy Dashboard configuration
-- `get_states` — live entity state values (for topology discovery, and for the area sensor checks in `apply`)
+- `get_states` - live entity state values (for topology discovery, and for the area sensor and entity rename checks in `apply`)
 
 Frame size is set to 16 MB (`max_size=16*1024*1024`) because HA registries can exceed the default 1 MB WebSocket frame limit.
 

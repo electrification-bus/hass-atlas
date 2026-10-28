@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from hass_atlas.atlas import DOMAINS, FORMAT, MANIFEST
-from hass_atlas.atlas.domains.base import Domain, FlowList, Row
+from hass_atlas.atlas.domains.base import Domain, FlowDict, FlowList, Row
 
 
 class AtlasError(Exception):
@@ -52,6 +52,22 @@ _Dumper.add_representer(
         "tag:yaml.org,2002:seq", data, flow_style=True
     ),
 )
+_Dumper.add_representer(
+    FlowDict,
+    lambda dumper, data: dumper.represent_mapping(
+        "tag:yaml.org,2002:map", data, flow_style=True
+    ),
+)
+
+
+def _represent_str(dumper: _Dumper, data: str) -> yaml.ScalarNode:
+    # PyYAML writes U+0085 raw in other styles and reads it back as a line break.
+    if "\x85" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+    return dumper.represent_str(data)
+
+
+_Dumper.add_representer(str, _represent_str)
 
 
 def _safe_dump(data: Any) -> str:

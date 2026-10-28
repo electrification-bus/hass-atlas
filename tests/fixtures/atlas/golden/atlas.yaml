@@ -6,3 +6,5 @@ domains:
 - labels
 - areas
 - devices
+- entities
+entities: all

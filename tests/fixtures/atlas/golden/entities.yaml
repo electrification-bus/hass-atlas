@@ -1,0 +1,52 @@
+- match: {platform: acme_cloud, unique_id: acct-91-weather}
+  entity_id: weather.home
+  options:
+    weather: {temperature_unit: °C, wind_speed_unit: km/h}
+- match: {platform: acme_hub, unique_id: hub-7f3a-controller-led}
+  entity_id: switch.hub_led
+- match: {platform: acme_hub, unique_id: hub-7f3a-controller-rssi}
+  entity_id: sensor.hub_signal
+  disabled: true
+- match: {platform: acme_hub, unique_id: hub-7f3a-r2-power}
+  entity_id: sensor.pump_power
+  options:
+    sensor: {display_precision: 1}
+- match: {platform: acme_hub, unique_id: hub-7f3a-r2-power-avg}
+  entity_id: sensor.pump_power_2
+  name: Pump power average
+- match: {platform: acme_hub, unique_id: hub-7f3a-r2-switch}
+  entity_id: switch.pump_relay
+  name: Pump
+  icon: mdi:pump
+  area_id: garage_2
+  labels:
+  - critical_load
+  - solar
+- match: {platform: acme_hub, unique_id: hub-7f3a-r4-power}
+  entity_id: sensor.kitchen_power
+  options:
+    sensor: {unit_of_measurement: kW}
+- match: {platform: acme_hub, unique_id: sensor-0042-battery-level}
+  entity_id: sensor.door_battery
+- match: {platform: acme_hub, unique_id: sensor-0042-contact}
+  entity_id: binary_sensor.door_contact
+  device_class: window
+  hidden: true
+- match: {platform: acme_plug, unique_id: 02005e100001-light}
+  entity_id: light.den_lamp
+  name: Den lamp
+  icon: mdi:lamp
+  aliases: []
+- match: {platform: integration, entity_id: sensor.house_energy_in}
+  icon: mdi:transmission-tower
+- match: {platform: mobile_app, entity_id: sensor.pixel_battery_level}
+  area_id: den
+- match: {platform: utility_meter, entity_id: sensor.grid_import_peak}
+- match: {platform: zwave_js, unique_id: 4011223344-12-49-0-Air temperature}
+  entity_id: sensor.workshop_temperature
+  name: Workshop temperature
+- match: {platform: zwave_js, unique_id: 4011223344-12-49-0-Humidity}
+  entity_id: sensor.workshop_humidity
+  aliases:
+  - null
+  - shop humidity

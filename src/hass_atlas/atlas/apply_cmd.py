@@ -11,7 +11,7 @@ from hass_atlas.atlas.domains.base import Row
 from hass_atlas.atlas.executor import Executor
 from hass_atlas.atlas.export_cmd import parse_only
 from hass_atlas.atlas.plan import Plan, registry, render, summary
-from hass_atlas.atlas.planner import build_plan, domains_to_read, needs_states
+from hass_atlas.atlas.planner import build_plan, category_scopes, domains_to_read, needs_states
 from hass_atlas.atlas.snapshot import Snapshot, SnapshotError, default_dir
 from hass_atlas.atlas.yamlio import Atlas, AtlasError, load_atlas
 from hass_atlas.context import Context, pass_ctx, run_async
@@ -52,6 +52,22 @@ def _print_plan(plan: Plan, verbose: bool) -> None:
         click.echo(line)
 
 
+def _enabled_line(executor: Executor) -> str | None:
+    """One line on the entities that were enabled and how they get loaded."""
+    parts = []
+    if executor.restart:
+        parts.append(f"{len(executor.restart)} load once Home Assistant restarts")
+    if executor.reload:
+        delays = sorted(set(executor.reload.values()), key=str)
+        parts.append(
+            f"{len(executor.reload)} load when their integration reloads, "
+            f"after {', '.join(map(str, delays))} s"
+        )
+    if not parts:
+        return None
+    return f"Enabled entities: {'; '.join(parts)}."
+
+
 async def _apply(
     ctx: Context,
     atlas: Atlas,
@@ -70,9 +86,19 @@ async def _apply(
         if needs_states(atlas.docs, applied):
             rows = await client.send_command("get_states")
             states = {row["entity_id"]: row for row in rows}
+        categories = {}
+        for scope in category_scopes(atlas.docs, applied):
+            rows = await client.send_command("config/category_registry/list", scope=scope)
+            categories[scope] = {row["category_id"] for row in rows}
         _warn_version(atlas, client.ha_version)
         plan = build_plan(
-            atlas.docs, applied, live, states, url=ctx.url, ha_version=client.ha_version
+            atlas.docs,
+            applied,
+            live,
+            states,
+            url=ctx.url,
+            ha_version=client.ha_version,
+            categories=categories,
         )
         _print_plan(plan, verbose)
 
@@ -99,14 +125,17 @@ async def _apply(
 
         path = snapshot_dir or default_dir(ctx.url)
         snapshot = Snapshot.create(path, plan, live, explicit=snapshot_dir is not None)
+        executor = Executor(client, plan, snapshot.journal, click.echo)
         try:
-            code = await Executor(client, plan, snapshot.journal, click.echo).run()
+            code = await executor.run()
         except (HAClientError, SnapshotError) as exc:
             print_error(str(exc))
             code = 1
         finally:
             snapshot.journal.close()
         click.echo(summary(plan, done=True))
+        if line := _enabled_line(executor):
+            click.echo(line)
         print_info(f"Snapshot and journal: {snapshot.path}")
         if code == 0:
             print_ok("Applied.")
@@ -152,11 +181,12 @@ def apply(
     snapshot_dir: Path | None,
     verbose: bool,
 ) -> None:
-    """Make Home Assistant's floors, labels, areas and devices match an atlas directory.
+    """Make Home Assistant's floors, labels, areas, devices and entities match an atlas directory.
 
-    Creates missing floors, labels and areas and updates differing fields;
-    never creates or deletes a device, and never deletes anything else. A
-    field absent from a file is left alone, and null clears it. Before the
+    Creates missing floors, labels and areas, renames entities to their
+    entity_id in the files, and updates differing fields; never creates or
+    deletes a device or entity, and never deletes anything else. A field
+    absent from a file is left alone, and null clears it. Before the
     first write, saves the affected domains, the plan and a journal of every
     write to a snapshot directory. With --dry-run or --check, prints the plan
     and writes nothing.
