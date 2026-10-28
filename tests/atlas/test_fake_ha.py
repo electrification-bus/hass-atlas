@@ -148,3 +148,92 @@ async def test_label_icon_and_color_format() -> None:
     await send(fake, "config/label_registry/update", label_id="solar", color="light-blue")
     err = await error(fake, "config/label_registry/update", label_id="solar", icon="sun")
     assert err.code == "invalid_format"
+
+
+def _device(fake: FakeHA, identifier: str | None) -> dict[str, Any]:
+    """The device with identifier ``[acme_*, identifier]``, or with none."""
+    return next(
+        r
+        for r in fake.registries["devices"]
+        if [p[1] for p in r["identifiers"]] == ([identifier] if identifier else [])
+    )
+
+
+async def test_device_update_returns_row_and_checks_labels_only() -> None:
+    fake = FakeHA()
+    plug = _device(fake, None)
+    row = await send(
+        fake,
+        "config/device_registry/update",
+        device_id=plug["id"],
+        area_id="nowhere",
+        labels=["solar", "gone", "solar"],
+        name_by_user="Lamp",
+    )
+    assert (row["area_id"], row["labels"], row["name_by_user"]) == ("nowhere", ["solar"], "Lamp")
+    assert set(row) == set(plug)
+    row = await send(
+        fake, "config/device_registry/update", device_id=plug["id"], name_by_user=None
+    )
+    assert row["name_by_user"] is None
+
+
+async def test_device_update_errors() -> None:
+    fake = FakeHA()
+    plug = _device(fake, None)["id"]
+    exc = await error(fake, "config/device_registry/update", device_id="x", area_id="den")
+    assert (exc.code, str(exc)) == (
+        "not_found",
+        "config/device_registry/update failed: Device not found",
+    )
+    for kwargs in (
+        {"device_id": plug, "labels": None},
+        {"device_id": plug, "disabled_by": "integration"},
+        {"device_id": plug, "area_id": 3},
+        {"device_id": plug, "name": "x"},
+        {"area_id": "den"},
+    ):
+        exc = await error(fake, "config/device_registry/update", **kwargs)
+        assert exc.code == "invalid_format", kwargs
+
+
+async def test_device_equal_update_changes_nothing() -> None:
+    fake = FakeHA()
+    relay = next(r for r in fake.registries["devices"] if r.get("model") == "Relay R2")
+    stamp = relay["modified_at"]
+    row = await send(
+        fake,
+        "config/device_registry/update",
+        device_id=relay["id"],
+        labels=["critical_load", "solar"],
+        name_by_user="Pump relay",
+    )
+    assert row["modified_at"] == stamp
+    assert row["labels"] == ["solar", "critical_load"]
+
+
+async def test_device_disable_cascades_to_children() -> None:
+    fake = FakeHA()
+    door = _device(fake, "sensor-0042")
+    battery = _device(fake, "sensor-0042-battery")
+    row = await send(
+        fake, "config/device_registry/update", device_id=battery["id"], disabled_by=None
+    )
+    assert row["disabled_by"] == "device"  # its parent is disabled
+    await send(fake, "config/device_registry/update", device_id=door["id"], disabled_by=None)
+    assert (door["disabled_by"], battery["disabled_by"]) == (None, None)
+    await send(fake, "config/device_registry/update", device_id=door["id"], disabled_by="user")
+    assert (door["disabled_by"], battery["disabled_by"]) == ("user", "device")
+
+
+async def test_device_enable_ignored_while_config_entry_disabled() -> None:
+    fake = FakeHA()
+    cloud = _device(fake, "acct-91")
+    row = await send(
+        fake, "config/device_registry/update", device_id=cloud["id"], disabled_by=None
+    )
+    assert row["disabled_by"] == "config_entry"
+    row = await send(
+        fake, "config/device_registry/update", device_id=cloud["id"], disabled_by="user"
+    )
+    assert row["disabled_by"] == "user"

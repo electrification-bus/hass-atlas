@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from hass_atlas.atlas import DOMAINS, FORMAT, MANIFEST
-from hass_atlas.atlas.domains.base import Domain, Row
+from hass_atlas.atlas.domains.base import Domain, FlowList, Row
 
 
 class AtlasError(Exception):
@@ -42,9 +42,22 @@ def _domain(name: str) -> Domain:
     raise KeyError(name)
 
 
+class _Dumper(yaml.SafeDumper):
+    pass
+
+
+_Dumper.add_representer(
+    FlowList,
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True
+    ),
+)
+
+
 def _safe_dump(data: Any) -> str:
-    return yaml.safe_dump(
+    return yaml.dump(
         data,
+        Dumper=_Dumper,
         sort_keys=False,
         default_flow_style=False,
         allow_unicode=True,
@@ -238,11 +251,12 @@ def load_atlas(path: Path) -> Atlas:
         for index, item in enumerate(items):
             if not isinstance(item, dict):
                 raise AtlasFormatError(doc_path, "expected a mapping", index)
-            if not isinstance(item.get(key), str):
-                raise AtlasFormatError(doc_path, f"{key} is missing or not a string", index)
-            if item[key] in seen:
+            if error := domain.key_error(item):
+                raise AtlasFormatError(doc_path, error, index)
+            ident = domain.item_key(item)
+            if ident in seen:
                 raise AtlasFormatError(doc_path, f"duplicate {key} {item[key]!r}", index)
-            seen.add(item[key])
+            seen.add(ident)
             unknown_fields = sorted(set(item) - set(domain.field_order))
             if unknown_fields:
                 raise AtlasFormatError(doc_path, f"unknown fields {unknown_fields}", index)

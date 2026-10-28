@@ -14,10 +14,11 @@ class Client(Protocol):
 
 @dataclass
 class ExportContext:
-    """What an export can see beyond its own rows."""
+    """What an export can see beyond its own rows, and where it leaves warnings."""
 
     ha_version: str | None = None
     rows: dict[str, list[Row]] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
 class Domain(Protocol):
@@ -37,6 +38,14 @@ class Domain(Protocol):
 
     def export(self, rows: list[Row], ctx: ExportContext) -> list[Row]: ...
 
+    def key_error(self, item: Row) -> str | None: ...
+
+    def item_key(self, item: Row) -> str: ...
+
+
+class FlowList(list[Any]):
+    """A list that YAML output writes on one line, such as an identifier pair."""
+
 
 def has_value(value: Any) -> bool:
     return value is not None and value != "" and value != [] and value != {}
@@ -51,7 +60,9 @@ class RegistryDomain:
     ``set_fields`` are stored as sets in HA, so their order is arbitrary and
     they are sorted. With ``registry_order`` the items keep the order HA lists
     them in (the user's order); otherwise they are sorted by key. ``refs``
-    maps a field to the domain whose ids it holds.
+    maps a field to the domain whose ids it holds. ``live_key`` names the id
+    field of live rows and ``update_key`` the id argument of the update
+    command, when they differ from the file's key.
     """
 
     name: str
@@ -61,6 +72,8 @@ class RegistryDomain:
     registry_order: bool = False
     depends_on: tuple[str, ...] = ()
     refs: tuple[tuple[str, str], ...] = ()
+    live_key_field: str | None = None
+    update_key_field: str | None = None
 
     @property
     def filename(self) -> str:
@@ -69,6 +82,33 @@ class RegistryDomain:
     @property
     def key(self) -> str:
         return self.field_order[0]
+
+    @property
+    def live_key(self) -> str:
+        return self.live_key_field or self.key
+
+    @property
+    def update_key(self) -> str:
+        return self.update_key_field or self.key
+
+    @property
+    def plan_fields(self) -> tuple[str, ...]:
+        """The fields plan lines show, in order, as the plan holds them."""
+        return self.field_order
+
+    def key_error(self, item: Row) -> str | None:
+        """Why *item* has no usable key, or None."""
+        if not isinstance(item.get(self.key), str):
+            return f"{self.key} is missing or not a string"
+        return None
+
+    def item_key(self, item: Row) -> str:
+        """The key that identifies *item* within its file."""
+        return str(item[self.key])
+
+    def group(self, key: str) -> str:
+        """What unmatched items are counted by in plan lines."""
+        return self.kind
 
     @property
     def kind(self) -> str:

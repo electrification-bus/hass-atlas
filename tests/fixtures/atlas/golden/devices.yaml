@@ -1,0 +1,37 @@
+- match:
+    connections:
+    - [mac, '02:00:5e:10:00:01']
+  area_id: den
+- match:
+    identifiers:
+    - [acme_cloud, acct-91]
+  name_by_user: Weather bridge
+- match:
+    identifiers:
+    - [acme_hub, hub-7f3a]
+    manufacturer: Acme
+    model: Relay R2
+  name_by_user: Pump relay
+  labels:
+  - critical_load
+  - solar
+- match:
+    identifiers:
+    - [acme_hub, hub-7f3a]
+    manufacturer: Acme
+    model: Relay R4
+  area_id: kitchen
+- match:
+    identifiers:
+    - [acme_hub, sensor-0042]
+  disabled: true
+- match:
+    identifiers:
+    - [acme_hub, sensor-0042-battery]
+  name_by_user: Door battery
+- match:
+    identifiers:
+    - [zwave_js, 4011223344-12]
+    - [zwave_js, '4011223344-12-271:2:1']
+  name_by_user: Garage multisensor
+  area_id: garage_2

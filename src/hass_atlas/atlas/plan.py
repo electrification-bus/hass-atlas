@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -20,6 +21,7 @@ SYMBOLS = {
     "update": "~",
     "unchanged": "=",
     "refused": "!",
+    "unmatched": "?",
     "conflict": "!",
     "skipped": "!",
     "failed": "x",
@@ -53,7 +55,8 @@ class Change:
     ``desired`` holds the item's fields for this stage as the file has them;
     ``after`` the subset to write and ``before`` their live values when the
     plan was made. References in both stay in the file's terms until they are
-    written, so a live id learned in an earlier stage is used.
+    written, so a live id learned in an earlier stage is used. ``label`` is
+    shown in place of ``key`` when the key is not readable.
     """
 
     stage: int
@@ -64,6 +67,7 @@ class Change:
     desired: Row = field(default_factory=dict)
     after: Row = field(default_factory=dict)
     before: Row = field(default_factory=dict)
+    label: str | None = None
     temp_name: str | None = None
     by_name: bool = False
     reason: str | None = None
@@ -113,7 +117,10 @@ class Plan:
 
     @property
     def refused(self) -> bool:
-        return any(c.state in ("refused", "conflict", "skipped") for c in self.changes)
+        """Whether items were refused, skipped, in conflict or unmatched."""
+        return any(
+            c.state in ("refused", "conflict", "skipped", "unmatched") for c in self.changes
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -141,7 +148,7 @@ def fmt(value: Any) -> str:
 
 def _field(name: str, value: Any) -> str:
     """A field's value; names are always quoted, so they never pass for an id."""
-    if name == "name" and isinstance(value, str):
+    if name in ("name", "name_by_user") and isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
     return fmt(value)
 
@@ -150,11 +157,8 @@ def _line(symbol: str, kind: str, key: str, text: str) -> str:
     return f"  {symbol} {kind:<7} {key:<17} {text}".rstrip()
 
 
-_INDENT = " " * len(_line("+", "", "", "x").rstrip("x"))
-
-
 def _ordered(domain: RegistryDomain, values: Row) -> list[tuple[str, Any]]:
-    return [(name, values[name]) for name in domain.field_order if name in values]
+    return [(name, values[name]) for name in domain.plan_fields if name in values]
 
 
 def _text(change: Change, domain: RegistryDomain, ids: IdMap) -> list[str]:
@@ -163,6 +167,8 @@ def _text(change: Change, domain: RegistryDomain, ids: IdMap) -> list[str]:
     state = change.state
     if state in ("refused", *ENDED):
         lines = [f"{state}: {change.reason}"]
+    elif state == "unmatched":
+        lines = ["unmatched: not in HA"]
     elif change.op == "create":
         fields = [f"{k}={_field(k, v)}" for k, v in _ordered(domain, after) if k != "name"]
         if change.temp_name is not None:
@@ -190,8 +196,9 @@ def _text(change: Change, domain: RegistryDomain, ids: IdMap) -> list[str]:
 def change_lines(change: Change, ids: IdMap) -> list[str]:
     domain = registry(change.domain)
     text = _text(change, domain, ids)
-    first = _line(SYMBOLS[change.state], domain.kind, change.key, text[0])
-    return [first, *(_INDENT + line for line in text[1:])]
+    first = _line(SYMBOLS[change.state], domain.kind, change.label or change.key, text[0])
+    indent = " " * (len(first) - len(text[0]))
+    return [first, *(indent + line for line in text[1:])]
 
 
 def section_header(section: Section) -> str:
@@ -207,15 +214,23 @@ def render(plan: Plan, verbose: bool = False) -> list[str]:
     lines = [f"Plan for {plan.url}  ({version}atlas format {FORMAT})"]
     for section in plan.sections:
         lines.append(section_header(section))
+        domain = registry(section.domain)
         quiet = 0
+        unmatched: Counter[str] = Counter()
         for change in section.changes:
             if change.op == "unchanged" and not verbose and not change.by_name:
                 quiet += 1
                 continue
+            if change.op == "unmatched" and not verbose:
+                unmatched[domain.group(change.key)] += 1
+                continue
             lines.extend(change_lines(change, plan.ids))
+        if unmatched:
+            groups = ", ".join(f"{group} {n}" for group, n in sorted(unmatched.items()))
+            total = f"{unmatched.total()} unmatched:"
+            lines.append(_line("?", domain.kind, total, f"{groups}  (-v lists them)"))
         if quiet:
-            kind = registry(section.domain).kind
-            lines.append(_line("=", kind, f"{quiet} unchanged", ""))
+            lines.append(_line("=", domain.kind, f"{quiet} unchanged", ""))
     return lines
 
 
@@ -225,10 +240,17 @@ def summary(plan: Plan, done: bool = False) -> str:
         created = sum(1 for c in plan.changes if c.op == "create" and c.status == "done")
         updated = sum(1 for c in plan.changes if c.op == "update" and c.status == "done")
         parts = [f"{created} created", f"{updated} updated"]
-        extra: tuple[str, ...] = ("refused", "conflict", "skipped", "failed", "unknown")
+        extra: tuple[str, ...] = (
+            "refused",
+            "conflict",
+            "skipped",
+            "failed",
+            "unknown",
+            "unmatched",
+        )
     else:
         parts = [f"{plan.count('create')} create", f"{plan.count('update')} update"]
-        extra = ("refused", "conflict")
+        extra = ("refused", "conflict", "unmatched")
     parts += [f"{plan.count(state)} {state}" for state in extra if plan.count(state)]
     parts.append(f"{plan.count('unchanged')} unchanged")
     return "Summary: " + ", ".join(parts) + "."
