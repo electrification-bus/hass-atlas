@@ -4,6 +4,14 @@ All notable changes to `hass-atlas` are recorded here. Format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- **Proxy support.** The global `--proxy` option (or `HASS_ATLAS_PROXY`) connects to Home Assistant through an HTTP, HTTPS or SOCKS proxy, such as `socks5h://localhost:1080`. Without it, the proxy configured in the environment is used, including `ALL_PROXY`. SOCKS needs the new `socks` extra (`pip install '.[socks]'` or `poetry install -E socks` in a checkout). With `--proxy`, `--url` is required, since mDNS discovery cannot run through a proxy.
+
+### Changed
+
+- Requires websockets 16.0 or later, the first release with the `websockets.proxy` module.
+
 ## [0.3.0] - 2026-10-14
 
 ### Added

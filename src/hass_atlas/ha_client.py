@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
+import urllib.parse
+import urllib.request
 from types import TracebackType
 from typing import Any
 
 import websockets
 from websockets import ClientConnection
+from websockets.exceptions import InvalidProxy, ProxyError
+from websockets.proxy import get_proxy
+from websockets.uri import parse_uri
 
 
 class HAClientError(Exception):
@@ -23,6 +29,32 @@ class HAClientError(Exception):
         self.code = code
 
 
+def resolve_proxy(ws_url: str, proxy: str | None = None) -> str | None:
+    """Return the proxy to reach *ws_url* through, or None to connect directly.
+
+    An explicit *proxy* wins. Otherwise the environment and operating system
+    configuration are read the way websockets reads them, and then
+    ``ALL_PROXY``, which websockets ignores; ``NO_PROXY`` applies to both.
+    """
+    if proxy:
+        return proxy
+    uri = parse_uri(ws_url)
+    found = get_proxy(uri)
+    if found is None and not urllib.request.proxy_bypass(f"{uri.host}:{uri.port}"):
+        found = urllib.request.getproxies().get("all")
+    return found
+
+
+def redact_proxy(proxy: str) -> str:
+    """Return *proxy* with any password removed, for messages."""
+    parsed = urllib.parse.urlsplit(proxy)
+    userinfo, sep, hostport = parsed.netloc.rpartition("@")
+    if not sep or ":" not in userinfo:
+        return proxy
+    user = userinfo.split(":", 1)[0]
+    return urllib.parse.urlunsplit(parsed._replace(netloc=f"{user}:***@{hostport}"))
+
+
 class HAClient:
     """Async context manager for the HA WebSocket API.
 
@@ -32,9 +64,10 @@ class HAClient:
             devices = await client.send_command("config/device_registry/list")
     """
 
-    def __init__(self, url: str, token: str) -> None:
+    def __init__(self, url: str, token: str, proxy: str | None = None) -> None:
         self._url = url.rstrip("/")
         self._token = token
+        self._proxy = proxy
         self._ws: ClientConnection | None = None
         self._msg_id = 0
         # Home Assistant's version, from the auth_ok message.
@@ -46,17 +79,33 @@ class HAClient:
         return f"{base}/api/websocket"
 
     async def __aenter__(self) -> HAClient:
+        proxy = resolve_proxy(self._ws_url, self._proxy)
+        via = f" through proxy {redact_proxy(proxy)}" if proxy else ""
+        if (
+            proxy
+            and urllib.parse.urlsplit(proxy).scheme.startswith("socks")
+            and importlib.util.find_spec("python_socks") is None
+        ):
+            raise HAClientError(
+                f"SOCKS proxy {redact_proxy(proxy)} needs python-socks. In the hass-atlas "
+                "checkout, run: pip install '.[socks]' (or poetry install -E socks)"
+            )
         try:
             self._ws = await asyncio.wait_for(
-                websockets.connect(self._ws_url, max_size=16 * 1024 * 1024),
+                websockets.connect(self._ws_url, max_size=16 * 1024 * 1024, proxy=proxy),
                 timeout=10.0,
             )
         except TimeoutError:
             raise HAClientError(
-                f"Connection timed out: {self._url} — is Home Assistant running?"
+                f"Connection timed out: {self._url}{via}. Is Home Assistant running?"
             ) from None
+        except InvalidProxy as exc:
+            raise HAClientError(f"Invalid proxy {redact_proxy(exc.proxy)}: {exc.msg}") from None
+        except ProxyError as exc:
+            cause = f": {exc.__cause__}" if exc.__cause__ else ""
+            raise HAClientError(f"Cannot connect to {self._url}{via}: {exc}{cause}") from None
         except OSError as exc:
-            raise HAClientError(f"Cannot connect to {self._url}: {exc}") from None
+            raise HAClientError(f"Cannot connect to {self._url}{via}: {exc}") from None
 
         try:
             # HA sends auth_required on connect

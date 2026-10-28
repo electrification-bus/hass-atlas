@@ -41,16 +41,28 @@ class _ErrorHandlingGroup(click.Group):
     help="Long-lived access token (or HASS_API_TOKEN env var)",
 )
 @click.option(
+    "--proxy",
+    envvar="HASS_ATLAS_PROXY",
+    default=None,
+    help=(
+        "Proxy for the WebSocket connection, e.g. socks5h://localhost:1080 or "
+        "http://proxy:8080 (or HASS_ATLAS_PROXY env var). Defaults to the proxy "
+        "websockets finds in the environment or OS settings, then ALL_PROXY."
+    ),
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     default=False,
     help="Show planned changes without applying them",
 )
 @click.pass_context
-def cli(ctx: click.Context, url: str | None, token: str, dry_run: bool) -> None:
+def cli(
+    ctx: click.Context, url: str | None, token: str, proxy: str | None, dry_run: bool
+) -> None:
     """Home Assistant energy & area configuration CLI."""
     ctx.ensure_object(dict)
-    ctx.obj = Context(url=url, token=token, dry_run=dry_run)
+    ctx.obj = Context(url=url, token=token, dry_run=dry_run, proxy=proxy)
 
 
 # Register subcommands (imported after cli is defined to avoid circular deps)

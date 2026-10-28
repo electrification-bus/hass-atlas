@@ -381,6 +381,24 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-socks"
+version = "3.2.0"
+description = "Proxy (SOCKS4, SOCKS5, HTTP CONNECT) client for Python"
+optional = true
+python-versions = ">=3.9.0"
+groups = ["main"]
+markers = "extra == \"socks\""
+files = [
+    {file = "python_socks-3.2.0-py3-none-any.whl", hash = "sha256:4cb349f43043eeeb12d10919cb992a7ce8671c2c5a836a47cb0c29d8def11d24"},
+    {file = "python_socks-3.2.0.tar.gz", hash = "sha256:b1a0e372f33182f657d935c3171fa03623b6a65734323746d0de9f296bc537ea"},
+]
+
+[package.extras]
+anyio = ["anyio (>=4.12.1,<5.0.0)"]
+asyncio = ["async-timeout (>=5.0.1) ; python_version < \"3.11\""]
+trio = ["trio (>=0.30.0)"]
+
+[[package]]
 name = "rich"
 version = "14.3.3"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -595,7 +613,10 @@ files = [
 [package.dependencies]
 ifaddr = ">=0.1.7"
 
+[extras]
+socks = ["python-socks"]
+
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "f9d834a3b1182456aeb5eb635247e37e739af2a9e90cf92e740794b0f6d335b0"
+content-hash = "b91d9f80a91e17d1f1fbd9c475e4b0b29535d7ed3f2cae62189d189f6a39652f"
